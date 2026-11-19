@@ -8,6 +8,9 @@
          U _ZN3bmw9PluginApp10addHandlerEjjRKNS_8DelegateIbRKNS_6ParcelEvvvEE
          U _ZN3bmw9PluginApp10onFinalizeEv
          U _ZN3bmw9PluginApp12triggerEventEj
+         U _ZN3bmw9PluginApp19cdsGetPropertyAsyncERNS_11BasicStringIcEERKNS_8DelegateIbRKNS1_ItEEvvvEE
+         U _ZN3bmw9PluginApp33cdsAddPropertyChangedEventHandlerERNS_11BasicStringIcEEjRKNS_8DelegateIbRKNS1_ItEEvvvEE
+         U _ZN3bmw9PluginApp36cdsRemovePropertyChangedEventHandlerERNS_11BasicStringIcEE
          U _ZN3bmw9PluginApp4postEPNS_8RunnableEj
          U _ZN3bmw9PluginApp6onInitEv
          U _ZN3bmw9PluginAppC1ERNS_11IDispatcherENS_11BasicStringIcEEjjNS_20RHMIInterfaceVersionERKNS_6BundleES8_
@@ -59,6 +62,7 @@
          U sigfillset
          U snprintf
          U spawn
+         U strcmp
          U strlen
          U strncmp
          U strrchr
