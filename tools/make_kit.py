@@ -7,7 +7,7 @@
 3. Copies the kit to the exchange folder NBT_KIT_DIR as the zip plus the
    unzipped folder, refusing to replace either, and checks every file there
    against SHA256SUMS.txt. Without NBT_KIT_DIR the kit is not copied.
-4. Prints the facts for the kit's row in docs/install-flow.md.
+4. Prints the kit's commit and the SHA-256 of the kit, release and shim.
 
 Environment: QNX_ENV (the QNX 6.5 environment script), QNX_SCREEN_LIBDIR,
 RHMI_LIBDIR, NBT_KIT_DIR (optional).
@@ -38,10 +38,6 @@ def sha256(path):
         for block in iter(lambda: source.read(1 << 20), b""):
             digest.update(block)
     return digest.hexdigest()
-
-
-def short(digest):
-    return f"`{digest[:8]}…{digest[-4:]}`"
 
 
 def clean_tree():
@@ -118,16 +114,10 @@ def main():
     release = ROOT / "build/kit-release/manager.nbtr"
     commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], check=True,
                             capture_output=True, text=True).stdout.strip()
-    sequence = version.removeprefix("dev")
     print(f"\nKit {version} from {commit}, every checksum verified; {where}")
     print(f"  kit       {archive.name}  {sha256(archive)}")
     print(f"  release   {sha256(release) if release.is_file() else 'not found'}")
     print(f"  shim      {sha256(ROOT / 'build/libnbt-capture.so')}")
-    print("Row for docs/install-flow.md (fill in what changed):")
-    print(f"| {version} | … (`{commit}`); active shim "
-          f"{short(sha256(ROOT / 'build/libnbt-capture.so'))}; APK versionCode {sequence}; "
-          f"release SHA-256 {short(sha256(release)) if release.is_file() else '?'}; "
-          f"kit SHA-256 {short(sha256(archive))} |")
 
 
 if __name__ == "__main__":
