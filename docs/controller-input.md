@@ -65,12 +65,10 @@ formats remain NBT-AAD's observations.
 CCS35up controllers (default instance `0x03`) send rotary/push/tilt state in
 function `0xC46` and hard keys in `0xC47`/`0xC4F`. In `0xC46`, byte 4 is the
 tilt as a 12-step clock starting at 1: 0 centred, 1 up, 4 right, 7 down, 10
-left, diagonals 2, 5, 8, 11, held until it returns to 0 (car-verified by
-NBT-AAD, `milestone-7/tests/fixtures/controls_2026-10-23_push.txt`; the HMI's
-`rcs::rotaryDeflectionToMost` in `libhmiremoting.so` produces only these
-values). The manager's ranges (12-2 up, 3-5 right, 6-8 down, 9-11 left) take
-them as such; Doom up to 1.0.6 read 12/3/6/9 and turned every tilt into a
-diagonal. Older CCS controllers
+left, diagonals 2, 5, 8, 11, held until it returns to 0 (as recorded from a
+car's controller; the HMI's `rcs::rotaryDeflectionToMost` in
+`libhmiremoting.so` produces only these values). The manager's ranges (12-2 up,
+3-5 right, 6-8 down, 9-11 left) take them as such. Older CCS controllers
 (default instance `0x01`) send rotation in `0xC10` and buttons in `0xC20`.
 A rotary jump of more than 16 detents is treated as a counter re-base. Losing
 the link forgets positions and held keys.
@@ -115,23 +113,20 @@ on how iDrive holds its native CarPlay state; no NBT-AAD code was copied.
   has a selectable component. Focus event 52 opens 15, event 50 enters 14 and
   event 51 returns to the list holding the entry (native state 20, its
   `insertStateID`).
-- iDrive takes event 50 only while 15 is on top. In dev28 the plugin fired it
-  from the Media list and iDrive ignored all three tries: no `blank state focus`
-  line followed, and a knob push meant for the manager also selected the
-  manager's entry underneath. NBT-AAD fires its blank-state event only from its
-  own menu, and its one-press entry first opens that top-level menu (event 53).
-  So the entry fires event 52, and once 15 has focus the plugin fires event 50
-  at once.
+- iDrive takes event 50 only while 15 is on top: fired from another list it
+  is ignored, and a knob push meant for the manager then also selects the
+  manager's entry underneath. NBT-AAD likewise fires its blank-state event only
+  from its own menu. So the entry fires event 52, and once 15 has focus the
+  plugin fires event 50 at once.
 - The plugin registers focus handlers (type 1, one bool) for both states and
   polls every 250 ms on its own thread with a posted `bmw::Runnable`. The
   decisions are in `src/gui/hmi_hold.cpp` (host tested in
   `tests/test_hmi_hold.cpp`).
-- Focus events go out from a sender thread of the plugin's own (dev87):
-  `triggerEvent` waits for iDrive's main thread with no timeout, and on
-  2026-11-17 one never returned and iDrive froze
-  ([car-issues-2026-11-17.md](car-issues-2026-11-17.md)). An event not
-  answered within 3 s drops the hold, sends the GUI aside, and logs a
-  snapshot of iDrive's threads (again at 10 s).
+- Focus events go out from a sender thread of the plugin's own:
+  `triggerEvent` waits for iDrive's main thread with no timeout, so an event
+  that never returns must not block iDrive's thread. An event not answered
+  within 3 s drops the hold, sends the GUI aside, and logs a snapshot of
+  iDrive's threads (again at 10 s).
 - Selecting the entry starts the launcher and fires event 52. The GUI counts as
   running while `manager/gui.lock` is write-locked and its liveness file is
   fresh.
@@ -165,11 +160,9 @@ on how iDrive holds its native CarPlay state; no NBT-AAD code was copied.
   When any surface but ours takes the layer (Android Auto), the GUI
   exits and the plugin returns iDrive to its list.
 - BACK pops iDrive from 14 to 15; the manager uses BACK itself, so the plugin
-  returns iDrive to 14. Since dev89 it does so from the parent state's focus
-  callback, at once; before, at the next poll, up to 250 ms later, and a
-  second BACK or a knob turn in that window took iDrive to its list (the
-  manager log of 2026-11-17: iDrive takes a BACK 0.1 to 0.5 s after the
-  press).
+  returns iDrive to 14, from the parent state's focus callback, at once:
+  iDrive takes a BACK 0.1 to 0.5 s after the press, and waiting for the next
+  poll would let a second BACK or a knob turn take iDrive to its list.
 - When iDrive takes the screen, the GUI writes the last 48 controller
   messages its MOST client received, raw and oldest first, to the debug log
   (`controller messages before iDrive took the screen`, then lines like
@@ -179,9 +172,8 @@ on how iDrive holds its native CarPlay state; no NBT-AAD code was copied.
   `DSIClientDataResponse` preload shim (`/var/opt/nbt-manager/state/manager/libnbt-capture.so`,
   loaded through iDrive's environment file, which `NBTRLS2` setup names in
   `starter.cfg` and the manager arms and keeps by itself; see
-  [input-capture.md](input-capture.md)). Since kit dev111 the car build is
-  **active** (`-DNBT_CAPTURE_OBSERVER=0`, the user's decision of 2026-11-18
-  after dev107-dev109 showed OPTION still reaching iDrive in Doom): while the
+  [input-capture.md](input-capture.md)). The car build is **active**
+  (`-DNBT_CAPTURE_OBSERVER=0`): while the
   manager or an application is on the panel, iDrive gets none of the knob
   (0xC46), the controller keys (0xC47/0xC4F), the older controller
   (0xC10/0xC20) or the favourite keys (FBlock 0x15, 0xC02), presses and
@@ -189,16 +181,14 @@ on how iDrive holds its native CarPlay state; no NBT-AAD code was copied.
   iDrive: AudioMaster 0x20, the centre stack's volume button 0xC01 and the
   rear volume functions are never inspected. Capture is off whenever iDrive
   takes the screen (`aside`: warnings, cameras), within 1.5 s of a hung or
-  dead GUI, and after the 5 s BACK escape. Known effects, not yet seen in the
-  car: iDrive's first knob turn after the manager closes moves by the detents
+  dead GUI, and after the 5 s BACK escape. Side effects: iDrive's first knob turn after the manager closes moves by the detents
   turned inside it (its rotary counter missed them), and a key pressed before
   the manager showed and released inside it stays pressed in iDrive until
   pressed again (a favourite key held that way could store a favourite).
   The manager and its applications are unaffected: they read the controller
   through their own MOST clients, not through iDrive.
-  Stopping HmiMain3D is not an option: on 2026-11-17 a stuck HMI made other
-  processes miss their heartbeats within about 20 s and the watchdog reset
-  iDrive.
+  Stopping HmiMain3D is not an option: a stuck HMI makes other processes miss
+  their heartbeats within about 20 s and the watchdog resets iDrive.
 - Any other exit from 14 is iDrive's: MENU, NAV, MEDIA and the other hard keys,
   Check Control warnings, camera views. After 500 ms the plugin writes `aside`
   to `/dev/shmem/nbt-manager-hmi` and stops holding. The GUI exits and gives
@@ -206,9 +196,8 @@ on how iDrive holds its native CarPlay state; no NBT-AAD code was copied.
   ignores controller input and keeps the worker running. Selecting the entry
   again holds again and then writes `show`. Not re-holding here is deliberate:
   NBT-AAD found that doing so hid warnings.
-- An application the GUI showed is paused there (dev88; until dev87 it kept
-  running in the background, reading the controller and playing sound): the
-  GUI sends its host `SIGUSR2`, and the host stops the application's process
+- An application the GUI showed is paused there, so it does not keep reading
+  the controller or playing sound behind iDrive: the GUI sends its host `SIGUSR2`, and the host stops the application's process
   group (`SIGSTOP`), drops MOST messages and gamepad input for it instead of
   queueing them, and holds its heartbeat check. Selecting the application in
   App Manager again continues it (the show request) with a fresh heartbeat
@@ -229,33 +218,29 @@ which NBT-AAD hit with its own state file. Both `/dev/shmem/nbt-manager-hmi` and
 creation, owner (`st_uid == geteuid()`) and `lstat`/`fstat` inode verification
 so foreign or symlinked shared-memory entries are rejected (`src/gui/hmi_hold.cpp`).
 
-## Updated camera evidence
+## Camera views
 
-AAD `0a314d4` reports button-opened camera views with neither reverse nor a
-PDC change, and a `GFXIDENTIFIER_INVALID` screen that its generic watcher
-skipped. Re-holding can cover the camera. Contexts 1023 (F-series
-NBTevo_Y24073J) and 692 (Supra Top View) are source-specific findings; see
-`app-bridge.md`. Include the camera button and closing/return behavior in the
-car checks. Our manager's focus handling remains unvalidated on hardware.
+Camera views can open from the camera button with neither reverse nor a PDC
+change, and as a `GFXIDENTIFIER_INVALID` screen. Re-holding can cover the
+camera, which is why the plugin never re-holds after iDrive takes the screen.
+Contexts 1023 (F-series NBTevo_Y24073J) and 692 (Supra Top View) are camera
+contexts too; see [app-bridge.md](app-bridge.md). The bench checks include the
+camera button and returning from it.
 
-## Known gaps
+## Limits
 
-- The focus hold has not run on a head unit. The state and event numbering, the
-  focus handler type, `triggerEvent`, `post` and the `Runnable` layout are
-  taken from NBT-AAD and the framework's exported symbols. Whether two
-  PluginApps can each hold a state is unverified.
-- Hard keys acted in iDrive until dev109 (MENU also opened iDrive's main
-  menu, OPTION its options menu). The active capture shim (dev111) holds them
-  back while the manager or an application is shown; NAV, MEDIA, COM and MAP
-  then do nothing in the manager, and MENU closes it with iDrive returned to
-  the entry's list (event 51).
+- The state and event numbering, the focus handler type, `triggerEvent`, `post`
+  and the `Runnable` layout follow NBT-AAD and the framework's exported symbols.
+- The capture shim holds the hard keys back while the manager or an application
+  is shown; NAV, MEDIA, COM and MAP then do nothing in the manager, and MENU
+  closes it with iDrive returned to the entry's list (event 51).
 - Unregistration is off by default. With `release=1` the GUI asks the
   library thread to send request `0x5` (`unregisterDevCtrls`) at its next
   callback when it exits (also on SIGTERM), then stops delivering input, and
   waits at most 300 ms. The payload mirrors request `0x1` (client id, count,
   keys): the library declares the same arguments for both
-  (`head-unit-interfaces.md`). NBT-AAD lists the request but never sends it,
-  so whether the server accepts it is still a bench check. Requests are only ever sent
+  (`head-unit-interfaces.md`); whether the server accepts it is a bench check.
+  Requests are only ever sent
   from the library's thread, so a release needs some MOST traffic after the
   exit request; without it the log shows `controller release timed out` and
   registration is left to end with the process.
@@ -293,7 +278,7 @@ on: it records MOST registration, every decoded input and the focus hold.
    installation does not close the GUI.
 
 
-## Phone opening (dev41)
+## Phone opening
 
 The one-second plugin poll reads the signed door's fixed wake marker and, only
 after the stationary/home/display gate passes, follows the same `HmiHold::entry`
@@ -305,7 +290,7 @@ The plugin subscribes to driving.speedActual and hmi.graphicalContext and also
 requests them each second; only callbacks update their receipt timestamps.
 Speed changes enter the optional debug log for ordinary-drive observation.
 The display probe accepts only surface 256 alone; Android Auto surfaces or
-unavailable output are busy. Automatic opening initially permits only the
-observed ID6 home context (3 / LT_Table_ID6L_Pad_Title); navigation/camera
-coverage and actual CDS freshness need car evidence. See phone-access.md and
-the authoritative signed/private commands in ../PROTOCOL.md.
+unavailable output are busy. Automatic opening permits only the ID6 home
+context (3, `LT_Table_ID6L_Pad_Title`) and is off by default. See
+[phone-access.md](phone-access.md) and the signed commands in
+[PROTOCOL.md](../PROTOCOL.md).

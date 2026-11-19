@@ -16,13 +16,28 @@ application can drop its plugin. It records facts about NBT-AAD's
 behaviour from its published README and sources; NBT-AAD is PolyForm
 Noncommercial and no code is taken from it.
 
-Versioning, bring-to-front, status lines and live settings (order-of-work steps 1-4) are implemented and
-host-tested: signed requirements, dependency checks, durable records, launch
-grants, `SIGUSR1` show requests and live menu labels through detached hosts.
-Bridge **1.1** adds `most`: MOST messages through the application's host,
-limited to a signed function list ([most-bridge.md](most-bridge.md)), host-tested
-only. Bridge **1.2** adds host-managed `sub` rules and reserves functions 0x000-0x002 for the host. The provider is **1.3 with `show,status,live-settings,most,gamepad`**; components 4-8 below remain
-planned. Every part that runs inside iDrive needs the car to validate. The read-only inventory procedure is in `docs/car-inventory.md`.
+The current provider is **bridge 1.4 with
+`show,status,live-settings,most,gamepad,controller`**. Applications on the SDK
+(`NBTFoundry/sdk`) get the application side of every implemented capability.
+
+| Capability | Since | Status | Section |
+| --- | --- | --- | --- |
+| `show` (bring to front) | 1.0 | Implemented | [1](#1-bring-to-front-capability-show) |
+| `status` (menu label) | 1.0 | Implemented | [2](#2-status-line-capability-status) |
+| `live-settings` | 1.0 | Implemented | [3](#3-settings-for-larger-applications-live-settings) |
+| `most` (MOST messages under a signed policy) | 1.1, `sub` rules 1.2 | Implemented | [most-bridge.md](most-bridge.md) |
+| `gamepad` (wired USB gamepad) | 1.3 | Implemented | [gamepad-bridge.md](gamepad-bridge.md) |
+| `controller` (decoded iDrive controller) | 1.4 | Implemented | [8](#8-controller-input-capability-controller-bridge-14) |
+| `car-data`, `car-data-raw` | — | Planned | [4](#4-car-data-capabilities-car-data-car-data-raw) |
+| `hold` (focus hold asked by the application) | — | Planned | [5](#5-focus-hold-for-applications-capability-hold) |
+| Autostart | — | Worker autostart and boot guard implemented; application autostart planned | [6](#6-start-automatically) |
+| Favourite entry | — | Planned | [7](#7-favourite-entry) |
+
+Implemented capabilities are host-tested (signed requirements, dependency checks,
+durable records, launch grants, `SIGUSR1` show requests, live menu labels through
+detached hosts) and cross-built for QNX; the parts that run inside iDrive are
+checked on the car with [bench-checklist.md](bench-checklist.md). The read-only
+inventory procedure is in [car-inventory.md](car-inventory.md).
 
 ## What NBT-AAD's plugin does today
 
@@ -148,8 +163,8 @@ health checks receive only `NBT_BRIDGE=<served major.minor>` and
 the HMI's environment an application gets only NBT-AAD's `PATH` and, when set,
 `LD_LIBRARY_PATH`, `LD_PRELOAD`, `GRAPHICS_ROOT` and `TZ`
 (`nbt/process/hmi_environment.hpp`): without them the car's libraries and
-tools (LayerManagerControl, the DSI client) do not load, which kept dev32's
-test app off the panel. An application's stdout and stderr go to its own
+tools (LayerManagerControl, the DSI client) do not load and the application
+cannot reach the panel. An application's stdout and stderr go to its own
 log, `state/<app>/output.log`, always (PROTOCOL.md, "Logs"). Today `show` and `status` are implemented
 without car-data dependencies; using either is gated by the child's readiness.
 When the status channel cannot be created (an unsafe leftover, or
@@ -337,9 +352,6 @@ All manager mutations pass `src/storage/`. Settings writes serialize against app
 startup/updates; the same worker rejects writes while holding its update lock
 (POSIX locks belong to a process). Schema publication retains that update lock.
 
-Host verification is recorded in `HANDOVER.md`; QNX snapshot/directory behavior,
-actual display changes and target durability still require hardware validation.
-
 ### 4. Car data (capabilities `car-data`, `car-data-raw`)
 
 Two levels:
@@ -400,51 +412,33 @@ Known sources, with where the fact comes from:
 Parsers and writers are host-testable. The subscription calls are the same
 framework calls NBT-AAD uses; they need the car.
 
-### Updated AAD evidence (2026-11-10)
+### Findings from NBT-AAD
 
-The local NBT-AAD checkout at `0a314d4` reports a camera opened by its button
-without a reverse-gear or `PDCStatus` change. Its full-screen view can report
-`GFXIDENTIFIER_INVALID`, which the generic overlay watcher skipped. Re-holding
-focus then covered the camera within about two seconds. AAD now treats context
-1023 (F-series NBTevo_Y24073J) and 692 (Supra Top View) as camera views,
-steps aside until another context appears, and suppresses re-holds meanwhile.
-The commit reports confirmation by two testers on its earlier camctx build;
-these IDs are firmware-specific evidence, not a universal camera catalogue.
-
-For components 4 and 5, gear/PDC alone are insufficient. Include graphical
-context and test button-opened cameras, entry selection over a camera, and
-return after it closes before retiring AAD's plugin. Preserve the distinction
-between camera step-aside and navigation to iDrive's main menu. This manager
-has not been tested against those findings on the car.
-
-AAD `5bbdc30` also adds MOST gear and parking-brake sensors (mappings in the
-table above). It does not assume a value before the first report; gear can
-fall back to iDrive car data until MOST supplies it. These are change-driven
-signals, so a quiet stream alone does not imply an invalid/old value. Speed
-has a proposed scale and direction source, replacing the earlier unknown-format
-lead. Capture fixtures on our car before making any of them stable bridge fields.
-
-Other leads in `milestone-7/readme.md` at `0a314d4`, outside this step:
-
-- Media metadata in `/dev/shmem/nbt-aad-media`, updated in place up to 5 Hz,
-  and loopback control `media next|prev|playpause|play|pause`. This is AAD's
-  app/phone interface, not a manager bridge capability; the feature is listed
-  as not car-verified.
-- Steering-wheel media on MOST 0x15/02; default roller mappings 0x511:2/0x511:1
-  are inferred from J29 logs and unconfirmed. Keep them separate from our
-  validated-in-source controller mapping; target input validation is pending.
-- `46b16a0` resets an inherited ignored `SIGCHLD` before a helper needs to wait
-  for its child. Manager process spawning likewise needs a known child-reaping
-  disposition. Our launcher, GUI and worker now restore `SIGCHLD` to default
-  before spawning; host tests start the GUI/worker with it ignored to cover
-  inherited HMI dispositions. Hardware lifecycle checks remain pending.
-
-The same checkout's `milestone-7/readme.md` records that QNX `/dev/shmem`
-`rename()` is unavailable (status files are rewritten in place), and that
-`fsync()` there returned `Function not implemented` in pf_aa 1.0. Ephemeral
-bridge writes must use neither operation; durable installation records remain
-on the validated Power-Safe filesystem. These are behavioral findings only;
-no AAD implementation is copied.
+- **Camera views.** A camera opened by its button changes neither the reverse
+  gear nor `PDCStatus`, and its full-screen view can report
+  `GFXIDENTIFIER_INVALID`. Re-holding focus then covers the camera within about
+  two seconds. Contexts 1023 (F-series NBTevo_Y24073J) and 692 (Supra Top View)
+  are camera views: step aside until another context appears and do not re-hold
+  meanwhile. These ids are firmware-specific, not a universal catalogue. For
+  components 4 and 5, gear and PDC alone are not enough: use the graphical
+  context too, and keep a camera's step-aside distinct from going to iDrive's
+  main menu.
+- **MOST gear and parking-brake sensors** (mappings in the table above) are
+  change-driven: assume no value before the first report (gear can fall back to
+  iDrive car data until MOST supplies it), and a quiet stream does not make a
+  value stale. Capture fixtures before making any of them stable bridge fields.
+- **Media metadata** in `/dev/shmem/nbt-aad-media` (updated in place up to 5 Hz)
+  and loopback control `media next|prev|playpause|play|pause` are NBT-AAD's own
+  interface, not a bridge capability.
+- **Steering-wheel media** arrives on MOST 0x15/02; the roller mappings
+  0x511:2/0x511:1 are inferred, not confirmed, and kept separate from the
+  controller mapping.
+- **`SIGCHLD`.** The HMI can pass on an ignored `SIGCHLD`; the launcher, GUI and
+  worker restore it to the default before spawning, and host tests start them
+  with it ignored.
+- **`/dev/shmem`** has no `rename()` (status files are rewritten in place), and
+  `fsync()` there fails with `Function not implemented`: ephemeral bridge writes
+  use neither; durable records stay on the Power-Safe file system.
 
 ### 5. Focus hold for applications (capability `hold`)
 
@@ -549,11 +543,12 @@ MOST, needs no signed policy and sees nothing else of the bus.
 - **iDrive.** While the manager or the application is on screen, the active
   capture shim keeps these keys from iDrive (presses and releases alike).
 
-Doom 1.0.16 is the first user (the nbt-doom repository, `src/input_idrive.cpp`).
+`NBTFoundry/doom` reads it through the SDK's reader (`src/input_idrive.cpp`).
 Host tests: `tests/test_controller_feed.cpp` (decoder, wire, reader) and
 `test_controller_states_reach_a_shown_application` in `tests/test_app_host.py`.
-Not established: whether the MOST server delivers 0x15.0C.C02 to a client
-registered for it (iDrive's own proxy receives it); the car log shows it.
+The favourite keys reach the manager when the MOST server delivers 0x15.0C.C02 to
+a client registered for it, as it does to iDrive's own proxy; the debug log shows
+the messages received.
 
 ## Discovering more car data and interfaces
 
@@ -573,9 +568,9 @@ written on the head unit. [car-inventory.md](car-inventory.md) describes
 `tools/car_inventory.sh`, run from a USB stick, which copies everything below
 to the stick. It can also be done by hand over SSH (the image has `cat`, so
 `ssh <unit> cat <path> > <file>` works where SCP does not); a desktop
-installer action, "Collect car inventory", would run the same fixed list. The
-locations below were confirmed on NBTevo_Y21432J by the first run
-(2026-11-10); "check" marks one still inferred.
+installer's **Collect everything** gathers the part that changes from run to
+run. The locations below are those of NBTevo_Y21432J; "check" marks an inferred
+one.
 
 First, listings (small; they tell where the rest is):
 
@@ -597,7 +592,7 @@ Then, by value:
 | `/opt/hmi/ID5/bin/HmiMain3D` (runs as `/opt/hmi/bin/zipped/HmiMain3D`, a `ziploader` path) | iDrive itself: states, contexts, which car data it uses | NBT-AAD reversed parts of it |
 | `/opt/hmi/ID5/data/ro/Plugins/*/` and `PluginsCoded/*/` (manifest, XML, library such as `libSecurityMenu.so`; never the `.p12`/`.p7b` files), `libhmia4a.so` | BMW's own plugins: entries, states and the car data they bind (`specialvehicle.menucontrol`) | NBT-AAD's PluginApp is modelled on them |
 | `/opt/nav/eceusa/bin/NavNBTEvoController` (runs as `./NavNBTEvoController`) | sender of the GNSS messages, with field names in its log strings | NBT-AAD's GPS notes |
-| `/fs/sda0/opt/car/bin/NBTCarHU` | the head unit's car service: likely where vehicle signals enter | path given by the user |
+| `/fs/sda0/opt/car/bin/NBTCarHU` | the head unit's car service: likely where vehicle signals enter | known path |
 | `/var/opt/conn/carplay/carplay.ini` | panel size and car make | NBT-AAD reads it |
 | `/opt/car/bin` contents (check) | name suggests car services | listing first |
 
@@ -605,7 +600,7 @@ Leave alone: `/var/opt/conn/WFDPass.conf`, `WFDWps.conf`, `dhcpd.*.leases`
 and `/var/opt/sys/persistence` (Wi-Fi credentials and personal data), phone
 book and navigation history databases.
 
-A host script, `tools/car_inventory.py`, then lists from the copies:
+A host script (planned) then lists from the copies:
 
 - car-data property names (dotted names in the library's strings and the
   XML), with the JSON format strings found next to them, which give the
@@ -616,11 +611,11 @@ A host script, `tools/car_inventory.py`, then lists from the copies:
   held only iAP2 and renderer objects, no car data), `/dev/shmem` objects of
   BMW services, command-line tools such as `audioconn`.
 
-The copied files are BMW's and the user's: they stay on the laptop, never in
+The copied files are BMW's and the car owner's: they stay on the laptop, never in
 this repository (as the framework libraries today), and are used for
 interoperability only.
 
-### Step 2: observation in the car (off by default)
+### Step 2: observation in the car (planned)
 
 With the debug log on, a manager setting "Car data discovery" (off by
 default, reset at every boot) makes the bridge log what it sees:
@@ -635,16 +630,14 @@ default, reset at every boot) makes the bridge log what it sees:
   FBlocks and logs `most <fblock>.<inst> <fkt> <op> <length> <first bytes>`,
   rate-limited. It only listens; it sends nothing but its registration.
 
-The user then follows a script in `docs/in-car-procedure.md`, parked:
+The tester then follows a script in `docs/in-car-procedure.md`, parked:
 ignition and engine, lights, reverse and park assist, doors, drive modes and
 DSC, a phone call, a navigation route, volume. The saved log shows which
 names and messages change with which action.
 
-This revisits an early scope decision ("traffic capture/dump functionality
-is outside scope", about the desktop tool): discovery is observation for
-interoperability, local to the user's car, off by default and recorded only
-in the debug log. The logs can contain position and call details; the
-procedure says so, and they are shared only after review.
+Discovery is observation for interoperability: local to one car, off by
+default and recorded only in the debug log. The logs can contain position and
+call details; the procedure says so, and they are shared only after review.
 
 ### Step 3: promotion
 
@@ -653,11 +646,15 @@ format, units and the firmwares it was seen on are written down in this
 document, with a test fixture from a real log. Until then an application
 can only see it as a raw value (`car-data-raw`).
 
-## What NBT-AAD itself must change
+## Adopting the bridge: NBT-AAD
 
-These changes are in NBT-AAD's code, for its author to make or agree to
-(PolyForm Noncommercial): a rebuilt release kept in NBT-AAD's repository,
-packaged and signed for the manager. See `AAD-IMPORT.md` for the migration.
+NBT-AAD's own plugin launches `/opt/aa/nbt-aad`, reads `/opt/aa/nbt-aad.env`,
+and recognizes persistent options under `/var/opt/aa` (some with manual flags
+under `/opt/aa`); its firewall helper changes the OEM firewall configuration.
+Ordinary manager updates touch none of these. Moving it under the manager takes
+changes in NBT-AAD's code, for its author to make or agree to (PolyForm
+Noncommercial): a rebuilt release kept in NBT-AAD's repository, packaged and
+signed for the manager.
 
 - Lifecycle: `--ready-fd`/`--lease-fd`, readiness and heartbeats, the
   managed executable and data paths.
@@ -674,70 +671,34 @@ packaged and signed for the manager. See `AAD-IMPORT.md` for the migration.
   persistent values move to `NBT_DATA_DIR`. Autostart moves to component 6.
 - Its plugin is retired by an explicit setup step, after the rebuilt
   release runs healthy (the legacy plugin must not launch the managed
-  executable).
+  executable). No compatibility symlinks are used.
+- A migration reads only recognized legacy sources, each with a fixed allowlist,
+  regular-file and ownership checks and size limits: `/opt/aa/nbt-aad.env`
+  through a documented allowlist of fields; the presence flags `autostart`,
+  `usblog`, `menu-idrive`, `show-drivemode`, `kombi-nav`, `show-warnings` and
+  `usb-aa` under `/var/opt/aa` and their manual flags under `/opt/aa`; the
+  values `/var/opt/aa/touch-peer` and `/var/opt/aa/spp-model`. The boot guard is
+  operational state and needs its own decision. The legacy files and recovery
+  material stay until adoption succeeds.
 
-## Order of work
+## Design notes
 
-| Step | Component | Validation |
-| --- | --- | --- |
-| 1 | **Done:** versioning, signed declarations, dependency checks, journaled records, `NBT_BRIDGE*` | host; QNX build |
-| 1a | **Done:** MOST bridge (`most`, bridge 1.1): signed policy, per-host client, filtering, joining, checked sends | host; QNX build; car pending |
-| 2 | **Done:** bring to front (`show`, initial bridge 1.0) | host; QNX build; display needs car |
-| 3 | **Done:** status line (`status`, initial bridge 1.0) | host; QNX build; shared memory needs car |
-| 4 | **Done:** twelve settings, data directory, `live-settings` | host; QNX build; target delivery needs car |
-| 5 | **Partial:** worker autostart and boot guard; GUI/launcher/plugin pending | host, then car (boot timing) |
-| 6 | **Partial:** car inventory script, first car run done; installer action and `tools/car_inventory.py` pending | car, read-only |
-| 7 | Discovery logging (car data, MOST) | host (parsing, limits), then car |
-| 8 | Car data publishing (documented fields, raw values) | host, then car |
-| 9 | **Partial:** applications shown by the manager (`NBT_SURFACE`, the GUI holds iDrive for them); a hold the application asks for itself (component 5) pending | host (logic), then car |
-| 10 | Favourite entry | car |
-| 11 | NBT-AAD rebuilt for the manager, migration, retiring its plugin | car, with NBT-AAD's author |
-
-Versioning comes first so that no capability ships unversioned. Steps 1 to
-5 are useful on their own and need no car; the inventory (6) is read-only
-and can run at the next car session. Steps 8 and 9 are the ones that make
-Android Auto safe without its plugin. Each step updates
-`PROTOCOL.md`, `docs/in-car-procedure.md` where it can be seen in the car,
-and the handover.
-
-## Open questions
-
-- Whether QNX 6.5 `/dev/shmem` allows subdirectories; the names above are
-  flat (`nbt-bridge1-...`) in case it does not.
-- Whether subscribing to a car-data name the HMI does not know is harmless.
-  The framework has `cdsIsPropertyAvailable(name)`; asking it first avoids
-  the question (`head-unit-interfaces.md`).
-
-- The user the HMI process runs as, and whether it can read
-  `/var/opt/nbt-manager/state/<app>/host.lock` to check who may hold.
-- Whether `/dev/shmem` files written in place are ever seen torn on QNX 6.5
-  (a single `write()` of a short line is assumed atomic enough; the sequence
-  number lets a reader retry).
-- Touch: iDrive still reacts to touches while Android Auto is shown
-  (NBT-AAD's known issue); the hold does not cover touch.
-- Whether a host's forwarding of `SIGUSR1`/`SIGUSR2` is enough, or a control
-  pipe from the host is cleaner once there are more requests.
+- Shared-memory names are flat (`nbt-bridge1-...`), without subdirectories in
+  `/dev/shmem`.
+- Car-data names are checked with the framework's `cdsIsPropertyAvailable(name)`
+  before subscribing ([head-unit-interfaces.md](head-unit-interfaces.md)).
+- Files in `/dev/shmem` are rewritten in place with one `write()` of a short
+  line; the sequence number lets a reader retry a torn read.
+- The focus hold does not cover touch: iDrive still reacts to touches while
+  another surface is shown.
+- Hosts forward requests as `SIGUSR1`/`SIGUSR2`; a control pipe from the host
+  would replace them if requests multiply.
 
 
-## Manager phone wake integration (2026-11-14, dev41)
+## The manager's own car data
 
-The manager itself now uses plugin car data: driving.speedActual and
-hmi.graphicalContext, with change subscriptions plus one-second asynchronous
-reads and bounded UTF-16 parsing. This supplies the manager's stationary wake
-gate; it does not expose a completed car-data bridge to managed applications.
-Unknown/stale speed is moving; the first permitted screen is the observed ID6
-home pair (context 3 / LT_Table_ID6L_Pad_Title), with surface 256 alone. Other
-contexts use manual opening pending validation.
-
-The plugin's delayed boot invocation is implemented for the independent
-`--door` listener, through known-good slot verification and a private readiness
-handshake. Its own liveness and three-failure guard are ephemeral. Door writes
-to application settings use the existing transaction lock and choice schema.
-Open from phone ships off. This boot path is no longer paused; application
-autostart in section 6 remains a separate pending feature, including its GUI
-choice and launcher dispatch. The door does not start managed applications.
-
-See [phone-access.md](phone-access.md) for source files, evidence and validation
-status, and [PROTOCOL.md](../PROTOCOL.md) for all signed wire details. No phone,
-boot, navigation or speed-source behavior has been established in the car by
-the host tests or QNX build.
+The manager itself reads two car-data names through its plugin,
+`driving.speedActual` and `hmi.graphicalContext`, with change subscriptions plus
+one-second asynchronous reads and bounded UTF-16 parsing, for the phone's wake
+gate ([phone-access.md](phone-access.md)). This is not the `car-data` capability:
+applications get no car data yet.

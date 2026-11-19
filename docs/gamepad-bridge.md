@@ -1,19 +1,29 @@
 # Wired USB gamepad bridge
 
-Bridge 1.3 adds `gamepad` without changing package, installed-record or journal
-formats. Applications may retain minimum bridge 1.2 and request it optionally.
-Unknown optional capabilities remain compatible with older managers. A required
-capability needs an implemented service; an unplugged controller is a normal
-disconnected state. Applications never select a USB path or send USB commands.
+Bridge capability `gamepad` (bridge 1.3 and later) gives the application on screen
+the state of one wired USB gamepad. It changes no package, installed-record or
+journal format. Applications may keep minimum bridge 1.2 and request `gamepad`
+as optional; unknown optional capabilities stay compatible with older managers.
+A required capability needs an implemented service; an unplugged controller is
+an ordinary disconnected state. Applications never choose a USB path or send USB
+commands.
+
+```mermaid
+flowchart LR
+  PAD["USB gamepad"] -->|io-usb, libusbdi| SVC["GUI's gamepad service<br/>(the only USB owner)"]
+  SVC -->|"24-byte states"| GUI["Manager GUI<br/>(while on the panel)"]
+  SVC -->|"/dev/shmem/nbt-manager-gamepad<br/>48-byte record"| HOST["Application host<br/>(relay)"]
+  HOST -->|"NBT_GAMEPAD_FD<br/>24-byte states"| APP["Application"]
+```
 
 ## Channel
 
-`NBT_GAMEPAD_FD=7` is a nonblocking `AF_UNIX/SOCK_DGRAM` socket, passed only to
-declared/granted user launches, alongside MOST at 6 and status at 5. Both launch
-implementations preserve it through descriptor mapping and sandbox setup.
-Health checks have no gamepad descriptor and open no USB connection. Applications
-cannot send commands on this input channel; inbound data is discarded in bounded
-batches. There is no HTTP or plugin route to generate local gamepad input.
+`NBT_GAMEPAD_FD=7` is a non-blocking `AF_UNIX`/`SOCK_DGRAM` socket, passed only to
+user launches that declared and were granted `gamepad` (MOST is 6, status 5).
+Both launch implementations keep it through descriptor mapping and sandbox
+set-up. Health checks get no gamepad descriptor. Applications cannot send
+commands on it; anything they write is discarded in bounded batches. No HTTP or
+plugin route can generate gamepad input.
 
 Every datagram is exactly 24 bytes, little-endian:
 
@@ -28,140 +38,162 @@ Every datagram is exactly 24 bytes, little-endian:
 | 12, 14, 16, 18 | Signed 16-bit left X/Y, right X/Y |
 | 20, 22 | Unsigned 16-bit left/right trigger |
 
-Stick axes span -32768..32767, positive right/up. Triggers span 0..65535.
-Button bits 0..14 are south, east, west, north, LB, RB, View, Menu, left/right
-stick clicks, Guide, D-pad up/down/left/right. Other bits are rejected.
-Disconnected records must have neutral controls. Changed reports are delivered
-immediately; complete snapshots repeat every 100 ms. Socket backpressure never
-blocks USB or the UI. Latest state is retried on subsequent snapshots.
+Stick axes span -32768..32767, positive right and up. Triggers span 0..65535.
+Button bits 0–14 are south, east, west, north, LB, RB, View, Menu, left and right
+stick clicks, Guide, D-pad up, down, left and right; other bits are rejected. A
+disconnected state has neutral controls. Changes are sent at once and the
+complete state repeats every 100 ms. Socket back-pressure never blocks USB or the
+UI; the latest state goes out with the next snapshot.
 
-The standalone SDK wire and input modules have no manager or USB dependencies.
-They reject short/oversized datagrams and malformed fields, suppress stale or
-duplicate sequences, clear controls after 500 ms without valid state, and require
-neutral controls after connection/focus acquisition. Consumers maintain their
-own button edges; a disconnected state cancels a selection, never confirms it.
+The application-side reader (`include/nbt/gamepad/input.hpp`,
+`src/sdk/gamepad_input.cpp`, shared with `NBTFoundry/sdk`) has no manager or USB
+dependency. It rejects short, oversized and malformed datagrams, ignores stale or
+repeated sequences, clears the controls after 500 ms without a valid state, and
+requires neutral controls after a connection or focus change. Applications keep
+their own button edges; a disconnected state cancels a selection, never confirms
+it.
 
-## Service and ownership
+## Ownership and relay
 
-Only one controller is active. The first supported arrival is retained until
-removal; other supported devices wait. A pad that fails to open is retried after
-2 s, doubling to 60 s, and told apart from others on its port by vendor and
-product (until dev113 it waited for a replug, and a later pad on the same port
-was taken for it). QNX uses the installed USB DDK with asynchronous interrupt input
-and bounded, timed output on a service thread. The main GUI and host loops do
-not perform USB attachment or transfers. At the first connection the service
-loads the car's `/lib/libusbdi.so.2` with `dlopen` (NBT-AAD links that library
-and works on the car) and uses it only when all 20 entry points it calls
-resolve; otherwise it uses the SDK's static `armle-v7/lib/libusbdi.a`, linked
-in. No `DT_NEEDED` entry is added, so a missing or different library cannot
-stop the manager from starting. The log says which one is used
-(`src/gamepad/usbdi.cpp`). Both connections use libusbdi's default path, as
-NBT-AAD does.
+The manager GUI owns the USB pad for its whole life; it keeps running, hidden,
+while an application is shown, so the pad is never closed and reopened at a
+switch. The GUI's service (`src/gamepad/service.cpp`):
 
-A short descriptor-only shared connection discovers the controller interface
-before exclusive attachment. Xbox uses data interface 0; Sony uses the HID
-interface. Configuration queries preserve an already matching configuration;
-an unconfigured controller is configured once, and an unexpected active
-configuration is rejected. The selected interface uses alternate setting 0.
-Sony SET_IDLE is best effort, without changing HID protocol or enabling
-optional controller features.
+- keeps the pad open and sends each state to the GUI's own socket, used only while
+  the manager is on the panel;
+- publishes it in `/dev/shmem/nbt-manager-gamepad` (`src/gamepad/shared_state.cpp`):
+  one 48-byte record of magic, count, monotonic time, the 24-byte wire state and
+  the count again, rewritten at least every 100 ms, with the same owner and mode
+  checks as the capture control file.
 
-**One USB owner (since dev115): the manager GUI**, for its whole life (it keeps
-running, hidden, while an application is shown). Until dev113 the GUI and each
-application's host took turns, closing and reopening the pad at every switch;
-on the car (2026-11-18) a DualShock 4 failed `GET_CONFIGURATION` twice right
-after such a switch and stayed off until replugged. Now the GUI's service
-(`src/gamepad/service.cpp`) keeps the pad open, sends each state to the GUI's
-own socket (used only while the manager is on the panel) and publishes it in
-`/dev/shmem/nbt-manager-gamepad` (`src/gamepad/shared_state.cpp`: one 48-byte
-record, magic, count, monotonic time, the 24-byte wire state, count again;
-rewritten at least every 100 ms; the capture control file's owner and mode
-checks). An application's host relays it (`src/gamepad/relay.cpp`) on
-`NBT_GAMEPAD_FD` unchanged: the same 24-byte states, on change and at least
-every 100 ms, connected only while the host is active (a surface, not paused)
-and the application's surface holds the panel (checked every 250 ms), and
-disconnected when the record is torn, malformed or older than 500 ms (the GUI
-gone). Hosts never open USB. `state/manager/gamepad.lock` byte 0 still makes
-one process the owner (a second GUI waits; process death releases it); byte 1,
-the GUI's old priority, is unused. USB buffers are freed before disconnect
-destroys the DDK allocator; unexpected USB cleanup errors terminate the owner.
+An application's host relays the record (`src/gamepad/relay.cpp`) on
+`NBT_GAMEPAD_FD` unchanged, on change and at least every 100 ms. The pad counts as
+connected only while the host is active (a surface, not paused) and the
+application's surface holds the panel (checked every 250 ms). A torn, malformed
+or stale record (older than 500 ms: the GUI is gone) is sent as disconnected.
+Hosts never open USB.
 
-**Status page and gamepad test** (manager Settings > Status, since the kit
-after dev116; `src/gui/status_page.cpp`). The service keeps a report the GUI
-reads each loop (`Service::report`): whether it runs, whether it holds the
-pads, whether another process holds the ownership lock, the open pad's family,
-vendor and product, `usbd_connect`'s last error and a plugged-in pad that
-failed to open with the step it stopped at (`UsbDevice::failure`: "configuration
-failed", "unsupported interface", "attach failed" and so on; it is retried as
-above). The page shows one line for the pad, most telling cause first: the
-open pad (`Gamepad: DualShock 4 (054c:09cc)`), `USB held by another process`,
-`no USB stack (usbd_connect N)`, `045e:02d1 could not be opened` with the step
-below it, or `none found`. **Test the gamepad** shows the pressed buttons
-(Sony's names for Sony pads), both sticks and both triggers in percent, live.
-The pad's own buttons are not acted on there (B, Menu and the D-pad would
-otherwise leave it); the iDrive controller's BACK leaves.
+Byte 0 of `state/manager/gamepad.lock` makes one process the owner: a second GUI
+waits, and the owner's death releases it. USB buffers are freed before the
+disconnect that destroys the DDK allocator; unexpected USB clean-up errors end the
+owner.
 
-No configuration reset is issued to unrelated USB devices. The actual USB stack
-path is `/dev/io-usb` when it is a node, or `/dev/io-usb/io-usb` when its parent is
-a directory. Driver permissions and interface attachment still require car tests.
+## USB service
 
-## Controller protocols and controls
+Only one controller is active. The first supported arrival is kept until it is
+removed; other supported pads wait. A pad that fails to open is retried after 2 s,
+doubling up to 60 s, and is told apart from other pads on its port by vendor and
+product. USB work runs on the service thread with asynchronous interrupt input and
+bounded, timed output; the GUI and host loops never attach or transfer.
 
-Xbox One GIP interfaces match FF/47/D0 on interface 0 and interrupt endpoints,
-covering wired Microsoft Xbox One (`045e:02d1` original, `045e:02dd` 2015,
-`045e:02e3` Elite Series 1, `045e:02ea` One S), Elite Series 2 (`045e:0b00`),
-Adaptive (`045e:0b0a`), Series X|S (`045e:0b12`), and compatible third-party
-GIP devices. The decoder checks lengths, trigger limits and main-client framing
-before changing state. Chunked reports are unsupported and cannot allocate
-reassembly buffers. Initialization includes Microsoft S/Elite (`045e:02ea/0b00`),
-Hori/PDP (`0e6f:0165`, `0f0d:0067`) and PowerA (`24c6:541a/542a/543a`) command
-variants alongside generic power/LED/auth startup (e.g. PDP `0e6f:*`, PowerA
-`20d6:a01a`, 8BitDo `2dc8:2008`). Guide and announcement acknowledgments preserve
-the incoming sequence. The basic control layout also works for compatible
-third-party GIP devices; variants require tests.
+**Library.** At its first connection the service loads the head unit's
+`/lib/libusbdi.so.2` with `dlopen` and uses it when all 20 entry points it calls
+resolve; otherwise it uses the QNX SDK's static `libusbdi.a`, linked in
+(`src/gamepad/usbdi.cpp`). No `DT_NEEDED` entry is added, so a missing or different
+library cannot stop the manager from starting. The log names the library used.
+Both connections use libusbdi's default path. The USB stack's node is
+`/dev/io-usb/io-usb` on the head unit (root-owned, mode 0644); the service looks
+at `/dev/io-usb` too.
 
-Sony USB support recognizes DualShock 4 (`054c:05c4` v1, `054c:09cc` v2) and
-DualSense (`054c:0ce6` DualSense, `054c:0df2` DualSense Edge) HID interfaces.
-Both use validated 64-byte report ID 1 layouts and common normalization.
-Bluetooth, wireless dongles (such as `054c:0ba0`), touch/gyro input, rumble
-control, headset audio and unknown clone layouts are outside this capability.
+**Discovery and attachment.** A short descriptor-only (shared) connection reads
+the device's interfaces one by one (`usbd_interface_descriptor`, configurations 1
+to 4, interfaces 0 to 15), logging each as
+`gamepad: USB vvvv:pppp config C interface I class cc/ss/pp`, with a
+`usbd_parse_descriptors` walk as a fallback. The shared attachment is closed before
+the exclusive one, since a shared/exclusive conflict can return `EBUSY`. Xbox uses
+data interface 0 (its three interfaces share class `ff/47/d0`, so the class alone
+cannot choose); Sony uses the HID interface (`03/00/00`, after the DualShock's
+audio interfaces). Endpoints come from the descriptors at run time.
 
-The GUI maps D-pad/left stick to navigation (left also goes back), south/A/Cross
-to push including the settings hold, east/B/Circle and View/Share/Create to back,
-and Menu/Options to the existing leave-manager action. Navigation starts at a
-20% stick threshold, repeating after 400 ms every 100 ms. Existing local approval
+**Configuration.** The current configuration is read with a synchronous
+`GET_CONFIGURATION`; a matching configuration is kept, an unconfigured device is
+configured once, and an unexpected active configuration is rejected (re-selecting
+a configuration would reset every interface of a composite device). The selected
+interface uses alternate setting 0, without requiring `SET_INTERFACE(0)` to
+succeed. Control requests are synchronous (`usbd_io`); requests with a completion
+callback do not complete on the head unit. For Sony pads a best-effort `SET_IDLE`
+(report 0, duration 0) is sent, without changing the HID protocol or enabling
+optional features, and the DualShock 4's light bar is set to blue once with
+output report `0x05`; a failed write only logs.
+
+**Teardown.** Submission stops, transfers are aborted and drained, the device is
+detached, USB allocations are freed, then the last connection is closed:
+`usbd_detach` returns `EBUSY` while I/O is pending, and `usbd_disconnect` destroys
+the allocator pools when the connection count reaches zero.
+
+**The head unit's media launcher** (`vdev-medialaunch`) sends every new USB
+device an Apple-accessory request and resets devices that fail it; a pad can
+disappear about 2 s after insertion and be reported again when the service
+attaches anew. No configuration reset is ever issued to unrelated USB devices.
+
+Every step that can stop the service logs it with its errno
+(`gamepad: <step> failed (errno N)`); a start logs
+`gamepad: service ready for the GUI` and the library in use, and every device
+io-usb reports is logged at connection.
+
+## Controllers
+
+| Family | Devices | Interface |
+| --- | --- | --- |
+| Xbox One (GIP) | Microsoft `045e:02d1` (original), `02dd` (2015), `02e3` (Elite Series 1), `02ea` (One S), `0b00` (Elite Series 2), `0b0a` (Adaptive), `0b12` (Series X\|S), and compatible GIP pads | interface 0, class `ff/47/d0`, interrupt IN and OUT |
+| DualShock 4 | `054c:05c4` (v1), `054c:09cc` (v2) | HID interface (3 on v2), report ID 1, 64 bytes |
+| DualSense | `054c:0ce6`, `054c:0df2` (Edge) | HID interface 3, report ID 1, 64 bytes |
+
+The Xbox decoder checks lengths, trigger limits and main-client framing before
+changing state; chunked reports are not supported and allocate nothing.
+Initialization covers the Microsoft S/Elite (`045e:02ea`, `0b00`), Hori/PDP
+(`0e6f:0165`, `0f0d:0067`) and PowerA (`24c6:541a`, `542a`, `543a`) command
+variants alongside the generic power, LED and authentication start-up; Guide and
+announcement acknowledgements keep the incoming sequence. Bluetooth, wireless
+dongles (such as `054c:0ba0`), touch and motion input, rumble, headset audio and
+unknown clone layouts are outside this capability.
+
+Expected endpoints (owners' descriptor captures; fixtures, not guarantees for
+every firmware revision or clone):
+
+| Device | Config / interface / alt | Interrupt IN | Interrupt OUT | Packet | `bInterval` |
+| --- | --- | --- | --- | --- | --- |
+| Xbox One `045e:02d1` | 1 / 0 / 0 | `0x81` | `0x01` | 64 | 4 |
+| DualShock 4 v2 `054c:09cc` | 1 / 3 / 0 | `0x84` | `0x03` | 64 | 5 |
+| DualSense `054c:0ce6` | 1 / 3 / 0 | `0x84` | `0x03` | 64 | 6 |
+
+## The manager's own use
+
+The GUI maps the D-pad and left stick to navigation (left also goes back), south /
+A / Cross to push, including the settings hold, east / B / Circle and View / Share
+/ Create to back, and Menu / Options to leaving the manager. Navigation starts at a
+20% stick deflection and repeats after 400 ms, then every 100 ms. Local approval
 and installation guards apply unchanged.
 
-Protocol references, independently implemented:
+**Settings → Status** (`src/gui/status_page.cpp`) shows one line for the pad,
+most telling cause first: the open pad (`Gamepad: DualShock 4 (054c:09cc)`),
+`USB held by another process`, `no USB stack (usbd_connect N)`,
+`045e:02d1 could not be opened` with the step it stopped at (`configuration
+failed`, `unsupported interface`, `attach failed`...), or `none found`
+(`Service::report`, `UsbDevice::failure`). **Test the gamepad** shows the pressed
+buttons (Sony's names for Sony pads), both sticks and both triggers in percent,
+live. The pad's own buttons are not acted on there; the iDrive controller's BACK
+leaves.
 
-- [QNX USB connection API](https://www.qnx.com/developers/docs/6.5.0SP1.update/com.qnx.doc.ddk_en_usb/usbd_connect.html)
-- [QNX endpoint enumeration](https://www.qnx.com/developers/docs/6.5.0SP1.update/com.qnx.doc.ddk_en_usb/usbd_parse_descriptors.html)
-- [Linux Xbox protocol reference](https://github.com/torvalds/linux/blob/master/drivers/input/joystick/xpad.c)
-- [Sony's Linux controller report reference](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-playstation.c)
+## Hardware checks
 
-## Hardware publication gate
+Host simulation, USB API shim tests, fuzzing and cross-compilation cover the
+software, not a head unit. On a bench unit or the parked car, for each controller:
+buttons, D-pad, axes and triggers; cold connection; plugging after launch;
+unplugging while moving, firing or selecting; reconnecting; repeated
+GUI/application/GUI switches (the pad stays open: no `USB service detached`
+between them); a failed application launch; focus loss; application and GUI
+termination; controller replacement; and ordinary iDrive input. Health-check
+launches must leave the GUI's ownership intact. Check for stuck actions,
+accidental approvals, growing descriptor or thread counts, and that other USB
+functions keep working.
 
-Host simulation, USB API shim tests, fuzzing and QNX cross-compilation establish
-software coverage, not head-unit compatibility. Before publishing the signed
-candidates, retain the captured USB descriptors and stack permissions, and
-record actual claiming results and input behavior for Xbox One and PS4.
-
-On isolated bench storage or the parked car, test each controller's buttons,
-D-pad, axes and triggers; cold connection; plug after launch; unplug while
-moving/firing/selecting; reconnect; repeated GUI/app/GUI switches (the pad
-stays open: no `USB service detached` between them); failed app
-launch; focus loss; app/GUI termination; controller replacement; and ordinary
-iDrive input. Health-check launches must leave the GUI's controller ownership
-intact. Verify no stuck actions, accidental approvals, growing descriptors or
-threads, and that other USB functions remain available.
-
-The 2026-11-17 car capture confirms Xbox One 045e:02d1 (FF/47/D0,
-controller data interface 0), DualShock 4 054c:09cc (HID interface 3), and
-/dev/io-usb/io-usb (root-owned, mode 0644). Functional Xbox One and PS4
-validation is pending. DualSense is enabled experimentally with
-fixtures and build checks; no PS5 hardware validation is available. Hold public
-NAS publication until the Xbox One/PS4 checks above pass.
-
-The first car run (2026-11-17, releases 86 and 89) never reached `io-usb`:
-the service stopped before its first USB call. See
-[gamepad-usb-research.md](gamepad-usb-research.md#car-run-2026-11-17-the-service-never-reached-io-usb).
+References (independently implemented):
+[QNX `usbd_connect`](https://www.qnx.com/developers/docs/6.5.0SP1.update/com.qnx.doc.ddk_en_usb/usbd_connect.html),
+[QNX `usbd_attach`](https://www.qnx.com/developers/docs/6.5.0SP1.update/com.qnx.doc.ddk_en_usb/usbd_attach.html),
+[QNX `usbd_parse_descriptors`](https://www.qnx.com/developers/docs/6.5.0SP1.update/com.qnx.doc.ddk_en_usb/usbd_parse_descriptors.html),
+[QNX `usbd_detach`](https://www.qnx.com/developers/docs/6.5.0SP1.update/com.qnx.doc.ddk_en_usb/usbd_detach.html),
+[Linux xpad](https://github.com/torvalds/linux/blob/master/drivers/input/joystick/xpad.c),
+[Linux hid-playstation](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-playstation.c),
+[Linux usbhid](https://github.com/torvalds/linux/blob/master/drivers/hid/usbhid/hid-core.c),
+[HID 1.11](https://www.usb.org/sites/default/files/documents/hid1_11.pdf).

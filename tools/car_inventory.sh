@@ -77,9 +77,9 @@ done
 # while iDrive is down. Only listings and inetd.conf; no ssh keys are copied.
 ls -ld /etc /etc/inetd.conf >"$O/ls-etc-ssh.txt" 2>>"$E"
 ls -l /etc/ssh >>"$O/ls-etc-ssh.txt" 2>>"$E"
-# The media launcher (vdev-medialaunch) probes every new USB device and resets
-# it; on 2026-11-18 both gamepads were removed right after. Its configuration
-# decides which devices it handles (docs/gamepad-usb-research.md).
+# The media launcher (vdev-medialaunch) probes every new USB device and can
+# reset it, removing a gamepad right after it is plugged in. Its configuration
+# decides which devices it handles (docs/gamepad-bridge.md).
 ls -l /etc >"$O/ls-etc.txt" 2>>"$E"
 for f in /etc/*.cfg /etc/*medialaunch* /etc/system/config/*medialaunch*; do
   [ -f "$f" ] && copy "$f"

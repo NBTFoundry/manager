@@ -29,7 +29,8 @@ thread (`focus_events.cpp`, `src/gui/focus_sender.cpp`), never from the
 iDrive thread that runs its callbacks: iDrive answers them synchronously with
 no timeout. When one is not answered within 3 s, the `nbt focus watch` thread
 writes every HMI thread to the debug log (`hmi_threads.cpp`), again at 10 s,
-and the plugin drops the hold. See `docs/car-issues-2026-11-17.md`.
+and the plugin drops the hold, so iDrive can never be left frozen behind a
+focus event.
 
 The launcher verifies a provisioned manager slot, supervises the GUI and worker,
 and recovers an interrupted candidate trial. A managed lock prevents repeated
@@ -55,20 +56,17 @@ NBTevo_Y21432J (vtable slots, object size, `Runnable`, `pluginAppInfo`, delegate
 layout; see `docs/head-unit-interfaces.md`), which is agreement with the
 libraries, not runtime proof. The menu placement follows that reference. The
 connector ID does not: each plugin has its own (firmware: ActiveSeating 17,
-SecurityMenu 200; NBT-AAD 210). With AAD's 210 (dev20, dev22) our entry's
-focus events did nothing and Android Auto stopped working until the manager was
-removed, so the manifest uses 220. That sharing the ID caused it is inferred
-from those results; the next car test confirms it. A successful build is
-not proof that this can safely load into `HmiMain3D`. Verify the ABI, placement,
-coexistence, action, process launch, input and display cleanup on a bench before
-deployment. The desktop installer performs the initial plugin registration as
+SecurityMenu 200; NBT-AAD 210). Sharing NBT-AAD's 210 makes the entry's focus
+events do nothing and stops Android Auto, so the manifest uses 220. A
+successful build is not proof that the plugin loads safely into `HmiMain3D`:
+the bench checklist covers the ABI, placement, coexistence, action, process
+launch, input and display clean-up. The desktop installer performs the initial plugin registration as
 an explicit setup operation when the HMI filesystem is writable.
 
 
-## Phone wake and door (dev41)
+## Phone wake and door
 
-The plugin now keeps a one-second idle poll as well as the existing active hold
-poll. After 15 seconds it asks the launcher for `--door`; a shared-memory guard
+The plugin keeps a one-second idle poll as well as the active hold poll. After 15 seconds it asks the launcher for `--door`; a shared-memory guard
 allows three failed starts and re-arms after 60 seconds of healthy door
 liveness. The launcher verifies and starts only the known-good slot's worker,
 with a private readiness handshake, then releases its operation lock.

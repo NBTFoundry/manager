@@ -1,4 +1,4 @@
-# Head unit interfaces: findings from a firmware dump
+# Head unit interfaces
 
 Facts about the interfaces the manager uses on the head unit (MOST through
 DSI, the iDrive PluginApp framework and its car data), read from an `/opt`
@@ -7,9 +7,9 @@ exported symbol tables, relocations, strings, configuration files and static
 analysis of ARM code. No vendor code or file is copied here; the dump stays
 outside this repository (see `docs/car-inventory.md`).
 
-"Confirmed" below means confirmed **in the library code of this firmware**. It
-does not mean seen working on a car; runtime behaviour still needs the bench
-or car steps in `docs/bench-checklist.md`. Other firmwares may differ: rerun
+"Confirmed" below means confirmed **in the library code of this firmware**;
+runtime behaviour is checked with the bench or car steps in
+`docs/bench-checklist.md`. Other firmwares may differ: run
 `tools/most_catalogue.py` on their `HmiMain3D` before relying on an id.
 
 ## Where things run
@@ -416,10 +416,10 @@ apps.
   MOST interoperability this project relies on. Recorded so nobody adopts it
   by accident.
 
-## Seen on the car
+## At run time
 
-**Network services on Wi-Fi Direct (from the `/opt` dump, `pidin` and the
-dev39 log).** `/opt/conn/bin/DnsMasq -C /opt/conn/etc/dnsmasq.conf` serves
+**Network services on Wi-Fi Direct (from the `/opt` dump, `pidin` and a
+manager debug log).** `/opt/conn/bin/DnsMasq -C /opt/conn/etc/dnsmasq.conf` serves
 UDP 53 (a socket bound to the `wfd0` address alone gets `EADDRINUSE`, errno
 248), with `/dev/shmem/resolv.conf` as its upstream (the BMW APN) and
 `/opt/conn/etc/hosts` as its names. `/opt/conn/bin/lighttpd` binds `0.0.0.0`
@@ -430,13 +430,12 @@ Android cannot even run its connectivity check and the network has no
 internet. Android then makes it the phone's default network only when it was
 joined from Settings (AOSP `ClientModeImpl`: explicitly selected means the
 connecting UID holds `NETWORK_SETTINGS`) and the user chose to stay
-connected; joined from the camera app (dev39), mobile data stays the default
+connected; joined from the camera app, mobile data stays the default
 and the install page at `172.16.222.1` times out. Android Auto is unaffected:
 its phone asks for the group as a local-only network.
 
-A `tools/car_inventory.sh` run on the developer's car (2026-11-10), with
-NBT-AAD's plugin installed and Android Auto connecting, adds runtime facts the
-dump cannot give. Nothing from the manager was installed at the time.
+A `tools/car_inventory.sh` run on a car with NBT-AAD's plugin installed and
+Android Auto connecting gives runtime facts the dump cannot:
 
 - **The dump is this car's `/opt`.** Of the 28737 files the car lists under
   `/opt/hmi`, 28735 have the dump's size; one PNG is truncated in the dump,
@@ -492,8 +491,8 @@ dump cannot give. Nothing from the manager was installed at the time.
   window's id string (`SCREEN_PROPERTY_ID_STRING`, 20), creating the surface on
   the window's first post; a window without a numeric id string is never drawn.
   The iDrive HMI is surface 256, alone in the render order of layer
-  0x80000000. dev28 proved it: the GUI ran, drew, logged `window shown` and took
-  controller input, and nothing appeared. NBT-AAD shows Android Auto on its own
+  0x80000000: a window drawn on a surface outside the render order does not
+  appear, whatever Screen's z-order. NBT-AAD shows Android Auto on its own
   surface 1282 by setting that layer's render order to it, the surface's source
   and destination regions to the panel and surface 256 invisible, and hides it by
   putting render order 0x100 and surface 256's visibility back (the slog shows
@@ -514,7 +513,7 @@ dump cannot give. Nothing from the manager was installed at the time.
   GUI puts that surface on the panel the same way (`src/display/placement.cpp`):
   the manager's surface stays until the application's is made, then the two
   swap, and back again when the application ends, so the held (frozen) iDrive
-  screen never shows in between (dev37 put iDrive back for about 0.6 s). Once on the panel, the GUI checks the
+  screen never shows in between. Once on the panel, the GUI checks the
   layer once a second: Android Auto can take it without iDrive's focus moving,
   and a closed window takes its surface out of the render order; either way
   the GUI steps aside. iDrive is put back only when the layer holds nothing
@@ -528,43 +527,32 @@ dump cannot give. Nothing from the manager was installed at the time.
   (`TYPE`) and 52 (`WINDOW`). NBT-AAD's `screen_video.h` also lists `VISIBLE`
   43, `STRIDE` 58 and `BUFFER_SIZE` 40; those are guesses its code never relies
   on (43 is `STATIC`, 58 `MIRROR_MODE`). `include/nbt/qnx_screen.h` keeps the
-  standard values (`SIZE` 40, `STRIDE` 44, `VISIBLE` 51); dev28 created the
-  window and read a valid stride and byte size with them. The library exports
+  standard values (`SIZE` 40, `STRIDE` 44, `VISIBLE` 51), with which the window
+  is created and reports a valid stride and byte size. The library exports
   `screen_get_buffer_property_iv` (an NBT-AAD comment says another unit's did
   not), and a buffer's `SIZE` is its byte count.
 - **PPS** holds no car data here (only iAP2 and multimedia renderer objects).
 - **System log.** `slogger` keeps a 1 MB ring; the run held about four
   minutes, mostly video decoder messages.
 
-## Changes to earlier assumptions
+## Confirmed in the firmware
 
-| Earlier statement | Now |
+| Fact | Evidence |
 | --- | --- |
-| DSYSMOSTServer 4.5, request ids 0xF, 0x1, 0x5, info ids 0x80000000/1 (`docs/controller-input.md`, from NBT-AAD) | Confirmed in the library |
-| `release=1` payload "assumed to mirror request 0x1" | Same argument list as 0x1 in the library; server behaviour still a bench check |
-| `CDSIClient` slots 3, 4, 7 | Confirmed; the table has 8 slots and `src/most/dsi_client.cpp` now copies 8, not 32 |
-| Controller FBlock 0xE5 and functions 0xC10/0xC20/0xC46/0xC47/0xC4F | Confirmed: `CentralControlSystem` and `CentralControlSystem35up` functions of those ids |
+| DSYSMOSTServer 4.5, request ids 0xF, 0x1, 0x5, info ids 0x80000000/1 (`docs/controller-input.md`) | Confirmed in the library |
+| The `release=1` payload | Same argument list as request 0x1 in the library; the server's behaviour is a bench check |
+| `CDSIClient` slots 3, 4, 7 | Confirmed; the table has 8 slots and `src/most/dsi_client.cpp` copies 8 |
+| Controller FBlock 0xE5 and functions 0xC10/0xC20/0xC46/0xC47/0xC4F | `CentralControlSystem` and `CentralControlSystem35up` functions of those ids |
 | Plugin vtable size and slots, object size, `Runnable`, `pluginAppInfo`, delegate layout (`plugin/plugin.cpp`) | Confirmed against `libAppFramework.A.so` and BMW's plugins |
 | NBT-AAD's MOST car-data ids | Named: `GearBox`, `HandBrake`, `CarSpeed2`, `DrivingCondition2`, `StateStandstillFunctions`, `VisibleVolumeIndicator`; `ReverseGear` 0x22C is a further candidate |
-| Car-data names only from NBT-AAD | Full catalogue and formats in `libhmiremoting.so` |
-| Meaning of the `unsigned int` in the plugin's car-data subscription | Interval limit (debounce); 0 delivers every change |
-| Whether subscribing to an unknown car-data name is harmless | Avoidable: `cdsIsPropertyAvailable` exists |
-| Whether an uncoded plugin in `Plugins/` loads and gets car data | On the developer's car NbtAad (same manifest shape as ours) loads and receives `hmi.graphicalContext`; other names not yet seen |
-| The car's firmware might differ from the dump | The dump is the car's `/opt` (28735 of 28737 HMI files the same size; copied libraries byte-identical) |
+| Car-data names | Full catalogue and formats in `libhmiremoting.so` |
+| The `unsigned int` in the plugin's car-data subscription | Interval limit (debounce); 0 delivers every change |
+| Subscribing to an unknown car-data name | Avoidable: `cdsIsPropertyAvailable` exists |
+| An uncoded plugin in `Plugins/` | Loads and receives `hmi.graphicalContext` (NbtAad, with the same manifest shape as the manager's) |
+| The car's firmware and the dump | The dump is a car's `/opt` (28735 of 28737 HMI files the same size; copied libraries byte-identical) |
 
-## Next steps
-
-- Read the `MOST registry` lines of a car debug log (logged since this
-  change): the FBlocks and instances present in the car, without any new MOST
-  request. Then check which candidate functions in `docs/most-functions.tsv`
-  belong to FBlocks the car has.
-- Capture the candidate Vehicle, camera and HMIControl functions in the car
-  (`docs/app-bridge.md`, step 2) to learn value formats. The developer's car
-  runs NBTevo_Y21432J; on another firmware, run `tools/most_catalogue.py` on
-  its `HmiMain3D` first.
-- Rerun `tools/car_inventory.sh` right after shifting into reverse and back,
-  with NbtAad installed: its log then shows whether `driving.gear` and
-  `sensors.PDCStatus` reach a plugin too.
-- Trace the "Plugin is not allowed" rule if a plugin of a different shape is
-  ever needed; NbtAad, whose manifest has the same shape as ours, loaded on the
-  car. Our own plugin has not been installed there yet.
+To learn more about a car: the `MOST registry` lines of a debug log list the
+FBlocks and instances present without any new MOST request; capturing candidate
+functions ([app-bridge.md](app-bridge.md)) gives their value formats; a
+`tools/car_inventory.sh` run right after shifting into reverse and back shows
+whether `driving.gear` and `sensors.PDCStatus` reach a plugin.

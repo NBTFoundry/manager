@@ -1,8 +1,7 @@
 # The car's Wi-Fi beside Android Auto
 
 How NBT Manager shares the car's Wi-Fi with wireless Android Auto (NBT-AAD),
-on the car and on the phone. Written 2026-11-16, kit dev68. Nothing here is
-car-verified yet.
+on the car and on the phone.
 
 ## The two networks
 
@@ -14,11 +13,9 @@ car-verified yet.
 The manager pairs and serves phones on `wfd0` only. It never switches the
 CarPlay hotspot (MOST A0.01 is outside its MOST policy).
 
-dev66's system log (`slog-1794848666.log`) shows one access point started at
-boot (16 s, with CarPlay) and `wfd0` started only when the manager asked
-(110 s). After the iDrive reset, the group no longer starts by itself on the
-user's car. dev32 to dev45 show that Android Auto used `wfd0` on that car
-before the reset.
+Without Miracast coded, only the CarPlay access point starts at boot; `wfd0`
+starts when the manager asks for it. Android Auto uses `wfd0` whenever the group
+is up and NBT-AAD is set to use it.
 
 ## Car side
 
@@ -85,5 +82,5 @@ a specifier network is limited to the apps that requested it
 - If Android Auto must stay on the CarPlay hotspot, the manager could serve
   phones on `uap0` too, with the hotspot's details (`iap2.cfg`) in the pairing
   code, so the phone shares that connection instead. That needs a decision:
-  it puts the CarPlay hotspot's passphrase on the phone, and dev32's link on
-  `uap0` timed out from a phone on the group.
+  it puts the CarPlay hotspot's passphrase on the phone, and a link on `uap0`
+  does not reach a phone on the group.

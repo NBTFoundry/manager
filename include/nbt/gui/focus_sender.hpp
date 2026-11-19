@@ -6,8 +6,8 @@
 //
 // PluginApp::triggerEvent is synchronous: iDrive queues the event for its
 // main thread and waits for the answer with no timeout (CLocalCommAdapter and
-// CHmiGenMessenger in HmiMain3D; docs/car-issues-2026-11-17.md). On
-// 2026-11-17 one never returned and iDrive froze. The sender keeps the plugin
+// CHmiGenMessenger in HmiMain3D), so an event that never returns would
+// freeze iDrive's thread with it. The sender keeps the plugin
 // thread free and reports an event that has not returned after kFocusStuckMs;
 // a watch thread then calls the stuck hook (the thread snapshot) at
 // kFocusStuckMs and again at kFocusLateMs. Static storage, no heap.

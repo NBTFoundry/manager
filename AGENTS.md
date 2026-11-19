@@ -12,8 +12,8 @@ existing contracts and callers before changing behavior.
 - Keep `plugin/` a small iDrive bridge. The manager GUI owns its screens, QR
   code and local approval; the worker owns package verification, lifecycle and
   transactions. See `plugin/README.md` and `PROTOCOL.md` when changing their
-  interfaces. The launcher and manager GUI are experimental: the preview
-  closes automatically, and target display and controller behavior need validation.
+  interfaces. Display and controller behaviour on the head unit are checked
+  with `docs/bench-checklist.md`.
 - Keep all application update mutations behind the central path policy in
   `src/storage/`. Packages name an application id, never a destination or a
   trust key: every application package is verified against the one apps key
@@ -27,7 +27,7 @@ existing contracts and callers before changing behavior.
   recovery boundary. Retain the known-good slot until the replacement is healthy;
   see `docs/manager-release.md` for setup, staging and validation requirements.
 - AAD adoption requires rebuilt components and a separate setup and migration
-  procedure. Read `AAD-IMPORT.md` before changing import behavior.
+  procedure; read "Adopting the bridge" in `docs/app-bridge.md` first.
 
 ## Implementation
 
@@ -77,9 +77,10 @@ existing contracts and callers before changing behavior.
 - Distinguish host tests and cross-compilation from actual head unit validation.
   Validate filesystem durability and destructive power-loss scenarios on
   isolated storage or a bench before vehicle use.
-- Commit and push each completed step to `main` on both configured remotes,
-  `origin` and `gitea`. Check the working tree and remote tips first, preserve
-  unrelated changes, and verify both remote tips after pushing. Do not publish
-  unrelated local commits without the user's approval.
-
-Research behind this guide: `docs/agent-workflow-research.md`.
+- Commit each completed step. Check the working tree first, preserve unrelated
+  changes, and do not publish unrelated local commits without approval.
+- The application-side bridge readers (`include/nbt/controller_wire.h`,
+  `include/nbt/controller/input.hpp`, `include/nbt/gamepad_wire.h`,
+  `include/nbt/gamepad/input.hpp`, `src/sdk/{controller,gamepad}_{wire,input}.cpp`)
+  are copied verbatim into `NBTFoundry/sdk`; after changing them, update the SDK
+  (`make check-readers` there).

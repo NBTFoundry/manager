@@ -1,7 +1,7 @@
 # Bench checklist
 
-Nothing in NBT Manager has run on a head unit. This is the order in which to
-validate it on a bench unit: each step relies on the ones before it. Record the
+The order in which to validate NBT Manager on a bench unit: each step relies
+on the ones before it. Record the
 firmware version, the unit, the date and the result of every step. Stop at the
 first failure; a later step's result means little when an earlier one failed.
 
@@ -191,5 +191,5 @@ action's time in a separate private note against the recorder's monotonic clock:
 Match actions to the reviewed layouts in [most-params.md](most-params.md).
 Record byte order, offsets, invalid sentinels, scaling and enum values only
 where captures establish them. Add the private capture reference and change
-`car_confirmed` only for individually checked rows. A1/A3/B4 remain pending
-until the observations above exist; a host test or QNX build cannot fill them.
+`car_confirmed` only for individually checked rows. Only these observations
+can settle A1, A3 and B4; a host test or a QNX build cannot.

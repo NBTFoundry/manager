@@ -356,7 +356,7 @@ malformed), `START <app>` replies `ERR quarantined` and the Settings page offers
 
 The controller values reported are those in effect: the defaults when `controller.conf` is absent or invalid. Changing one writes the complete configuration in effect, every key included, through `manager/controller.conf.next` (synced, then renamed), so keys set with the desktop installer keep their values and an invalid file is replaced by the defaults plus the change. The GUI reads the controller configuration when it starts, so changes apply the next time the manager opens. Instances and key slots stay with the desktop installer.
 
-Managed executables are invoked with `--ready-fd 3 --lease-fd 4`. Before signalling readiness, an executable takes a shared POSIX read lock on descriptor 4 and keeps it for its lifetime. It writes the byte `R` to descriptor 3 at least once every three seconds, sends its first `R` within five seconds, and exits if the pipe closes. The environment holds `NBT_LAUNCH`, declared bridge grants (above) and the settings: `NBT_LAUNCH=user` when its host started it from the menu, when it may take the screen and the controller until the user leaves it, and `NBT_LAUNCH=check` for the health check of an update, when it must leave the controller to the manager (input it took would end the check). Each declared setting is `NBT_SETTING_<KEY>=<value>`, the key in capitals; a setting whose files cannot be read is left out and the application uses its own default. The worker verifies that the child owns the lock and receives heartbeats. Candidate confirmation requires 10 seconds of continuous healthy operation (`NBT_HEALTHY_MS`). The exact lock and Screen behavior still require QNX hardware validation.
+Managed executables are invoked with `--ready-fd 3 --lease-fd 4`. Before signalling readiness, an executable takes a shared POSIX read lock on descriptor 4 and keeps it for its lifetime. It writes the byte `R` to descriptor 3 at least once every three seconds, sends its first `R` within five seconds, and exits if the pipe closes. The environment holds `NBT_LAUNCH`, declared bridge grants (above) and the settings: `NBT_LAUNCH=user` when its host started it from the menu, when it may take the screen and the controller until the user leaves it, and `NBT_LAUNCH=check` for the health check of an update, when it must leave the controller to the manager (input it took would end the check). Each declared setting is `NBT_SETTING_<KEY>=<value>`, the key in capitals; a setting whose files cannot be read is left out and the application uses its own default. The worker verifies that the child owns the lock and receives heartbeats. Candidate confirmation requires 10 seconds of continuous healthy operation (`NBT_HEALTHY_MS`). The `NBTFoundry/sdk` library implements this contract for applications.
 
 ## Manager GUI controller
 
@@ -369,7 +369,7 @@ Stop while running, and Uninstall. Local and phone-requested uninstall both
 default to No. Phone requests name the requesting phone.
 
 The main menu lists the applications, then Settings; a paired phone's upload is
-reviewed from it (there is no Install or update entry from dev50). The manager's
+reviewed from it (there is no separate Install or update entry). The manager's
 Settings end with Pair a phone, Paired phones (remove one with No focused) and
 Status (local only, no worker request: the capture shim, the MOST controller
 input, the gamepad and the last error; Test the gamepad shows its buttons,
@@ -377,7 +377,7 @@ sticks and triggers and leaves on the iDrive controller's BACK only).
 Pair a phone opens a session for the car's Wi-Fi details, then a 60-second
 window, and shows only the Wi-Fi QR. A signed pairing request replaces that code
 with the phone name and the six digits, drawn large on a highlighted panel, with
-No focused. Open from phone is no longer offered (dev48).
+No focused. Opening the manager from the phone is off.
 
 A signed upload is reviewed regardless of whether the driver selected the
 waiting screen. Review defaults to Reject; Install requires a second Yes with
@@ -419,7 +419,7 @@ compat=demo-1
 Application packages are verified against the apps key bundled with the manager (`nbt/apps_key.h`); `trust/keys/` is no longer written, and keys an older manager put there are ignored and removed with their application. The active executable is `apps/<id>/bin/app`. The `state/<id>/installed` record tracks the active digest, version, sequence, highest accepted sequence and any bridge requirement. Profiles, keys and records are provisioned locally and are never supplied as package destinations.
 
 
-## Paired-phone HTTP protocol 1 (dev41)
+## Paired-phone HTTP protocol 1
 
 The worker serves port 8080 while its GUI runs; `nbt-managerd --door` serves
 8081 from boot. Both bind to the address on `wfd0`. The host-test build permits
@@ -543,7 +543,7 @@ cannot inspect another key's action. A later accepted action replaces the
 previous result. A reviewed or installing package and pending confirmations
 block a competing upload/removal.
 
-### Logs (dev57)
+### Logs
 
 An application host makes the application's standard output and error a
 pipe and copies it into `state/<app>/output.log`, always, not only while
@@ -563,12 +563,12 @@ fd 4 but kept running`, and a start the host refused (`cannot start: bridge
 grant refused` and the like).
 
 An install's health check (the worker runs the new version for up to 45 s
-before confirming it, without a host) writes to the same log since dev63: its
+before confirming it, without a host) writes to the same log: its
 output, then `install check of <version> started (pid <n>)`, how it ended if
 it ended as above, and `install check passed` or `install check failed`
 (after `not healthy within 45 s` when it ran too long, or `install check of
-<version>: cannot start (error <n>)`). Before dev63 that run left nothing
-there, so an application installed but not yet started read "No log yet".
+<version>: cannot start (error <n>)`). So an application that was installed
+but never started already has a log.
 
 Times are the car's local clock. Output an
 application buffered but had not written when it crashed is lost: write

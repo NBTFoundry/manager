@@ -16,7 +16,7 @@ navigation history and the certificate files (`.p12`, `.p7b`) of BMW's coded
 plugins. `pidin-arg.txt` still contains the head unit's MAC address, in the
 DHCP client's host name.
 Without a USB stick, the installers' **Collect everything** (Test tools;
-[desktop README](../desktop/README.md)) gets the part that changes from run to
+`NBTFoundry/installer` README) gets the part that changes from run to
 run over SSH, as one text file: the system log, `pidin arg`, `audioconn -l`,
 the process manager's overview, the mounts, and listings of the manager's
 folders and `/dev/shmem`. It copies no BMW files; the stick is still needed
@@ -66,7 +66,7 @@ What it collects:
 - listings: `uname -a`, `mount`, `ls` of `/opt/hmi`, `/opt/sys`,
   `/opt/car` and `/fs/sda0/opt/car`, the program folders, `/dev`, `/pps`,
   `/dev/shmem` and `/var/opt/hmi`, plus `pidin arg` and `sloginfo`;
-- `audioconn-l.txt` (since dev116): `audioconn -l`, the audio connections the
+- `audioconn-l.txt`: `audioconn -l`, the audio connections the
   car can build with their numbers (read only; stopped after 10 s if the car's
   ConnectionMaster does not answer). The browser source `0xb8` that Doom and
   NBT-AAD's native audio use stops at volume 25; another number from this
@@ -93,10 +93,8 @@ copy to such a stick turns each followed link into a duplicate file.
 With a full `/opt` dump of the same car, the copied files are redundant (the
 dump has `hmi/ID5/bin/HmiMain3D` and `nav/eceusa/bin/NavNBTEvoController`);
 what only the car gives is the listings, `pidin arg`, `sloginfo` and what
-lives outside `/opt`. The first run on a car (2026-11-10) used an earlier
-version of the script, which looked for those two programs only at the path
-`pidin` shows and missed them. What that run showed is in
-[head-unit-interfaces.md](head-unit-interfaces.md), "Seen on the car".
+lives outside `/opt`. What a run shows is summarized in
+[head-unit-interfaces.md](head-unit-interfaces.md), "At run time".
 
 
 ## Afterwards
@@ -106,13 +104,13 @@ what was copied and `errors.txt` what was missing. A file missing there
 usually lives elsewhere on your firmware: search `ls-opt-hmi.txt` for it and
 copy it by hand with `cp <path> /mnt/<stick>/nbt-inventory-<n>/files/`.
 
-`ls-etc-ssh.txt` and `files/etc/inetd.conf` (from 2026-11-18) show how `sshd`
+`ls-etc-ssh.txt` and `files/etc/inetd.conf` show how `sshd`
 is started and whether `/etc` is a RAM copy (with `mount.txt`): what "SSH on"
 consists of, which decides whether SSH can be turned on while iDrive does not
 start. SSH is
 turned on by a diagnostic job relayed through the car's gateway (port 6801 is
-the gateway's, not the head unit's: `desktop/core/src/activation.rs`); which
-head-unit process carries it out is not established. No ssh keys are copied.
+the gateway's, not the head unit's: `NBTFoundry/installer:
+core/src/activation.rs`). No ssh keys are copied.
 
 `sloginfo.txt` holds only the last few minutes (the system log is a 1 MB ring
 buffer, mostly video decoder messages): run the script right after the event

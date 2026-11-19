@@ -64,7 +64,7 @@ records and `NBTJ3` journals add `bridge-most=` after `bridge-optional=` (see
 
 ### NBT-AAD's policy
 
-What NBT-AAD's MOST client used at `c34cdb0` (`milestone-7/src`), as a policy:
+What NBT-AAD's MOST client uses, written as a policy:
 
 ```text
 rx:E5.*.*,rx:15.*.*,rx:05.00.621,rx:05.00.626,rx:05.00.228,rx:05.00.CB5,
@@ -132,9 +132,8 @@ and remote notification expiry need bench validation.
 
 The per-client address decision and byte layout have static evidence in
 [head-unit-interfaces.md](head-unit-interfaces.md#notification-static-findings-nbtevo_y21432j).
-The initial Status normally expected after Set has not been checked in the
-car; no extra Get is sent automatically. If A1 shows it is needed, add that
-fallback with capture evidence. All A1/A3 results remain pending.
+No extra Get is sent after a Set; if a capture (bench step A1) shows that the
+initial Status does not arrive, add that fallback with the capture as evidence.
 
 ### Upgrading policies
 
@@ -262,7 +261,9 @@ steps.
 
 Reviewed [parameter layouts](most-params.md) and
 [CDS registrations](car-data-properties.tsv) are separate from the raw bridge.
-The [plan](most-plan.md) tracks remaining research and car checks.
+iDrive's car data (CDS) reads processing units and HMI state, not MOST directly;
+`tools/cds_catalogue.py` extracts its registrations and JSON formats from
+`libhmiremoting.so`.
 
 ## To check in the car
 

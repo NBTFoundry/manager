@@ -1,7 +1,7 @@
 # In-car test procedure (Windows)
 
-This procedure checks the manager with paired phones (dev41 and later; the kit's
-`VERSION.txt` names this kit) and the NBT Manager phone app. Do it parked,
+This procedure checks a test kit (its `VERSION.txt` names it) with the NBT
+Manager phone app. Do it parked,
 with a battery charger connected, and stop at the first step that does not
 behave as described. Note what you saw, save the debug log (step 9) and keep
 it: that is what finds the problem.
@@ -62,14 +62,13 @@ only while it installs or removes, then read-only again.
 
 ### With a Wi-Fi ENET adapter instead of the cable
 
-Confirmed on 2026-11-15 with an Exctool adapter, over its RJ45 socket. The
-adapter bridges, so both the car's gateway and the head unit are on the same
-link, but they use different networks: the gateway takes an address from the
-adapter's DHCP server (`192.168.16.105` here) while the head unit keeps only
-its link-local `169.254.199.119`. The gateway refuses SSH; only the head unit
-answers it.
+A Wi-Fi ENET adapter (connected over its RJ45 socket) bridges, so the car's
+gateway and the head unit are on the same link but on different networks: the
+gateway takes an address from the adapter's DHCP server (for example in
+`192.168.16.0/24`) while the head unit may keep only its link-local
+`169.254.199.119`. The gateway refuses SSH; only the head unit answers it.
 
-From dev53 the installer first looks for the head unit on the adapter's
+The installer first looks for the head unit on the adapter's
 network by itself (the car's modules ask the adapter for addresses too), so try
 **Connect** before setting any address. If the log says it found none, the
 computer needs an address on both networks, and Windows only adds
@@ -105,11 +104,10 @@ steps before you ticked it), and is written to
 `Documents\NBT Manager logs\installer-<time>.log` (the log says where). Send
 that file, or use **Copy log**.
 
-### From the phone instead (Wi-Fi ENET adapter, kit dev54 and later)
+### From the phone instead (Wi-Fi ENET adapter)
 
 The phone app does what the Windows installer does, over a Wi-Fi ENET adapter
-and without setting any address. Not yet tried in a car: until it is, keep the
-laptop and the cable at hand.
+and without setting any address. Keep the laptop and the cable at hand.
 
 1. Plug the adapter into the OBD port, ignition on, and join the adapter's
    Wi-Fi in Android's Wi-Fi settings. Android says the network has no
@@ -119,8 +117,7 @@ laptop and the cable at hand.
 3. The app looks for the head unit on the adapter's network (the built-in
    address cannot answer over Wi-Fi). If nothing accepts SSH there, it asks
    **Enable SSH**; nothing is sent to the activation service before you press
-   it. After enabling, it keeps looking for up to a minute (kit dev55 and
-   later).
+   it. After enabling, it keeps looking for up to a minute.
 4. The log should end with "QNX and host processor responded"; **Install**,
    **Update** and the tools appear below, as in the Windows installer's steps 2
    and 3. **Share the log** sends the whole log, details included.
@@ -135,10 +132,10 @@ that tells whether the head unit takes an address from the adapter at all.
 
 **Already installed** (any earlier kit): press **Update**, not Install. The log
 says "Update staged", then compares the launcher and iDrive entry with the new
-release by SHA-256 and replaces only what differs (from dev48, between its two
-remounts). It then says either "iDrive entry replaced", and the installer asks
-**Restart the head unit?** (press **Restart the head unit**: the whole system
-restarts; reconnect if you need the installer again; from dev56), or "iDrive entry unchanged (same checksums): no
+release by SHA-256 and replaces only what differs, between its two remounts.
+It then says either "iDrive entry replaced", and the installer asks **Restart
+the head unit?** (press **Restart the head unit**: the whole system restarts;
+reconnect if you need the installer again), or "iDrive entry unchanged (same checksums): no
 restart needed". Then open **App Manager** and keep
 it open 10 seconds: the new version runs on trial and is kept. No removal is needed;
 installed applications and paired phones stay. If the log instead notes that
@@ -167,13 +164,13 @@ NBT Manager first.", NBT Manager is already installed: use **Update** as above.
 Record: did iDrive restart normally? Is the entry there? If iDrive restarts
 over and over, reconnect and use **Remove NBT Manager** (step 12).
 
-### Kit dev107 and later: capture shim and gamepad
+### Capture shim and gamepad
 
-From dev107, Install and Update put the capture shim on the head unit
-(observer build: it only watches, every controller message still reaches
-iDrive) after testing it there. If its tests refuse it, the rest of the update
-still goes through and the installer says "The capture shim failed its tests":
-save the debug log and report it.
+Install and Update put the capture shim on the head unit after testing it
+there; while the manager or an application is shown it keeps the controller's
+knob and keys from iDrive ([input-capture.md](input-capture.md)). If its tests
+refuse it, the rest of the update still goes through and the installer says
+"The capture shim failed its tests": save the debug log and report it.
 
 How it works: the shim is armed for one start of iDrive at a time. 60 seconds
 after iDrive starts with it, the manager arms it for the next start. If a start
@@ -211,8 +208,8 @@ shim stays off until a new one is installed or you use **Shim on**.
 1. Select **App Manager** in iDrive. The NBT Manager window should appear
    within a few seconds. Its banner reads "NBT App Manager" and the version,
    with "Push to start; hold for settings" under it; the menu lists `test`,
-   then **Settings**. (From dev50 there is no Install or update entry: a paired
-   phone sends packages while this menu shows, and the car shows the review.)
+   then **Settings**. (A paired phone sends packages while this menu shows,
+   and the car shows the review.)
 2. Turn the knob and tilt it. Focus should move in the manager, and nothing
    should happen in iDrive underneath.
 3. Hold the push on `test`: after half a second a dialog "test settings"
@@ -234,8 +231,8 @@ shim stays off until a new one is installed or you use **Shim on**.
 7. Push on `test`: "HELLO WORLD" and "TEST v1" on a green background take
    the manager's place, with "BACK TO EXIT" at the bottom. Turn the knob:
    nothing moves in iDrive underneath. Press BACK: it closes and the
-   manager's list comes back within a second or two (dev35 left the panel
-   black until MENU; the log says `test ended; the manager is shown again`).
+   manager's list comes back within a second or two (the log says
+   `test ended; the manager is shown again`).
    Press BACK again to close the manager. Open the manager, push
    on `test` again, then press MENU instead of BACK: it closes too and
    iDrive's menu opens. (If the manager comes back saying "test did not
@@ -276,8 +273,8 @@ for it; the saved log (step 9) carries it.
 
 ## 5. The car's Wi-Fi code
 
-Since dev41 there is no browser page, install link or token: only the NBT Manager
-app talks to the car. Do not join the car's Wi-Fi from Android's Wi-Fi settings;
+Only the NBT Manager app talks to the car: there is no browser page, install
+link or token. Do not join the car's Wi-Fi from Android's Wi-Fi settings;
 the app joins it by itself, as a local-only network, and mobile data stays on.
 
 1. In the manager choose **Settings**: after the settings come **Pair a phone**,
@@ -298,7 +295,7 @@ app cannot reach the car, note the app's message and save the debug log: a
 `firewall: cannot open ...` line or missing `http ...` lines show where it
 stopped.
 
-## 6. Pair the phone once (App 0.1 required)
+## 6. Pair the phone once
 
 1. Open **Settings**, then **Pair a phone**. The car shows one Wi-Fi QR and a
    60-second countdown.
@@ -337,13 +334,11 @@ the exact package and its digest before review; only the car approves it.
 
 ## 8. Boot listener and opening from the phone
 
-**From dev48 the manager does not open by itself.** In dev47, opening from the
-phone did not open the manager, and opening it by hand afterwards froze iDrive
-until its watchdog restarted it (unlogged). The plugin now answers every wake
-request "off" and the setting is hidden; the app asks you to open App Manager.
-Of this section only the boot listener remains to check: with App Manager
-closed, **Read applications** in the app should still list the car's
-applications through the door. Skip the other steps.
+**Opening from the phone is off**: the plugin answers every wake request
+"off", the setting is hidden, and the app asks you to open App Manager. Only the
+boot listener is checked here: with App Manager closed, **Read applications** in
+the app should still list the car's applications through the door. The steps
+below apply only to a build with opening from the phone enabled.
 
 
 1. The door is started by the launcher that **Install** (step 2) put on the car
@@ -355,22 +350,19 @@ applications through the door. Skip the other steps.
 3. While parked on iDrive's home screen, request an update. The manager should
    open through its ordinary entry path and show the package review. Android
    Auto on screen must return busy and remain visible.
-4. Try a navigation screen while parked. This first implementation conservatively
-   returns busy/manual-open: only the observed ID6 home context is enabled.
-   Record the graphical context evidence needed before expanding that gate.
-5. Check unknown/stale/nonzero speed through host tests and the speed values
-   recorded by the optional debug log during an ordinary drive. Do not send
-   wake requests while driving. Actual CDS freshness remains to be validated.
+4. Try a navigation screen while parked: the car answers busy (open by hand);
+   only the ID6 home context opens. Record the graphical context the debug log
+   shows.
+5. Unknown, stale and non-zero speeds are covered by host tests; the debug log
+   records the speed values of an ordinary drive. Do not send wake requests
+   while driving.
 6. Switch Open from phone off and confirm wake returns off. The door's signed
    application list/settings remain available; no phone can approve an install.
 
-Record results in `docs/install-flow.md` and both HANDOVER files, with the kit
-version and phone/Android version. Stop at a failed gate; use manual opening.
+Record the results with the kit version and the phone and Android versions.
+Stop at a failed step; open by hand.
 
 ## 8b. Update NBT Manager from the phone
-
-Works in the car: the user updated the manager this way with earlier kits
-(reported 2026-11-16, kit not recorded).
 
 The phone accepts only a manager newer than the car's, so this needs a kit newer
 than the one installed. Copy that kit's `phone\NBT-Manager-<version>.nbtr` to
@@ -380,9 +372,9 @@ the car**. The car shows **Review update**, "NBT Manager" with both versions,
 **Reject** focused: choose **Install**, then **Yes, install**. The car says
 **Update ready**; the app says it starts the next time App Manager opens. Close
 App Manager and open it again: the new version runs on trial, then asks
-**Restart head unit?** if its iDrive entry changed. A manager installed before
-dev47 cannot take this path: the app then reports "update NBT Manager once with
-the installer first".
+**Restart head unit?** if its iDrive entry changed. A manager too old for
+this path makes the app report "update NBT Manager once with the installer
+first".
 
 ## 9. Save the debug log
 
@@ -392,9 +384,9 @@ after every step that went wrong, and one at the end. Lines look like
 `812.345 gui[4711] screen apps -> settings`; the log never contains Wi-Fi passwords, signatures, nonces or package
 contents.
 
-## 9b. An application's log and the iDrive log, from the phone (kit dev57 and later)
+## 9b. An application's log and the iDrive log, from the phone
 
-Every application now keeps its own log on the car, always: what it prints,
+Every application keeps its own log on the car, always: what it prints,
 and a line for how it started and ended (for example `ended by signal 11
 (SIGSEGV, invalid memory access)` or `stopped: no heartbeat ('R' on fd 3) for
 3 s`). In the app, open the application's page and press **Show log**: the
