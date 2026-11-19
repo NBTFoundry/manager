@@ -413,7 +413,7 @@ NBTAPP1
 compat=demo-1
 ```
 
-Application packages are verified against the apps key bundled with the manager (`nbt/apps_key.h`); `trust/keys/` is no longer written, and keys an older manager put there are ignored and removed with their application. The active executable is `apps/<id>/bin/app`. The `state/<id>/installed` record tracks the active digest, version, sequence, highest accepted sequence and any bridge requirement. Profiles, keys and records are provisioned locally and are never supplied as package destinations.
+Application packages are verified against the apps key bundled with the manager (`nbt/apps_key.h`); the manager never writes `trust/keys/`; keys found there, from older installations, are ignored and removed with their application. The active executable is `apps/<id>/bin/app`. The `state/<id>/installed` record tracks the active digest, version, sequence, highest accepted sequence and any bridge requirement. Profiles, keys and records are provisioned locally and are never supplied as package destinations.
 
 
 ## Paired-phone HTTP protocol 1
