@@ -32,6 +32,45 @@ setting_release = Controller zurückgeben
 value_on = an
 value_off = aus
 
+# Files (files_ui.cpp)
+files = Dateien
+files_title = {1}: Dateien
+files_usage = {1} Dateien, {2}
+files_space = {1} von {2} belegt
+files_none = Noch keine Dateien: vom Telefon oder USB-Stick senden
+files_import = Von USB-Stick importieren
+files_more = Weitere Dateien
+file_row = {1}  ({2})
+file_delete_question = {1} löschen?
+file_delete_note = Sie wird nur im Fahrzeug gelöscht
+yes_delete = Ja, löschen
+file_deleted = {1} gelöscht
+cannot_delete_file = {1} kann nicht gelöscht werden
+usb_title = USB-Stick: Dateien für {1}
+usb_scanning = Dateien auf USB-Sticks werden gesucht
+usb_found = {1} gefunden
+usb_none = Keine Dateien für {1} auf dem USB-Stick
+usb_no_stick = Kein USB-Stick gefunden
+usb_import_all = Alle importieren ({1})
+usb_importing = Import {1} von {2}
+usb_imported = Importiert
+usb_stored = {1}  (im Fahrzeug)
+usb_more = Weitere
+usb_stopped = Import abgebrochen: {1}
+files_busy = Beschäftigt; gleich erneut versuchen
+files_unavailable = Die Festplatte ist nicht verfügbar
+reason_quota = der Platz für diese Anwendung ist voll
+reason_space = die Festplatte ist voll
+reason_count = zu viele Dateien
+reason_size = eine Datei ist zu groß
+reason_changed = eine Datei hat sich auf dem Stick geändert
+reason_read = der Stick ist nicht lesbar
+reason_other = ein Fehler ist aufgetreten
+size_kb = {1} KB
+size_mb = {1} MB
+size_gb = {1} GB
+decimal_mark = ,
+
 # Language
 language = Sprache
 language_auto_named = Automatisch ({1})

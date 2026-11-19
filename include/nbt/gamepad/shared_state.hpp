@@ -6,8 +6,9 @@
 #include <stdint.h>
 /* The pads' state as the manager GUI, their one USB owner, reads it, for the
  * application hosts to relay: one 48-byte record (magic, count, monotonic ms,
- * the 24-byte wire state, count again) rewritten at each delivery, at least
- * every 100 ms. Same owner and mode checks as the capture control file. */
+ * the 24-byte wire state with its family byte 0, count again, the family,
+ * three zero bytes) rewritten at each delivery, at least every 100 ms. Same
+ * owner and mode checks as the capture control file. */
 #define NBT_GAMEPAD_STATE_PATH "/dev/shmem/nbt-manager-gamepad"
 namespace nbt {
 namespace gamepad {

@@ -66,7 +66,8 @@ def main():
         fields = dict(line.split("=", 1) for line in result.stdout.decode("ascii").splitlines())
         base = {"app", "version", "sequence", "package_sha256"}
         bridged = base | {"bridge", "bridge-uses", "bridge-optional"}
-        if set(fields) not in (base, bridged, bridged | {"bridge-most"}) or fields["app"] != args.app:
+        if set(fields) not in (base, bridged, bridged | {"bridge-most"}, bridged | {"bridge-files"},
+                               bridged | {"bridge-most", "bridge-files"}) or fields["app"] != args.app:
             raise ValueError("unexpected verifier output")
         if fields["package_sha256"] != hashlib.sha256(package).hexdigest():
             raise ValueError("verified package snapshot changed")
@@ -83,13 +84,15 @@ def main():
             setting_key, _, default, _ = line[8:].split("|")
             values += f"{setting_key}={default}\n"
         sequence = int(fields["sequence"])
-        level = 3 if "bridge-most" in fields else 2 if "bridge" in fields else 1
+        level = (4 if "bridge-files" in fields else 3 if "bridge-most" in fields else
+                 2 if "bridge" in fields else 1)
         record = (f"NBTSTATE{level}\nsequence={sequence:020d}\nhighwater={sequence:020d}\n"
                   f"version={fields['version']}\nsha256={hashlib.sha256(payload).hexdigest()}\n")
 
         if "bridge" in fields:
             record += "".join(f"{key}={fields[key]}\n" for key in ("bridge", "bridge-uses", "bridge-optional",
-                                                                    "bridge-most") if key in fields)
+                                                                    "bridge-most", "bridge-files")
+                              if key in fields)
 
         # A new directory is claimed exclusively. We never merge into an existing tree.
         args.output.mkdir(mode=0o700)

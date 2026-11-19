@@ -5,6 +5,7 @@
 #include "nbt/package.h"
 #include "nbt/storage/managed_root.hpp"
 #include "nbt/worker/control_protocol.hpp"
+#include "nbt/worker/ipc_files.hpp"
 #include "nbt/worker/web.hpp"
 #include "nbt/worker/wifi_direct_job.hpp"
 #include "nbt/worker/worker.hpp"
@@ -50,6 +51,7 @@ private:
     WebServer &web_;
     WifiDirectJob &wfd_;
     ControlProtocol &control_;
+    IpcFiles files_;              // FILES (ipc_files.hpp)
     bool sessionPending_ = false; // SESSION answered once Wi-Fi Direct is prepared
     char sessionApp_[NBT_ID_MAX + 1] = {};
     char sessionIface_[32] = {};

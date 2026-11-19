@@ -335,7 +335,7 @@ event("exit")
         self.wait_for(lambda: show_holder(self.host_lock))
         host, application = lock_holder(self.host_lock), lock_holder(self.lease)
         self.assertEqual(show_holder(self.host_lock), host)
-        self.assertIn("bridge=1.4", self.events())
+        self.assertIn("bridge=1.5", self.events())
         self.assertIn("caps=show", self.events())
         # The one application surface, held by this host for its life.
         self.assertIn("surface=1291", self.events())
@@ -893,6 +893,46 @@ event("exit")
     def app_log(self):
         path = self.root / "state/test/output.log"
         return path.read_text() if path.exists() else ""
+
+    def files_app(self, required):
+        """An application of bridge 1.5 declaring `files`, which logs what it gets."""
+        self.script_app("print('files=' + os.environ.get('NBT_FILES_DIR', 'absent'), flush=True)\n"
+                        "print('caps=' + os.environ.get('NBT_BRIDGE_CAPS', 'absent'), flush=True)\n"
+                        "os.write(3, b'R')\n"
+                        "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
+        record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE4\n")
+        record += (f"bridge=1.5\nbridge-uses={'files' if required else ''}\n"
+                   f"bridge-optional={'' if required else 'files'}\nbridge-files=sfc|1|2\n")
+        (self.root / "state/test/installed").write_text(record)
+
+    def test_files_reach_the_application_only_with_a_usable_disk(self):
+        disk = Path(self.tmp.name) / "disk"
+        disk.mkdir()
+        previous = os.environ.get("NBT_TEST_FILES_ROOT")
+        os.environ["NBT_TEST_FILES_ROOT"] = str(disk / "nbt-manager")
+        self.addCleanup(lambda: os.environ.__setitem__("NBT_TEST_FILES_ROOT", previous)
+                        if previous is not None else os.environ.pop("NBT_TEST_FILES_ROOT", None))
+        self.files_app(required=True)
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        folder = disk / "nbt-manager/files/test"
+        self.wait_for(lambda: f"files={folder}" in self.app_log())
+        self.assertIn("caps=files", self.app_log())
+        self.assertEqual(oct(folder.stat().st_mode & 0o777), "0o700")
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        # An unsafe root: a required `files` refuses the start, an optional one is not granted.
+        (disk / "nbt-manager").chmod(0o755)
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "needs files; not available on this car" in self.app_log())
+        self.wait_for(lambda: not lock_holder(self.host_lock))
+        self.files_app(required=False)
+        self.wait_for(lambda: command("START test") == "OK")
+        self.wait_for(lambda: "files=absent" in self.app_log())
+        self.assertIn("caps=\n", self.app_log())  # granted nothing
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertEqual(command("QUIT"), "OK")
 
     def test_output_and_a_crash_reach_the_application_log(self):
         self.script_app("print('hello from stdout', flush=True)\n"

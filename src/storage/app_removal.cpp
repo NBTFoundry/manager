@@ -2,6 +2,7 @@
 #include "nbt/fs.h"
 
 #include "nbt/storage/path_open.hpp"
+#include "nbt/storage/remove_tree.hpp"
 
 #include <dirent.h>
 #include <errno.h>
@@ -18,12 +19,8 @@ const unsigned kDepthMax = 16;
 
 const nbt_fs_path_kind kTrees[] = {NBT_FS_PROVISION_APP_ROOT, NBT_FS_STATE_DIR, NBT_FS_DATA_DIR};
 
-/* Removes `path` (`length` bytes in a NBT_PATH_MAX buffer, restored on
- * return) and everything under it. A link is unlinked, never entered; a
- * directory on another device is refused. The application is stopped and its
- * directories are private (0700), so nothing else is expected to change the
- * tree meanwhile. Entries are removed in passes until a pass finds none, as
- * removing while reading a directory may skip entries. */
+} // namespace
+
 int removeTree(char *path, size_t length, dev_t device, unsigned depth) {
     struct stat st;
     if (lstat(path, &st)) {
@@ -73,6 +70,8 @@ int removeTree(char *path, size_t length, dev_t device, unsigned depth) {
     }
     return rmdir(path) && errno != ENOENT ? -1 : 0;
 }
+
+namespace {
 
 int removeFile(nbt_fs *fs, nbt_fs_path_kind kind, const char *app, const char *tx) {
     char path[NBT_PATH_MAX];

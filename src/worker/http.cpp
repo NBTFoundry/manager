@@ -155,7 +155,7 @@ ParseResult parseRequest(core::Span<const uint8_t> data, Request *request) {
     } else if ((seen & 224) != 224) {
         return Invalid;
     }
-    if (request->route == Upload) {
+    if (streamed(request->route)) {
         if (!request->contentLength || strcmp(request->contentType, "application/octet-stream")) {
             return Invalid;
         }

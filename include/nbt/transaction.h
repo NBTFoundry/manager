@@ -13,7 +13,8 @@ typedef struct {
     nbt_bridge_requirement bridge;
 } nbt_installed;
 
-/* Formats old no-bridge records as NBTSTATE1, bridge records as NBTSTATE2. */
+/* Formats no-bridge records as NBTSTATE1, bridge records as NBTSTATE2, with a
+ * MOST policy NBTSTATE3 and with a files policy NBTSTATE4. */
 int nbt_tx_record_format(const nbt_installed *record, char *text, size_t size);
 int nbt_tx_record_parse(char *text, nbt_installed *record);
 int nbt_tx_candidate_bridge(nbt_fs *fs, const char *app, nbt_bridge_requirement *out);

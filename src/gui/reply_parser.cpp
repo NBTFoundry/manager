@@ -251,7 +251,8 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
     number[length] = 0;
     if ((length > 1 && number[0] == '0') || nbt_parse_u64(number, &count, 0) ||
         count > NBT_SETTINGS_MAX || split(copy, reply, f, static_cast<size_t>(count) + 3) ||
-        (strcmp(f[2], "live") && strcmp(f[2], "restart"))) {
+        (strcmp(f[2], "live") && strcmp(f[2], "restart") && strcmp(f[2], "live+files") &&
+         strcmp(f[2], "restart+files"))) {
         return -1;
     }
     memset(&parsed, 0, sizeof(parsed));
@@ -261,7 +262,8 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
         }
     }
     ui.settings = parsed;
-    ui.liveSettings = !strcmp(f[2], "live");
+    ui.liveSettings = !strncmp(f[2], "live", 4);
+    ui.files.offered = strstr(f[2], "+files") != NULL;
     return 0;
 }
 

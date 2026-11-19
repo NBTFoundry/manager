@@ -44,7 +44,8 @@ class SoftwarePhone:
             signature[-1] ^= 1
         headers = {'X-NBT-Key': self.id, 'X-NBT-Nonce': nonce, 'X-NBT-Signature': signature.hex()}
         if method == 'POST':
-            headers['Content-Type'] = 'application/octet-stream' if path == '/v1/upload' else 'text/plain'
+            streamed = path in ('/v1/upload', '/v1/files/data')
+            headers['Content-Type'] = 'application/octet-stream' if streamed else 'text/plain'
         status, data, response = self.http(host, method, path, body, headers)
         if 'X-NBT-Nonce' in response:
             self.nonces[host] = response['X-NBT-Nonce']

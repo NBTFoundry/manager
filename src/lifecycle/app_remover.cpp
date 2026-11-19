@@ -3,6 +3,7 @@
 
 #include "nbt/core/unique_fd.hpp"
 #include "nbt/package.h"
+#include "nbt/storage/files_root.hpp"
 #include "nbt/storage/path_open.hpp"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
@@ -52,6 +53,12 @@ int nbt_app_remove(nbt_fs *fs, const char *app) {
             return NBT_APP_REMOVE_RUNNING;
         }
     } else if (errno != ENOENT) {
+        return -1;
+    }
+    // Its files first, still under its locks: a failure leaves the application
+    // installed, to remove again. Without the disk they stay (docs/files-bridge.md).
+    nbt::storage::FilesRoot files;
+    if (files.open(nbt::storage::FilesRoot::location(), false).ok() && !files.removeApp(app).ok()) {
         return -1;
     }
     return nbt_fs_app_remove(fs, app) ? -1 : NBT_APP_REMOVED;

@@ -2,6 +2,7 @@
 #include "nbt/gui/ui_controller.hpp"
 
 #include "nbt/core/secure.hpp"
+#include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/view_builder.hpp"
 #include "nbt/gui/wifi_code.hpp"
 #include "nbt/log.h"
@@ -136,8 +137,8 @@ size_t UiController::itemCount() const {
         return phoneCount + 1;
     case Review: // "Install, even if older" only for an application update
         return review.installed[0] && strcmp(review.app, "manager") ? 3 : 2;
-    default:
-        return 0;
+    default: // the files screens, else none
+        return filesItemCount(*this);
     }
 }
 

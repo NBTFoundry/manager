@@ -258,6 +258,11 @@ int nbt_app_environment_build(nbt_fs *fs, const char *app, const char *launch,
         snprintf(out->settings_file, sizeof(out->settings_file), "NBT_SETTINGS_FILE=%s", path);
         out->list[count++] = out->settings_file;
     }
+    if (nbt_bridge_cap_has(grant.caps, "files") &&
+        nbt::process::filesDir(app, path, sizeof(path))) {
+        snprintf(out->files_dir, sizeof(out->files_dir), "NBT_FILES_DIR=%s", path);
+        out->list[count++] = out->files_dir;
+    }
     count = nbt::process::bridgeEnvironment(out, count, grant, launch);
     if (launch) {
         const int n = snprintf(out->text[count], sizeof(out->text[0]), "NBT_LAUNCH=%s", launch);

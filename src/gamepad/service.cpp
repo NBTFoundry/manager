@@ -228,6 +228,14 @@ void Service::run() {
                 }
             }
         }
+        // The decoders replace the state: the family is set on each delivery.
+        const uint8_t wireFamily = family == Gip          ? NBT_GAMEPAD_FAMILY_XBOX
+                                   : family == DualShock4 ? NBT_GAMEPAD_FAMILY_DUALSHOCK4
+                                   : family == DualSense  ? NBT_GAMEPAD_FAMILY_DUALSENSE
+                                                          : NBT_GAMEPAD_FAMILY_UNKNOWN;
+        const uint8_t shown = state_.connected ? wireFamily : 0;
+        changed = changed || shown != state_.family;
+        state_.family = shown;
         if (changed || now >= sentAt_ + 100) {
             deliver(now);
         }

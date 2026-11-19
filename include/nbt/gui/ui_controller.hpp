@@ -5,6 +5,7 @@
 #include "nbt/core/secure.hpp"
 #include "nbt/core/span.hpp"
 #include "nbt/core/status.hpp"
+#include "nbt/gui/files_state.hpp"
 #include "nbt/gui/status_page.hpp"
 #include "nbt/gui/text.hpp"
 #include "nbt/gui/ui_view.hpp"
@@ -62,7 +63,12 @@ enum RequestKind {
     R_PHONE_FORGET,
     R_SETUP, // after R_PHONE_*: replies go through phoneReply, then setupReply
     R_IDRIVE_RESTART,
-    R_LANGUAGE // SET manager language: languageReply, after setupReply
+    R_LANGUAGE, // SET manager language: languageReply, after setupReply
+    R_FILES,    // FILES: filesReply (files_ui.hpp), after setupReply
+    R_FILES_DELETE,
+    R_FILES_SCAN,
+    R_FILES_USB,
+    R_FILES_IMPORT
 };
 
 /* The manager's Settings list: its declared settings, then these. */
@@ -134,7 +140,8 @@ public:
      * the GUI does not close for idling meanwhile. */
     bool updating() const {
         return installing() || screen == Pairing || screen == Waiting || screen == PhoneConfirm ||
-               screen == Review || screen == Confirm;
+               screen == Review || screen == Confirm ||
+               (screen == UsbFiles && files.usbPhase == UsbImporting);
     }
     static int parseStatus(const char *reply, WorkerStatus &status);
     /* The car's Wi-Fi Direct group from SESSION; only Pair a phone shows its Wi-Fi QR. */
@@ -166,9 +173,16 @@ public:
     size_t unblockItem() const {
         return settings.count + (stopEntry() ? 1u : 0u);
     }
-    /* The Settings item that uninstalls settingsApp (not offered for the manager). */
-    size_t uninstallItem() const {
+    /* The Settings item for settingsApp's files (capability `files`), then the
+     * one that uninstalls it (neither offered for the manager). */
+    bool filesEntry() const {
+        return !managerSettings() && files.offered;
+    }
+    size_t filesItem() const {
         return unblockItem() + (unblockEntry() ? 1u : 0u);
+    }
+    size_t uninstallItem() const {
+        return filesItem() + (filesEntry() ? 1u : 0u);
     }
     void leaveSettings();
     void leaveSession(const char *msg);
@@ -239,7 +253,8 @@ public:
     int languageChoice = model::kLanguageAuto; // manager/language, as loaded or saved
     int carLanguage = -1;                      // iDrive's language as a model::Language; -1 unknown
     int languagePick = -1;                     // the choice being saved (R_LANGUAGE)
-    StatusFacts facts; // Settings > Status and the gamepad test (gatherStatus)
+    StatusFacts facts;     // Settings > Status and the gamepad test (gatherStatus)
+    FilesState files = {}; // an application's files (files_ui.hpp)
 
 private:
     core::SecureString<63> wifiPass;

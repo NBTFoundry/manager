@@ -97,6 +97,9 @@ public:
      * takeSetup: nbt_manager_refresh_installed's result and changes. */
     bool startSetup(const char *hmiRoot);
     bool takeSetup(int *result, unsigned *changed, char *error, size_t size);
+    /* A USB scan or import on the job's thread (usb_files.hpp); false when
+     * busy. Its end sets `usb`'s phase. */
+    bool startFiles(UsbFiles &usb, bool importing, uint64_t nowMs);
     /* A step handed to the job and not yet collected; collectTask() collects
      * an ended one (poll() does too, with the rest of the worker's work). */
     bool taskPending() const {

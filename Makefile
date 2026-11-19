@@ -332,7 +332,7 @@ tsan:
 
 FUZZ_BUILD_DIR ?= $(BUILD_DIR)/fuzz
 FUZZ_SECONDS ?= 1
-FUZZ_TARGETS = gamepad-wire gamepad-gip gamepad-sony http phone-signature phone-pair phone-context control package-header package-manifest release-manifest settings-schema settings-values controller-config installed-record journal most-codec most-joiner ccs most-policy bridge-requirement bridge-status wfd-most capture-control capture-stream starter-config language
+FUZZ_TARGETS = gamepad-wire gamepad-gip gamepad-sony http phone-signature phone-pair phone-context control package-header package-manifest release-manifest settings-schema settings-values controller-config installed-record journal most-codec most-joiner ccs most-policy files-policy bridge-requirement bridge-status wfd-most capture-control capture-stream starter-config language
 fuzz:
 	$(MAKE) BUILD_DIR=$(FUZZ_BUILD_DIR) \
 		CFLAGS='-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie' \

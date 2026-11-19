@@ -33,6 +33,45 @@ setting_release = コントローラーを戻す
 value_on = オン
 value_off = オフ
 
+# Files (files_ui.cpp)
+files = ファイル
+files_title = {1}：ファイル
+files_usage = ファイル {1} 個、{2}
+files_space = {2} 中 {1} 使用
+files_none = ファイルはまだありません。スマートフォンか USB メモリから送ってください
+files_import = USB メモリから取り込む
+files_more = 次のファイル
+file_row = {1}  ({2})
+file_delete_question = {1} を削除しますか？
+file_delete_note = 車両からのみ削除されます
+yes_delete = はい、削除
+file_deleted = {1} を削除しました
+cannot_delete_file = {1} を削除できません
+usb_title = USB メモリ：{1} のファイル
+usb_scanning = USB メモリのファイルを探しています
+usb_found = {1} 個見つかりました
+usb_none = USB メモリに {1} のファイルはありません
+usb_no_stick = USB メモリが見つかりません
+usb_import_all = すべて取り込む（{1}）
+usb_importing = 取り込み中 {1} / {2}
+usb_imported = 取り込みました
+usb_stored = {1}  （車両に保存済み）
+usb_more = 次へ
+usb_stopped = 取り込みを中止しました：{1}
+files_busy = 処理中です。少し後でもう一度お試しください
+files_unavailable = ハードディスクを使用できません
+reason_quota = このアプリの容量がいっぱいです
+reason_space = ハードディスクがいっぱいです
+reason_count = ファイルが多すぎます
+reason_size = ファイルが大きすぎます
+reason_changed = USB メモリのファイルが変更されました
+reason_read = USB メモリを読み取れません
+reason_other = エラーが発生しました
+size_kb = {1} KB
+size_mb = {1} MB
+size_gb = {1} GB
+decimal_mark = .
+
 # Language
 language = 言語
 language_auto_named = 自動（{1}）

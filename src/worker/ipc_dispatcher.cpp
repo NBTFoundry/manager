@@ -50,12 +50,13 @@ bool terminateLine(char *list, size_t capacity, size_t used) {
 
 IpcDispatcher::IpcDispatcher(storage::ManagedRoot &root, Worker &worker, WebServer &web,
                              WifiDirectJob &wfd, ControlProtocol &control)
-    : root_(root), worker_(worker), web_(web), wfd_(wfd), control_(control) {
+    : root_(root), worker_(worker), web_(web), wfd_(wfd), control_(control),
+      files_(root, worker, web, control) {
 }
 
 core::Status IpcDispatcher::handleSettings(bool setting, char *cursor) {
     nbt_settings settings;
-    int mode = 0, live = 0;
+    int mode = 0, live = 0, files = 0;
     char *app = word(&cursor);
     char *key = setting ? word(&cursor) : NULL;
     char *val = setting ? word(&cursor) : NULL;
@@ -105,11 +106,12 @@ core::Status IpcDispatcher::handleSettings(bool setting, char *cursor) {
             return control_.respond("ERR settings\n");
         }
         live = nbt_bridge_cap_has(grant.caps, "live-settings");
+        files = nbt_bridge_cap_has(grant.caps, "files"); // its page offers Files
     }
     char list[2048];
     int length =
-        snprintf(list, sizeof(list), "SETTINGS\t%u%s%s", static_cast<unsigned>(settings.count),
-                 mode ? "\t" : "", mode ? (live ? "live" : "restart") : "");
+        snprintf(list, sizeof(list), "SETTINGS\t%u%s%s%s", static_cast<unsigned>(settings.count),
+                 mode ? "\t" : "", mode ? (live ? "live" : "restart") : "", files ? "+files" : "");
     if (length < 0 || length >= static_cast<int>(sizeof(list))) {
         return core::Status::error(ERANGE, "settings too large");
     }
@@ -224,6 +226,9 @@ core::Status IpcDispatcher::dispatch(char *line, uint64_t nowMs) {
     }
     if (!strcmp(name, "STATUS") && !cursor) {
         return handleStatus();
+    }
+    if (!strcmp(name, "FILES")) { // polled while importing; it logs what it changes
+        return files_.handle(cursor, nowMs);
     }
     if (strcmp(name, "LIST") && strcmp(name, "RUNNING")) {
         nbt_logf("command %s", name);

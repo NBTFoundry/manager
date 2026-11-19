@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/ui_controller.hpp"
 
+#include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/phone_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
@@ -17,7 +18,7 @@ bool polling(const UiController &ui) {
     return ui.screen == PhoneConfirm || (ui.screen == Uninstall && ui.phoneAction[0]) ||
            ui.screen == Waiting || ui.screen == Pairing || ui.screen == Settings ||
            ui.screen == Choice || ui.screen == Review || ui.screen == Confirm ||
-           ui.screen == Progress || ((ui.screen == Apps || ui.screen == Settings) && ui.stopping);
+           ui.screen == Progress || (ui.screen == Apps && ui.stopping) || filesPolling(ui);
 }
 
 void advanceHold(UiController &ui, uint64_t nowMs) {
@@ -227,7 +228,7 @@ int UiController::nextRequest(uint64_t nowMs, Request &request) {
         if (screen == Apps && !holding && !stopping) {
             kind = setupNow(*this, nowMs) ? R_SETUP : R_RUNNING;
         } else if (polling(*this)) {
-            kind = R_STATUS;
+            kind = filesPolling(*this) ? R_FILES_USB : R_STATUS;
         } else {
             return 0;
         }
@@ -288,7 +289,7 @@ int UiController::nextRequest(uint64_t nowMs, Request &request) {
     }
     queued = R_NONE;
     outstanding = kind;
-    if ((kind == R_STATUS || kind == R_RUNNING || kind == R_PHONE_STATUS) &&
+    if ((kind == R_STATUS || kind == R_RUNNING || kind == R_PHONE_STATUS || kind == R_FILES_USB) &&
         nowMs <= UINT64_MAX - kPollMs) {
         nextPollMs = nowMs + kPollMs;
     }

@@ -35,6 +35,45 @@ setting_release = Hand back controller
 value_on = on
 value_off = off
 
+# Files (files_ui.cpp)
+files = Files
+files_title = {1}: files
+files_usage = {1} files, {2}
+files_space = {1} of {2} used
+files_none = No files yet: send them from the phone or a USB stick
+files_import = Import from a USB stick
+files_more = More files
+file_row = {1}  ({2})
+file_delete_question = Delete {1}?
+file_delete_note = It is deleted from the car only
+yes_delete = Yes, delete
+file_deleted = {1} deleted
+cannot_delete_file = Cannot delete {1}
+usb_title = USB stick: files for {1}
+usb_scanning = Looking for files on USB sticks
+usb_found = {1} found
+usb_none = No files for {1} on the USB stick
+usb_no_stick = No USB stick found
+usb_import_all = Import all ({1})
+usb_importing = Importing {1} of {2}
+usb_imported = Imported
+usb_stored = {1}  (on the car)
+usb_more = More
+usb_stopped = Import stopped: {1}
+files_busy = Busy; try again in a moment
+files_unavailable = The hard disk is unavailable
+reason_quota = the space for this application is full
+reason_space = the hard disk is full
+reason_count = too many files
+reason_size = a file is too large
+reason_changed = a file changed on the stick
+reason_read = the stick could not be read
+reason_other = an error occurred
+size_kb = {1} KB
+size_mb = {1} MB
+size_gb = {1} GB
+decimal_mark = .
+
 # Language
 language = Language
 language_auto_named = Automatic ({1})

@@ -12,8 +12,11 @@
 #define NBT_BRIDGE_VERSIONS_MAX 2
 /* Equal to NBT_MOST_POLICY_MAX (include/nbt/most_policy.h). */
 #define NBT_BRIDGE_MOST_MAX 640
-/* Formatted requirement: three lines of at most 300 bytes and the MOST line. */
-#define NBT_BRIDGE_TEXT_MAX 1600
+/* Equal to NBT_FILES_POLICY_MAX (include/nbt/files_policy.h). */
+#define NBT_BRIDGE_FILES_MAX 160
+/* Formatted requirement: three lines of at most 300 bytes, the MOST line and
+ * the files line. */
+#define NBT_BRIDGE_TEXT_MAX 1800
 
 typedef struct {
     uint16_t major, minor;
@@ -21,6 +24,9 @@ typedef struct {
     char optional[NBT_BRIDGE_CAPS_MAX + 1];
     /* The MOST policy (capability `most`), or empty. Only with `most` declared. */
     char most[NBT_BRIDGE_MOST_MAX + 1];
+    /* The files policy (capability `files`, bridge 1.5), or empty. Only with
+     * `files` declared. */
+    char files[NBT_BRIDGE_FILES_MAX + 1];
 } nbt_bridge_requirement;
 
 typedef struct {
@@ -38,8 +44,9 @@ int nbt_bridge_caps_valid(const char *text);
 void nbt_bridge_caps_without(const char *caps, const char *name, char out[NBT_BRIDGE_CAPS_MAX + 1]);
 int nbt_bridge_cap_has(const char *list, const char *name);
 /* Optional ordered fields: <prefix>bridge, bridge-uses, bridge-optional, then
- * bridge-most when the application declares `most` (required then). nbt_field
- * consumes input in place. Missing bridge means no dependency. */
+ * bridge-most when the application declares `most` (required then), then
+ * bridge-files when it declares `files` (required then; bridge 1.5 or later).
+ * nbt_field consumes input in place. Missing bridge means no dependency. */
 int nbt_bridge_requirement_parse(char **text, const char *prefix, nbt_bridge_requirement *out);
 int nbt_bridge_requirement_format(const nbt_bridge_requirement *value, const char *prefix,
                                   char *out, size_t size);
@@ -51,7 +58,8 @@ void nbt_bridge_current(nbt_bridge_provider *out);
  * available == NULL checks implementation (install); otherwise checks runtime
  * availability as well. Grants never include undeclared capabilities. A MOST
  * policy needs a served `most` even when the capability is optional: only
- * such a manager can store and enforce it. */
+ * such a manager can store and enforce it; a files policy likewise needs a
+ * served `files`. */
 int nbt_bridge_check(const nbt_bridge_requirement *need, const nbt_bridge_provider *provider,
                      const char *available, nbt_bridge_version *grant, char *error, unsigned size);
 /* Status wire line: canonical uint64, space, 1..24 printable ASCII, newline.

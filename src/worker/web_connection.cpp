@@ -8,6 +8,16 @@
 #include <utility>
 namespace nbt {
 namespace worker {
+namespace {
+/* A streamed body ended early or was refused: its staged file goes. */
+void abortStream(PhoneApi &api, http::Route route) {
+    if (route == http::FilesData) {
+        api.filesAbort();
+    } else {
+        api.uploadAbort();
+    }
+}
+} // namespace
 WebConnection::WebConnection()
     : phase_(Phase::Header), used_(0), received_(0), lastMs_(0), shortBody_(), hash_(),
       startedMs_(0), replySize_(0), replySent_(0), file_(0) {
@@ -38,7 +48,7 @@ void WebConnection::closeClient(PhoneApi &api) {
     }
     if (uploadFd_.valid()) {
         uploadFd_.reset();
-        api.uploadAbort();
+        abortStream(api, request_.route);
     }
     clear();
 }
@@ -78,7 +88,7 @@ core::Status WebConnection::body(PhoneApi &api, const unsigned char *data, size_
     if (phase_ != Phase::Body || SHA256_Update(&hash_, data, size) != 1) {
         return core::Status::error(EIO, "body hash failed");
     }
-    if (request_.route == http::Upload) {
+    if (http::streamed(request_.route)) {
         if (!uploadFd_.valid()) {
             return core::Status::error(EINVAL, "upload unavailable");
         }
@@ -111,19 +121,21 @@ core::Status WebConnection::body(PhoneApi &api, const unsigned char *data, size_
     if (request_.route != http::Nonce && !api.authorized(request_, hash, shortBody_)) {
         if (uploadFd_.valid()) {
             uploadFd_.reset();
-            api.uploadAbort();
+            abortStream(api, request_.route);
         }
         return reply(api, now, 403, "ERR authentication\n");
     }
     char output[4096] = {};
     int status;
-    if (request_.route == http::Upload) {
+    if (http::streamed(request_.route)) {
         if (fsync(uploadFd_.get()) || !uploadFd_.close().ok()) {
             uploadFd_.reset();
-            api.uploadAbort();
+            abortStream(api, request_.route);
             return reply(api, now, 500, "ERR upload\n");
         }
-        status = api.finishUpload(request_, now, core::Span<char>(output, sizeof(output)));
+        const core::Span<char> out(output, sizeof(output));
+        status = request_.route == http::Upload ? api.finishUpload(request_, now, out)
+                                                : api.filesFinish(request_, hash, out);
     } else if (request_.route == http::LogsApp || request_.route == http::LogsSystem ||
                request_.route == http::LogsManager) {
         status = api.logs(request_, shortBody_, now, log_);
@@ -136,7 +148,11 @@ core::Status WebConnection::body(PhoneApi &api, const unsigned char *data, size_
     } else {
         status = api.execute(request_, shortBody_, now, core::Span<char>(output, sizeof(output)));
     }
-    return reply(api, now, status, status < 300 ? (output[0] ? output : "OK\n") : "ERR request\n");
+    // A refusal that names its reason (the files routes) keeps it.
+    return reply(api, now, status,
+                 status < 300                  ? (output[0] ? output : "OK\n")
+                 : !strncmp(output, "ERR ", 4) ? output
+                                               : "ERR request\n");
 }
 core::Status WebConnection::readClient(const char *host, PhoneApi &api, uint64_t now) {
     if (now < startedMs_ || now - startedMs_ > (phase_ == Phase::Header ? 5000u : 600000u)) {
@@ -167,8 +183,9 @@ core::Status WebConnection::readClient(const char *host, PhoneApi &api, uint64_t
         if (strcmp(request_.host, host) || !api.begin(request_, now)) {
             return reply(api, now, 403, "ERR authentication\n");
         }
-        if (request_.route == http::Upload) {
-            core::Result<core::UniqueFd> fd = api.uploadStart();
+        if (http::streamed(request_.route)) {
+            core::Result<core::UniqueFd> fd =
+                request_.route == http::Upload ? api.uploadStart() : api.filesStart(request_, now);
             if (!fd.ok()) {
                 return reply(api, now, 409, "ERR upload-busy\n");
             }

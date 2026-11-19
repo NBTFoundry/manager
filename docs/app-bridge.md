@@ -11,10 +11,10 @@ Managed applications ship no iDrive plugin of their own: the manager's menu
 starts them, holding the push opens their settings, and they are stopped
 there. Capabilities give an application more: coming to the front on request,
 a status label in the menu, live settings, MOST messages under a signed policy,
-a wired USB gamepad and the decoded iDrive controller.
+a wired USB gamepad, the decoded iDrive controller and a folder of files.
 
-The current provider is **bridge 1.4 with
-`show,status,live-settings,most,gamepad,controller`**. Applications on the SDK
+The current provider is **bridge 1.5 with
+`show,status,live-settings,most,gamepad,controller,files`**. Applications on the SDK
 (`NBTFoundry/sdk`) get the application side of every capability.
 
 | Capability | Since | Section |
@@ -25,9 +25,10 @@ The current provider is **bridge 1.4 with
 | `most` (MOST messages under a signed policy) | 1.1, `sub` rules 1.2 | [most-bridge.md](most-bridge.md) |
 | `gamepad` (wired USB gamepad) | 1.3 | [gamepad-bridge.md](gamepad-bridge.md) |
 | `controller` (decoded iDrive controller) | 1.4 | [4](#4-controller-input-capability-controller-bridge-14) |
+| `files` (a folder of the user's files) | 1.5 | [files-bridge.md](files-bridge.md) |
 
 Car data, a focus hold requested by the application, automatic start and a
-favourite entry are designed in [bridge-design.md](bridge-design.md); bridge 1.4
+favourite entry are designed in [bridge-design.md](bridge-design.md); bridge 1.5
 does not provide them.
 
 Capabilities are host-tested (signed requirements, dependency checks, durable
@@ -65,12 +66,12 @@ sequenceDiagram
 ```mermaid
 flowchart LR
   subgraph Declared["Signed package"]
-    D["bridge=1.4<br/>bridge-uses · bridge-optional"]
+    D["bridge=1.5<br/>bridge-uses · bridge-optional"]
   end
   subgraph Provider["This manager"]
-    P["bridge 1.4: show · status · live-settings<br/>most · gamepad · controller"]
+    P["bridge 1.5: show · status · live-settings<br/>most · gamepad · controller · files"]
   end
-  D --> CHECK{"install: major served,<br/>minor ≤ 1.4, every<br/>bridge-uses provided"}
+  D --> CHECK{"install: major served,<br/>minor ≤ 1.5, every<br/>bridge-uses provided"}
   P --> CHECK
   CHECK -->|"no"| REFUSE["refused, with the reason"]
   CHECK -->|"yes"| GRANT["at launch: NBT_BRIDGE_CAPS =<br/>declared ∩ provided ∩ available"]
@@ -95,6 +96,7 @@ how the manager provides each part.
 | MOST | car <-> app | `most`: datagram socket `NBT_MOST_FD=6`, functions limited by the signed `bridge-most` policy ([most-bridge.md](most-bridge.md)) |
 | Gamepad | car -> app | `gamepad`: states on `NBT_GAMEPAD_FD=7` ([gamepad-bridge.md](gamepad-bridge.md)) |
 | Controller input | car -> app | `controller`: decoded states on `NBT_CONTROLLER_FD=8` (4); raw messages remain possible through `most` |
+| Files | user -> app | `files`: the folder `NBT_FILES_DIR`, filled from the phone or a USB stick under the signed `bridge-files` policy ([files-bridge.md](files-bridge.md)) |
 
 Every name, path and format here belongs to one interface version; see
 "Versioning and dependencies".
@@ -203,13 +205,14 @@ transaction journal. The candidate uses its journal declaration during health
 checks. Confirmation and confirmed-crash recovery write the declaration with
 the new record; unconfirmed recovery restores the executable with the old
 record. A separate `state/<app>/bridge` file is deliberately not used: it could
-otherwise lag behind the executable after a crash. `NBTSTATE1`/`NBTJ1` remain
+otherwise lag behind the executable after a crash. A MOST policy makes them
+`NBTSTATE3`/`NBTJ3`, a files policy `NBTSTATE4`/`NBTJ4`. `NBTSTATE1`/`NBTJ1` remain
 valid for no-bridge applications; a successful update may remove a dependency.
 The offline bundle tool also preserves signed bridge requirements.
 
 Manager releases may contain up to two `bridge=<major>.<minor>|<capabilities>`
 lines after `compat`, ordered by increasing major. The packager defaults to
-`bridge=1.4|show,status,live-settings,most,gamepad,controller` (`tools/bridge.py`); repeated `--bridge` overrides are for a publisher describing the
+`bridge=1.5|show,status,live-settings,most,gamepad,controller,files` (`tools/bridge.py`); repeated `--bridge` overrides are for a publisher describing the
 actual worker, and `--no-bridge` describes a legacy provider. Absent lines mean
 no bridge. C++ and Rust verifiers enforce the same bounds and syntax.
 The publisher must keep the metadata and `nbt_bridge_current()` implementation
@@ -396,7 +399,7 @@ MOST, needs no signed policy and sees nothing else of the bus.
 - **iDrive.** While the manager or the application is on screen, the active
   capture shim keeps these keys from iDrive (presses and releases alike).
 
-`NBTFoundry/doom` reads it through the SDK's reader (`src/input_idrive.cpp`).
+`NBTFoundry/nf-doom` reads it through the SDK's reader (`src/input_idrive.cpp`).
 Host tests: `tests/test_controller_feed.cpp` (decoder, wire, reader) and
 `test_controller_states_reach_a_shown_application` in `tests/test_app_host.py`.
 The favourite keys reach the manager when the MOST server delivers 0x15.0C.C02 to
@@ -422,4 +425,4 @@ The manager itself reads two car-data names through its plugin,
 `driving.speedActual` and `hmi.graphicalContext`, with change subscriptions plus
 one-second asynchronous reads and bounded UTF-16 parsing, for the phone's wake
 gate ([phone-access.md](phone-access.md)). This is not the `car-data` capability,
-which bridge 1.4 does not provide.
+which bridge 1.5 does not provide.

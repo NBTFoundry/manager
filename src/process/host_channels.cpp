@@ -31,9 +31,11 @@ void HostChannels::prepare(const char *app, const nbt_bridge_requirement &bridge
         shared = getenv("NBT_TEST_GAMEPAD_STATE");
     }
 #endif
+    // The pad's family is part of bridge 1.5; older readers reject it.
+    const bool family = bridge.major > 1 || (bridge.major == 1 && bridge.minor >= 5);
     if (nbt_bridge_cap_has(served, "gamepad") && gamepad::Service::socket(host, child)) {
         gamepad_.reset(child);
-        if (relay_.start(host, shared)) {
+        if (relay_.start(host, shared, family)) {
             return;
         }
         gamepad_.reset();

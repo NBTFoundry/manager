@@ -6,6 +6,9 @@ namespace nbt {
 namespace process {
 size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridge_version &grant,
                          const char *launch);
-}
+/* The application's files folder (capability `files`), created when absent;
+ * false when the files root cannot be used now. */
+bool filesDir(const char *app, char *out, size_t size);
+} // namespace process
 } // namespace nbt
 #endif

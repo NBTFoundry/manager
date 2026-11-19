@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/bridge.h"
+#include "nbt/files_policy.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -100,6 +101,123 @@ static void most_declarations(void) {
     assert(!nbt_bridge_requirement_parse(&p, "old_", &need) && !*p);
 }
 
+/* A files policy: canonical extensions and limits; names a car can store. */
+static void files_policies(void) {
+    nbt_files_policy policy;
+    const char *bad[] = {"",
+                         "|16|1024",
+                         "sfc|16",
+                         "sfc|16|1024|1",
+                         "sfc||1024",
+                         "sfc|16|",
+                         "sfc|0|1024",
+                         "sfc|016|1024",
+                         "sfc|16|8",
+                         "sfc|4097|65536",
+                         "sfc|16|65537",
+                         "SFC|16|1024",
+                         "s.c|16|1024",
+                         "sfc,|16|1024",
+                         ",sfc|16|1024",
+                         "sfc,sfc|16|1024",
+                         "abcdefghi|16|1024",
+                         "sfc|+16|1024",
+                         "sfc|16|1024\n",
+                         "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q|1|1"};
+    unsigned i;
+    for (i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
+        assert(nbt_files_policy_parse(bad[i], NULL));
+    }
+    assert(!nbt_files_policy_parse("a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p|4096|65536", &policy));
+    assert(policy.count == 16 && policy.file_mib == 4096 && policy.quota_mib == 65536);
+    assert(nbt_files_policy_quota_bytes(&policy) == UINT64_C(65536) << 20);
+    assert(!nbt_files_policy_parse("sfc,smc,fig,swc|16|1024", &policy));
+    assert(policy.count == 4 && !strcmp(policy.extensions[3], "swc"));
+    assert(nbt_files_policy_file_bytes(&policy) == UINT64_C(16) << 20);
+    const char *names[] = {"Super Game (E).sfc", "a.SMC", "x.y.fig", "1.swc"};
+    for (i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+        assert(nbt_files_policy_accepts(&policy, names[i]));
+    }
+    const char *refused[] = {"game.zip",        ".sfc",        "game.",    "game",    " game.sfc",
+                             "game.sfc ",       "a/b.sfc",     "a\\b.sfc", "a:b.sfc", "a*b.sfc",
+                             "a?b.sfc",         "a\"b.sfc",    "a<b.sfc",  "a|b.sfc", "a\tb.sfc",
+                             "caf\xc3\xa9.sfc", "game.sfc.zip"};
+    for (i = 0; i < sizeof(refused) / sizeof(refused[0]); ++i) {
+        assert(!nbt_files_policy_accepts(&policy, refused[i]));
+    }
+    char longest[NBT_FILES_NAME_MAX + 2];
+    memset(longest, 'a', sizeof(longest));
+    memcpy(longest + NBT_FILES_NAME_MAX - 4, ".sfc", 5);
+    assert(nbt_files_policy_accepts(&policy, longest));
+    memcpy(longest + NBT_FILES_NAME_MAX - 3, ".sfc", 5);
+    assert(!nbt_files_name_valid(longest));
+}
+
+/* bridge-files: present exactly when `files` is declared, bridge 1.5 or
+ * later, valid, round-trips, and needs a manager serving `files`. */
+static void files_declarations(void) {
+    nbt_bridge_provider provider, old;
+    nbt_bridge_requirement need;
+    nbt_bridge_version grant;
+    char text[NBT_BRIDGE_TEXT_MAX], error[128], *p;
+    const char *bad[] = {
+        "bridge=1.5\nbridge-uses=files\nbridge-optional=\n",                      /* no policy */
+        "bridge=1.5\nbridge-uses=\nbridge-optional=\nbridge-files=sfc|16|1024\n", /* undeclared */
+        "bridge=1.4\nbridge-uses=files\nbridge-optional=\nbridge-files=sfc|16|1024\n", /* too old */
+        "bridge=1.5\nbridge-uses=files\nbridge-optional=\nbridge-files=\n",
+        "bridge=1.5\nbridge-uses=files\nbridge-optional=\nbridge-files=sfc|16|8\n",
+        /* the files line after the MOST line, never before */
+        "bridge=1.5\nbridge-uses=files,most\nbridge-optional=\nbridge-files=sfc|1|1\n"
+        "bridge-most=rx:05.00.621\n",
+    };
+    unsigned i;
+    for (i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
+        strcpy(text, bad[i]);
+        p = text;
+        assert(nbt_bridge_requirement_parse(&p, "", &need) || *p);
+    }
+    strcpy(text, "new_bridge=1.5\nnew_bridge-uses=show,files\nnew_bridge-optional=most\n"
+                 "new_bridge-most=rx:E5.*.*\nnew_bridge-files=sfc,smc|16|1024\nnext=1\n");
+    p = text;
+    assert(!nbt_bridge_requirement_parse(&p, "new_", &need) && !strcmp(p, "next=1\n"));
+    assert(!strcmp(need.files, "sfc,smc|16|1024") && !strcmp(need.most, "rx:E5.*.*"));
+    assert(nbt_bridge_requirement_format(&need, "new_", text, sizeof(text)) > 0);
+    assert(strstr(text, "new_bridge-most=rx:E5.*.*\nnew_bridge-files=sfc,smc|16|1024\n"));
+    nbt_bridge_current(&provider);
+    assert(!nbt_bridge_check(&need, &provider, NULL, &grant, error, sizeof(error)) &&
+           !strcmp(grant.caps, "show,files,most"));
+    /* No usable disk: a required `files` refuses the start, naming it. */
+    assert(nbt_bridge_check(&need, &provider, "show,most", &grant, error, sizeof(error)) &&
+           strstr(error, "needs files; not available on this car"));
+    memset(&old, 0, sizeof(old));
+    assert(!nbt_bridge_provider_add(&old, "1.5|show,most"));
+    assert(nbt_bridge_check(&need, &old, NULL, NULL, error, sizeof(error)) &&
+           strstr(error, "files"));
+    /* Maximum fields format within NBT_BRIDGE_TEXT_MAX with the journal prefix. */
+    memset(&need, 0, sizeof(need));
+    need.major = 1;
+    need.minor = 5;
+    for (i = 0; i < 9; ++i) {
+        sprintf(need.uses + strlen(need.uses), "%su%02u-%s", i ? "," : "", i,
+                "abcdefghijklmnopqrst");
+        sprintf(need.optional + strlen(need.optional), "%so%02u-%s", i ? "," : "", i,
+                "abcdefghijklmnopqrst");
+    }
+    strcat(need.uses, ",most");
+    strcat(need.optional, ",files");
+    for (i = 0; i < 48; ++i) {
+        sprintf(need.most + strlen(need.most), "%srx:%02X.00.%03X", i ? "," : "", i, i);
+    }
+    for (i = 0; i < 16; ++i) {
+        sprintf(need.files + strlen(need.files), "%sext%05u", i ? "," : "", i);
+    }
+    strcat(need.files, "|4096|65536");
+    assert(strlen(need.files) <= NBT_BRIDGE_FILES_MAX && !nbt_files_policy_parse(need.files, NULL));
+    assert(nbt_bridge_requirement_format(&need, "old_", text, sizeof(text)) > 0);
+    p = text;
+    assert(!nbt_bridge_requirement_parse(&p, "old_", &need) && !*p);
+}
+
 int main(void) {
     status_lines();
     nbt_bridge_provider provider;
@@ -127,8 +245,9 @@ int main(void) {
     assert(!nbt_bridge_caps_valid(text));
     nbt_bridge_current(&provider);
     assert(provider.count == 1 && provider.versions[0].major == 1 &&
-           provider.versions[0].minor == 4 &&
-           !strcmp(provider.versions[0].caps, "show,status,live-settings,most,gamepad,controller"));
+           provider.versions[0].minor == 5 &&
+           !strcmp(provider.versions[0].caps,
+                   "show,status,live-settings,most,gamepad,controller,files"));
     memset(&need, 0, sizeof(need));
     assert(!nbt_bridge_check(&need, &provider, "", &grant, error, sizeof(error)) && !grant.major);
     need.major = 1;
@@ -167,6 +286,8 @@ int main(void) {
     assert(nbt_bridge_provider_add(&provider, "1.0|"));
     assert(nbt_bridge_provider_add(&provider, "2.1|"));
     most_declarations();
+    files_policies();
+    files_declarations();
     puts("bridge checks passed");
     return 0;
 }

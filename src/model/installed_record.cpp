@@ -131,13 +131,17 @@ int InstalledRecord::parseFields(char **cursor, const char *prefix, nbt_installe
     return bridge ? nbt_bridge_requirement_parse(cursor, prefix, &record->bridge) : 0;
 }
 
+// 1 no bridge, 2 bridge, 3 with a MOST policy, 4 with a files policy (a
+// release before bridge 1.5 refuses level 4 rather than drop the policy).
 unsigned InstalledRecord::recordLevel(const nbt_installed *record) {
-    return record->bridge.most[0] ? 3 : (record->bridge.major ? 2 : 1);
+    return record->bridge.files[0]  ? 4
+           : record->bridge.most[0] ? 3
+                                    : (record->bridge.major ? 2 : 1);
 }
 
 int InstalledRecord::levelOf(const char *text, const char *magic) {
     const size_t n = strlen(magic);
-    if (strncmp(text, magic, n) || text[n] < '1' || text[n] > '3' || text[n + 1] != '\n') {
+    if (strncmp(text, magic, n) || text[n] < '1' || text[n] > '4' || text[n + 1] != '\n') {
         return -1;
     }
     return text[n] - '0';

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/model/bridge.hpp"
 
+#include "nbt/files_policy.h"
 #include "nbt/most_policy.h"
 #include "nbt/util.h"
 
@@ -42,11 +43,12 @@ bool validRequirement(const nbt_bridge_requirement *v) {
     char name[NBT_BRIDGE_NAME_MAX + 1];
     if (!v || !memchr(v->uses, 0, sizeof(v->uses)) ||
         !memchr(v->optional, 0, sizeof(v->optional)) || !nbt_bridge_caps_valid(v->uses) ||
-        !nbt_bridge_caps_valid(v->optional) || !memchr(v->most, 0, sizeof(v->most))) {
+        !nbt_bridge_caps_valid(v->optional) || !memchr(v->most, 0, sizeof(v->most)) ||
+        !memchr(v->files, 0, sizeof(v->files))) {
         return false;
     }
     if (!v->major) {
-        return !v->minor && !v->uses[0] && !v->optional[0] && !v->most[0];
+        return !v->minor && !v->uses[0] && !v->optional[0] && !v->most[0] && !v->files[0];
     }
     for (const char *p = v->optional; *p;) {
         p = nextCapName(p, name);
@@ -55,10 +57,19 @@ bool validRequirement(const nbt_bridge_requirement *v) {
         }
     }
     if (nbt_bridge_cap_has(v->uses, "most") || nbt_bridge_cap_has(v->optional, "most")) {
-        return v->most[0] != 0 && nbt_most_policy_parse(v->most, NULL) == 0 &&
-               !(v->major == 1 && v->minor < 2 && strstr(v->most, "sub:"));
+        if (!v->most[0] || nbt_most_policy_parse(v->most, NULL) ||
+            (v->major == 1 && v->minor < 2 && strstr(v->most, "sub:"))) {
+            return false;
+        }
+    } else if (v->most[0]) {
+        return false;
     }
-    return !v->most[0];
+    // `files` came with bridge 1.5: an older manager would not know its line.
+    if (nbt_bridge_cap_has(v->uses, "files") || nbt_bridge_cap_has(v->optional, "files")) {
+        return v->files[0] != 0 && nbt_files_policy_parse(v->files, NULL) == 0 &&
+               !(v->major == 1 && v->minor < 5);
+    }
+    return !v->files[0];
 }
 
 } // namespace
@@ -195,6 +206,17 @@ int nbt_bridge_requirement_parse(char **text, const char *prefix, nbt_bridge_req
         }
         memcpy(out->most, v, strlen(v) + 1);
     }
+    n = snprintf(field, sizeof(field), "%sbridge-files=", prefix);
+    if (n < 0 || n >= static_cast<int>(sizeof(field))) {
+        return -1;
+    }
+    if (!strncmp(*text, field, static_cast<size_t>(n))) {
+        field[n - 1] = 0;
+        if (!(v = nbt_field(text, field)) || strlen(v) > NBT_BRIDGE_FILES_MAX) {
+            return -1;
+        }
+        memcpy(out->files, v, strlen(v) + 1);
+    }
     return nbt::model::validRequirement(out) ? 0 : -1;
 }
 
@@ -208,8 +230,10 @@ int nbt_bridge_requirement_format(const nbt_bridge_requirement *v, const char *p
         return 0;
     }
     const int n = snprintf(
-        out, size, "%sbridge=%u.%u\n%sbridge-uses=%s\n%sbridge-optional=%s\n%s%s%s%s", prefix,
-        v->major, v->minor, prefix, v->uses, prefix, v->optional, v->most[0] ? prefix : "",
-        v->most[0] ? "bridge-most=" : "", v->most, v->most[0] ? "\n" : "");
+        out, size, "%sbridge=%u.%u\n%sbridge-uses=%s\n%sbridge-optional=%s\n%s%s%s%s%s%s%s%s",
+        prefix, v->major, v->minor, prefix, v->uses, prefix, v->optional, v->most[0] ? prefix : "",
+        v->most[0] ? "bridge-most=" : "", v->most, v->most[0] ? "\n" : "",
+        v->files[0] ? prefix : "", v->files[0] ? "bridge-files=" : "", v->files,
+        v->files[0] ? "\n" : "");
     return n < 0 || static_cast<size_t>(n) >= size ? -1 : n;
 }

@@ -55,7 +55,7 @@ class GamepadOwnershipTests(unittest.TestCase):
     def service(self):
         return self.spawn(lambda fd: ["--serve", str(self.root), str(fd), str(self.shared)])
 
-    def state(self, client, connected, timeout=2):
+    def state(self, client, connected, timeout=2, family=None):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             ready, _, _ = select.select([client], [], [], deadline - time.monotonic())
@@ -63,7 +63,7 @@ class GamepadOwnershipTests(unittest.TestCase):
                 break
             packet = client.recv(25)
             self.assertEqual(len(packet), 24)
-            if packet[2] == connected:
+            if packet[2] == connected and (family is None or packet[3] == family):
                 return True
         return False
 
@@ -116,3 +116,17 @@ class GamepadOwnershipTests(unittest.TestCase):
         # The application's surface left the panel: no pad either.
         lm_state.write_text(json.dumps({"order": [256], "visible": {"256": 1}, "bound_after": 0}))
         self.assertTrue(self.state(relayed, 0))
+
+    def test_the_pads_family_reaches_only_bridge_1_5_applications(self):
+        env = fake_layer_manager(self.tmp.name)
+        Path(env["NBT_FAKE_LM_STATE"]).write_text(
+            json.dumps({"order": [1291], "visible": {"1291": 1}, "bound_after": 0}))
+        _, new = self.spawn(lambda fd: ["--relay", str(fd), str(self.shared), "1"], env)
+        _, old = self.spawn(lambda fd: ["--relay", str(fd), str(self.shared), "0"], env)
+        _, owner = self.service()
+        # The simulated pad is a DualShock 4 (family 2): the GUI and a bridge
+        # 1.5 application see it; an older one gets byte 3 at 0, as it requires.
+        self.assertTrue(self.state(owner, 1, family=2))
+        self.assertTrue(self.state(new, 1, family=2))
+        self.assertTrue(self.state(old, 1, family=0))
+        self.assertFalse(self.state(old, 1, timeout=0.5, family=2))

@@ -47,6 +47,9 @@ enum Screen {
     Status,       // Settings > Status (status_page.hpp)
     GamepadTest,  // its gamepad test
     LanguagePick, // Settings > Language (language_ui.hpp)
+    Files,        // an application's files (files_ui.hpp)
+    FileDelete,   // Delete <file>?
+    UsbFiles,     // its files on USB sticks
 };
 enum Key { KeyUp, KeyDown, KeySelect, KeyBack };
 enum ItemStyle { ItemEntry, ItemAction };

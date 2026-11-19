@@ -137,7 +137,24 @@ as described in `README.md`.
 | Disconnect and reconnect the MOST link (if possible) | `MOST detached`, then `MOST attached` and registration again |
 | Leave the manager idle for two minutes | It closes: `gui ... exit (idle)` |
 
-## 9. MOST subscriptions and parameter capture (A1/A3/B3/B4)
+## 9. Applications' files
+
+With an application declaring `files` ([files-bridge.md](files-bridge.md)) and
+the debug log on:
+
+| Action | Expected |
+| --- | --- |
+| Before anything: `ls -ld /mnt/share`, `df /mnt/share`, `mount` | `/mnt/share` is a writable, persistent volume (qnx6), not used by iDrive in a way the manager's folder could disturb; record its free space. If it is not, stop and choose another folder (`FilesRoot::location`) |
+| Start the application | `/mnt/share/nbt-manager` and `files/<app>` exist, mode 0700; the application's log shows its `NBT_FILES_DIR` |
+| Send a file from the phone, then list it | Stored, listed on the phone and in Settings > Files; nothing left in `staging/` |
+| Plug a FAT32 USB stick with matching files, with a gamepad plugged in too | It mounts as `/mnt/umass…`; Import from a USB stick lists the files; the gamepad keeps working |
+| Import all, including a file of several hundred MB | The progress bar advances; the GUI stays responsive; no watchdog report (`wd_*` in `/mnt/quota/sys`); the files are complete (compare sizes) |
+| Pull the stick during an import | The import stops with "the stick could not be read" or "a file changed"; no partial file in `files/<app>`; the worker keeps running |
+| Fill the quota | The phone and the car both refuse with the quota reason |
+| Restart the head unit | The files are still there |
+| Uninstall the application | `files/<app>` is gone |
+
+## 10. MOST subscriptions and parameter capture (A1/A3/B3/B4)
 
 Record the firmware, manager commit, monitor package
 digest, date and operator. Use an isolated bench first. Keep raw logs in private

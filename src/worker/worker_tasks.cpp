@@ -8,6 +8,7 @@
 #include "nbt/manager_refresh.h"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
+#include "nbt/worker/usb_files.hpp"
 
 #include <errno.h>
 #include <stdio.h>
@@ -70,6 +71,10 @@ const char *taskName(Task task) {
         return "install copy";
     case Task::Setup:
         return "setup";
+    case Task::FilesScan:
+        return "USB scan";
+    case Task::FilesImport:
+        return "USB import";
     default:
         return "task";
     }
@@ -105,6 +110,12 @@ void runTask(void *raw) {
     case Task::Setup:
         c.result = nbt_manager_refresh_installed(c.fs, c.hmiRoot, nbt_system_remount, &c.changed,
                                                  c.error, sizeof(c.error));
+        break;
+    case Task::FilesScan:
+        c.result = c.usb ? c.usb->scan() : -1;
+        break;
+    case Task::FilesImport:
+        c.result = c.usb ? c.usb->import() : -1;
         break;
     default:
         c.result = -1;

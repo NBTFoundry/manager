@@ -7,6 +7,7 @@
 #include "nbt/core/span.hpp"
 #include "nbt/core/unique_fd.hpp"
 #include "nbt/crypto/ec_public_key.hpp"
+#include "nbt/files_policy.h"
 #include "nbt/gamepad/input.hpp"
 #include "nbt/gamepad/reports.hpp"
 #include "nbt/gui/car_language.hpp"
@@ -25,6 +26,7 @@
 #include "nbt/worker/control_protocol.hpp"
 #include "nbt/worker/http.hpp"
 #include "nbt/worker/phone_actions.hpp"
+#include "nbt/worker/usb_files.hpp"
 #include "nbt/worker/wifi_direct_most.hpp"
 
 #include <algorithm>
@@ -65,6 +67,7 @@ enum Target {
     MostJoiner,
     Ccs,
     MostPolicy,
+    FilesPolicy,
     BridgeRequirement,
     BridgeStatus,
     WfdMost,
@@ -99,6 +102,7 @@ const TargetName kTargets[] = {{"gamepad-wire", GamepadWire},
                                {"most-joiner", MostJoiner},
                                {"ccs", Ccs},
                                {"most-policy", MostPolicy},
+                               {"files-policy", FilesPolicy},
                                {"bridge-requirement", BridgeRequirement},
                                {"bridge-status", BridgeStatus},
                                {"wfd-most", WfdMost},
@@ -354,11 +358,18 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
         addSeed(&out, "sub:05.00.621,rx:*.*.*");
         addSeed(&out, "rx:05.00.621,sub:05.*.621,tx:05.00.001");
         break;
+    case FilesPolicy:
+        addSeed(&out, "sfc,smc,fig,swc|16|1024");
+        addSeed(&out, "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p|4096|65536");
+        addSeed(&out, "Super Game (Europe) [!].sfc");
+        break;
     case BridgeRequirement:
         addSeed(&out, "bridge=1.1\nbridge-uses=most\nbridge-optional=show\n"
                       "bridge-most=rx:05.00.621,tx:82.00.*,ctl:E5.03\n");
         addSeed(&out, "bridge=1.2\nbridge-uses=most\nbridge-optional=\n"
                       "bridge-most=rx:05.00.621,sub:05.00.621\n");
+        addSeed(&out, "bridge=1.5\nbridge-uses=files\nbridge-optional=most\n"
+                      "bridge-most=rx:05.00.621\nbridge-files=sfc,smc|16|1024\n");
         break;
     case BridgeStatus:
         addSeed(&out, "00000000000000000001 ready\n");
@@ -547,6 +558,21 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
         nbt_most_policy policy;
         copyText(input, text);
         (void)nbt_most_policy_parse(text, &policy);
+        break;
+    }
+    case FilesPolicy: {
+        // The policy, the names a car stores, and a stick's names made stored names.
+        nbt_files_policy policy;
+        char name[NBT_FILES_NAME_MAX + 1];
+        copyText(input, text);
+        if (!nbt_files_policy_parse(text, &policy)) {
+            (void)nbt_files_policy_accepts(&policy, "game.sfc");
+            (void)nbt_files_policy_quota_bytes(&policy);
+        }
+        (void)nbt_files_name_valid(text);
+        if (nbt::worker::UsbFiles::storedName(text, name) && !nbt_files_name_valid(name)) {
+            abort(); // a stored name is always valid
+        }
         break;
     }
     case BridgeRequirement: {

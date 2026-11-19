@@ -33,12 +33,28 @@ static void wire() {
         assert(nbt_gamepad_wire_decode(bytes, n, &decoded));
     }
     assert(nbt_gamepad_wire_decode(bytes, 25, &decoded));
-    for (unsigned i = 0; i < 4; ++i) {
+    for (unsigned i = 0; i < 3; ++i) {
         uint8_t saved = bytes[i];
         bytes[i] = 2;
         assert(nbt_gamepad_wire_decode(bytes, 24, &decoded));
         bytes[i] = saved;
     }
+    // Byte 3 is the family (bridge 1.5): 0-3 while connected, else rejected.
+    assert(!decoded.family);
+    for (unsigned family = 1; family <= NBT_GAMEPAD_FAMILY_MAX; ++family) {
+        bytes[3] = static_cast<uint8_t>(family);
+        assert(!nbt_gamepad_wire_decode(bytes, 24, &decoded) && decoded.family == family);
+    }
+    bytes[3] = NBT_GAMEPAD_FAMILY_MAX + 1;
+    assert(nbt_gamepad_wire_decode(bytes, 24, &decoded));
+    state.family = NBT_GAMEPAD_FAMILY_DUALSENSE;
+    assert(nbt_gamepad_wire_encode(&state, bytes, 24) == 24 && bytes[3] == 3);
+    state.family = NBT_GAMEPAD_FAMILY_MAX + 1;
+    assert(nbt_gamepad_wire_encode(&state, bytes, 24) < 0);
+    nbt_gamepad_wire_state none = {};
+    none.family = NBT_GAMEPAD_FAMILY_XBOX; // a disconnected pad has no family
+    assert(nbt_gamepad_wire_encode(&none, bytes, 24) < 0);
+    state.family = 0;
     state.connected = 0;
     assert(nbt_gamepad_wire_encode(&state, bytes, 24) < 0);
     assert(nbt_gamepad_axis(-32768, 6553) == -32767);
@@ -123,8 +139,10 @@ static void input() {
     uint8_t p[24];
     Input in;
     s.buttons = NBT_GAMEPAD_SOUTH;
+    s.family = NBT_GAMEPAD_FAMILY_DUALSHOCK4;
     assert(nbt_gamepad_wire_encode(&s, p, 24) > 0 && in.feed(p, 24, 100));
-    assert(!in.state().buttons); // held across focus acquisition
+    assert(!in.state().buttons);                                // held across focus acquisition
+    assert(in.state().family == NBT_GAMEPAD_FAMILY_DUALSHOCK4); // known before it is armed
     s.buttons = 0;
     s.sequence = 0;
     (void)nbt_gamepad_wire_encode(&s, p, 24);
@@ -313,6 +331,24 @@ static void records() {
     s.buttons = 1u << 20; // invalid: published as nothing
     encodeRecord(s, 8, 1000, r);
     assert(!decodeRecord(r, sizeof(r), 1200).connected);
+    // The family rides in byte 44; the wire state's byte 3 stays 0 for hosts
+    // of the previous release, which read the record and reject it there.
+    s.buttons = 0;
+    s.family = NBT_GAMEPAD_FAMILY_XBOX;
+    encodeRecord(s, 9, 1000, r);
+    assert(r[16 + 3] == 0 && r[44] == NBT_GAMEPAD_FAMILY_XBOX);
+    nbt_gamepad_wire_state old;
+    assert(!nbt_gamepad_wire_decode(r + 16, NBT_GAMEPAD_WIRE_SIZE, &old) && !old.family);
+    d = decodeRecord(r, sizeof(r), 1200);
+    assert(d.connected && d.family == NBT_GAMEPAD_FAMILY_XBOX);
+    r[44] = NBT_GAMEPAD_FAMILY_MAX + 1;
+    assert(!decodeRecord(r, sizeof(r), 1200).connected);
+    r[44] = 0;
+    r[45] = 1;
+    assert(!decodeRecord(r, sizeof(r), 1200).connected);
+    s.connected = 0;
+    encodeRecord(s, 10, 1000, r); // a family without a pad: published as nothing
+    assert(!decodeRecord(r, sizeof(r), 1200).connected && !r[44]);
 }
 static void guiInput() {
     int host = -1, child = -1;
@@ -386,15 +422,16 @@ static int serve(const char *root, const char *descriptor, const char *shared) {
     svc.stop();
     return 0;
 }
-/* An application host's relay of the owner's published pads (test_gamepad.py). */
-static int relay(const char *descriptor, const char *shared) {
+/* An application host's relay of the owner's published pads (test_gamepad.py),
+ * for an application of bridge 1.5 (`family` 1) or older (0). */
+static int relay(const char *descriptor, const char *shared, const char *family) {
     char *end = NULL;
     const long fd = strtol(descriptor, &end, 10);
     if (!end || *end || fd < 3 || fd > 1024) {
         return 2;
     }
     Relay relay;
-    if (!relay.start(static_cast<int>(fd), shared)) {
+    if (!relay.start(static_cast<int>(fd), shared, family && !strcmp(family, "1"))) {
         return 1;
     }
     relay.setActive(true);
@@ -409,8 +446,8 @@ int main(int argc, char **argv) {
     if (argc == 5 && !strcmp(argv[1], "--serve")) {
         return serve(argv[2], argv[3], argv[4]);
     }
-    if (argc == 4 && !strcmp(argv[1], "--relay")) {
-        return relay(argv[2], argv[3]);
+    if ((argc == 4 || argc == 5) && !strcmp(argv[1], "--relay")) {
+        return relay(argv[2], argv[3], argc == 5 ? argv[4] : NULL);
     }
     wire();
     reports();

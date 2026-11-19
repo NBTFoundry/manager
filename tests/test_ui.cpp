@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/capture_watch.hpp"
+#include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/gamepad_input.hpp"
 #include "nbt/gui/setup_ui.hpp"
 #include "nbt/gui/ui_controller.hpp"
@@ -1536,7 +1537,118 @@ static void test_quarantine_unblock_and_abort_app(void) {
     exchange(&ui, "RUNNING status", "RUNNING\t0");
 }
 
+/* Settings > Files: stored files by page, a deletion, a USB scan and import. */
+#define FILES_PAGE_ONE                                                                             \
+    "FILES\t13\t3145728\t1073741824\t5000000000\t1\tA.sfc\t1048576\tB.sfc\t10\tC.sfc\t10\tD."      \
+    "sfc\t10"                                                                                      \
+    "\tE.sfc\t10\tF.sfc\t10\tG.sfc\t10\tH.sfc\t10\tI.sfc\t10\tJ.sfc\t10\tK.sfc\t10\tL.sfc\t10"
+static void test_files_screens(void) {
+    UiController ui;
+    UiView v;
+    loaded(&ui, "APPS\t1\tsnes", "RUNNING\t0");
+    hold(&ui, "SETTINGS snes live", "SETTINGS\t0\trestart+files");
+    v = view(&ui);
+    CHECK(v.itemCount == 2 && !strcmp(v.items[0], "Files") &&
+          !strcmp(v.items[1], "Uninstall snes"));
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "FILES snes first", FILES_PAGE_ONE);
+    v = view(&ui);
+    CHECK(ui.screen == nbt::gui::Files && !strcmp(v.title, "snes: files"));
+    CHECK(view_contains(&ui, "13 files, 3.0 MB of 1.0 GB used"));
+    CHECK(v.itemCount == 14 && !strcmp(v.items[0], "Import from a USB stick") &&
+          !strcmp(v.items[1], "A.sfc  (1.0 MB)") && !strcmp(v.items[2], "B.sfc  (1 KB)") &&
+          !strcmp(v.items[13], "More files"));
+    /* The next page, then back to the first. */
+    while (ui.focus < 13) {
+        press(&ui, nbt::gui::KeyDown, 1);
+    }
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "FILES snes next", "FILES\t13\t3145728\t1073741824\t5000000000\t0\tM.sfc\t2048");
+    v = view(&ui);
+    CHECK(v.itemCount == 2 && !strcmp(v.items[1], "M.sfc  (2 KB)") && ui.focus == 0);
+    press(&ui, nbt::gui::KeyBack, 1);
+    exchange(&ui, "FILES snes first", FILES_PAGE_ONE);
+    /* Deleting asks first, No focused. */
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    v = view(&ui);
+    CHECK(ui.screen == nbt::gui::FileDelete && !strcmp(v.title, "Delete A.sfc?") && v.focus == 0);
+    CHECK(!strcmp(v.items[0], "No") && !strcmp(v.items[1], "Yes, delete"));
+    press(&ui, nbt::gui::KeySelect, 1);
+    CHECK(ui.screen == nbt::gui::Files && ui.focus == 1 && !ui.queued);
+    press(&ui, nbt::gui::KeySelect, 1);
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "FILES DELETE snes 0", "OK");
+    CHECK(ui.screen == nbt::gui::Files && view_contains(&ui, "A.sfc deleted"));
+    exchange(&ui, "FILES snes first", "FILES\t0\t0\t1073741824\t5000000000\t0");
+    CHECK(view_contains(&ui, "No files yet") && view(&ui).itemCount == 1);
+    /* From a USB stick: a scan polled once a second, then the files found. */
+    press(&ui, nbt::gui::KeySelect, 1);
+    CHECK(ui.screen == nbt::gui::UsbFiles && view(&ui).busy);
+    exchange(&ui, "FILES SCAN snes", "OK");
+    CHECK(view_contains(&ui, "Looking for files on USB sticks") && view(&ui).itemCount == 0);
+    exchange(&ui, "FILES USB snes 0", "USB\tscanning\t-\t0\t0\t0\t0");
+    idle(&ui); // the next poll waits a second
+    now += nbt::gui::kPollMs;
+    exchange(&ui, "FILES USB snes 0",
+             "USB\tscanned\t-\t0\t0\t0\t2\tB.sfc\t512\t0\tC.smc\t2097152\t1");
+    v = view(&ui);
+    CHECK(view_contains(&ui, "2 found") && v.itemCount == 3 && !v.busy);
+    CHECK(!strcmp(v.items[0], "Import all (2)") && !strcmp(v.items[1], "B.sfc  (1 KB)") &&
+          !strcmp(v.items[2], "C.smc  (on the car)"));
+    now += nbt::gui::kPollMs;
+    idle(&ui); // scanned: no more polls
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1); // already on the car: nothing to do
+    CHECK(!ui.queued);
+    press(&ui, nbt::gui::KeyUp, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "FILES IMPORT snes 0", "OK");
+    exchange(&ui, "FILES USB snes 0",
+             "USB\timporting\t-\t0\t1\t40\t2\tB.sfc\t512\t0\tC.smc\t2097152\t1");
+    v = view(&ui);
+    CHECK(view_contains(&ui, "Importing 1 of 1") && v.progress == 40 && v.busy && ui.updating());
+    now += nbt::gui::kPollMs;
+    exchange(&ui, "FILES USB snes 0",
+             "USB\tfailed\tquota\t0\t1\t0\t2\tB.sfc\t512\t0\tC.smc\t2097152\t1");
+    CHECK(view_contains(&ui, "Import stopped: the space for this application is full"));
+    CHECK(!ui.updating());
+    /* Back on the files, refreshed; a refused scan says why. */
+    press(&ui, nbt::gui::KeyBack, 1);
+    exchange(&ui, "FILES snes first", "FILES\t1\t512\t1073741824\t5000000000\t0\tB.sfc\t512");
+    CHECK(ui.screen == nbt::gui::Files && view(&ui).itemCount == 2);
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "FILES SCAN snes", "ERR busy");
+    CHECK(view_contains(&ui, "Import stopped: Busy; try again in a moment"));
+    press(&ui, nbt::gui::KeyBack, 1);
+    exchange(&ui, "FILES snes first", "FILES\t1\t512\t1073741824\t5000000000\t0\tB.sfc\t512");
+    /* Back to Settings, on the Files entry; a garbled listing is a protocol error. */
+    press(&ui, nbt::gui::KeyBack, 1);
+    CHECK(ui.screen == nbt::gui::Settings && ui.focus == ui.filesItem() && !ui.queued);
+    press(&ui, nbt::gui::KeySelect, 1);
+    {
+        Request request;
+        CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "FILES snes first"));
+        CHECK(ui.reply("FILES\t1\t512\t1073741824\t5000000000\t0\t../x.sfc\t1", now) == -1);
+        CHECK(ui.screen == nbt::gui::Error && ui.fatal);
+    }
+    /* An application without files has no entry; sizes are written in the car's language. */
+    loaded(&ui, "APPS\t1\tdemo", "RUNNING\t0");
+    hold(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
+    CHECK(view(&ui).itemCount == 1 && !view_contains(&ui, "Files"));
+    char size[32];
+    nbt::gui::setCurrentLanguage(nbt::model::LangFr);
+    nbt::gui::formatSize(UINT64_C(3) << 20, size, sizeof(size));
+    CHECK(!strcmp(size, "3,0 Mo"));
+    nbt::gui::setCurrentLanguage(nbt::model::LangEn);
+    nbt::gui::formatSize(UINT64_C(5) << 30, size, sizeof(size));
+    CHECK(!strcmp(size, "5.0 GB"));
+}
+
 int main(void) {
+    test_files_screens();
     test_application_status();
     test_main_menu_and_banner();
     test_push_starts_and_closes();

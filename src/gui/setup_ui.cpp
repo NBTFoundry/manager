@@ -7,6 +7,7 @@
  * That request runs OnOffDSICommander appreset, which restarts the whole head
  * unit (the user, 2026-11-18), not iDrive alone. */
 #include "nbt/gui/setup_ui.hpp"
+#include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/log.h"
@@ -45,6 +46,9 @@ bool setupRequest(int kind, Request &request) {
 }
 
 int setupReply(UiController &ui, int kind, const char *reply, uint64_t now) {
+    if (kind >= R_FILES) {
+        return filesReply(ui, kind, reply, now);
+    }
     if (kind == R_IDRIVE_RESTART) {
         if (!strcmp(reply, "OK")) {
             ui.showResult(text(T_RESTARTING), text(T_WHOLE_SYSTEM_RESTARTS));

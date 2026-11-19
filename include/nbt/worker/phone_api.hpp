@@ -5,6 +5,7 @@
 #include "nbt/worker/http.hpp"
 #include "nbt/worker/phone_actions.hpp"
 #include "nbt/worker/phone_auth.hpp"
+#include "nbt/worker/phone_files.hpp"
 #include "nbt/worker/phone_logs.hpp"
 namespace nbt {
 namespace worker {
@@ -30,6 +31,21 @@ public:
     }
     core::Result<core::UniqueFd> uploadStart();
     void uploadAbort();
+    /* A file's bytes (/v1/files/data, phone_files.hpp). */
+    core::Result<core::UniqueFd> filesStart(const http::Request &request, uint64_t now) {
+        return files_.dataStart(request, now);
+    }
+    int filesFinish(const http::Request &request, const unsigned char hash[32],
+                    core::Span<char> out) {
+        return files_.dataFinish(request, hash, out);
+    }
+    void filesAbort() {
+        files_.dataAbort();
+    }
+    /* A phone's file is arriving: the GUI's USB import waits. */
+    bool filesReceiving() const {
+        return files_.receiving();
+    }
     bool nextNonce(uint64_t now, char output[65]) {
         return nonces_.issue(now, output);
     }
@@ -41,6 +57,7 @@ private:
     storage::PhoneStore phones_;
     PhoneNonces nonces_;
     PhoneActions actions_;
+    PhoneFiles files_;
     bool door_;
     bool receiving_;
     bool systemLog_;

@@ -33,11 +33,18 @@ Every datagram is exactly 24 bytes, little-endian:
 | 0 | Version, 1 |
 | 1 | Type, 1 (complete state) |
 | 2 | Connected, 0 or 1 |
-| 3 | Reserved, zero |
+| 3 | Family (bridge 1.5): 0 unknown, 1 Xbox, 2 DualShock 4, 3 DualSense; 0 when disconnected |
 | 4 | Unsigned 32-bit sequence, modulo 2^32 |
 | 8 | Unsigned 32-bit buttons |
 | 12, 14, 16, 18 | Signed 16-bit left X/Y, right X/Y |
 | 20, 22 | Unsigned 16-bit left/right trigger |
+
+**The family byte.** Readers before bridge 1.5 reject a datagram whose byte 3
+is not zero, so a host sends the family only to an application whose package
+declares bridge 1.5 or later; older ones always get 0 there. It lets an
+application lay out its controls for the pad in the user's hands and name its
+buttons as printed on it. The reader keeps it while it waits for neutral
+controls, so the family is known as soon as the pad is.
 
 Stick axes span -32768..32767, positive right and up. Triggers span 0..65535.
 Button bits 0–14 are south, east, west, north, LB, RB, View, Menu, left and right
@@ -63,9 +70,11 @@ switch. The GUI's service (`src/gamepad/service.cpp`):
 - keeps the pad open and sends each state to the GUI's own socket, used only while
   the manager is on the panel;
 - publishes it in `/dev/shmem/nbt-manager-gamepad` (`src/gamepad/shared_state.cpp`):
-  one 48-byte record of magic, count, monotonic time, the 24-byte wire state and
-  the count again, rewritten at least every 100 ms, with the same owner and mode
-  checks as the capture control file.
+  one 48-byte record of magic, count, monotonic time, the 24-byte wire state
+  (its family byte 0), the count again, the family and three zero bytes,
+  rewritten at least every 100 ms, with the same owner and mode checks as the
+  capture control file. The family has its own byte so that a host of the
+  previous release, reading a newer GUI's record, still accepts the state.
 
 An application's host relays the record (`src/gamepad/relay.cpp`) on
 `NBT_GAMEPAD_FD` unchanged, on change and at least every 100 ms. The pad counts as

@@ -36,19 +36,21 @@ int nbt_app_settings_set(nbt_fs *fs, const char *app, const char *key, const cha
  * User launches granted most get NBT_MOST_FD=6 and gamepad grants get\n * NBT_GAMEPAD_FD=7; the
  * host adds NBT_SURFACE for `show` (nbt_app_surface_claim). Settings that cannot be read are left
  * out; the application then uses its own defaults. Every app gets NBT_DATA_DIR; live-settings
- * grants get NBT_SETTINGS_FILE, refreshed before launch. An unsafe data directory or live snapshot
- * refuses launch. `available` lists the capabilities available now (NULL: all implemented), as for
- * nbt_bridge_check. */
+ * grants get NBT_SETTINGS_FILE, refreshed before launch; files grants get NBT_FILES_DIR when the
+ * files root opens (storage/files_root.hpp), else nothing. An unsafe data directory or live
+ * snapshot refuses launch. `available` lists the capabilities available now (NULL: all
+ * implemented), as for nbt_bridge_check. */
 #define NBT_APP_ENV_TEXT_MAX (16 + NBT_BRIDGE_CAPS_MAX + 1)
 /* text is indexed like list, whose first entries may point elsewhere: the
- * HMI's runtime variables (at most 5), data dir, settings file, then bridge
- * (2), status, MOST, gamepad, controller, launch and the settings: at most
- * NBT_SETTINGS_MAX + 14 entries. A host adds NBT_SURFACE in `surface`, then the NULL. */
+ * HMI's runtime variables (at most 5), data dir, settings file, files dir, then
+ * bridge (2), status, MOST, gamepad, controller, launch and the settings: at
+ * most NBT_SETTINGS_MAX + 15 entries. A host adds NBT_SURFACE in `surface`, then the NULL. */
 typedef struct {
-    char text[NBT_SETTINGS_MAX + 14][NBT_APP_ENV_TEXT_MAX];
-    char *list[NBT_SETTINGS_MAX + 16];
+    char text[NBT_SETTINGS_MAX + 15][NBT_APP_ENV_TEXT_MAX];
+    char *list[NBT_SETTINGS_MAX + 17];
     char data_dir[NBT_PATH_MAX + 16];
     char settings_file[NBT_PATH_MAX + 20];
+    char files_dir[NBT_PATH_MAX + 16];
     char surface[24];
     char library_path[512]; /* the HMI's LD_LIBRARY_PATH with /opt/mm/lib */
     char preload[512];      /* LD_PRELOAD with capture shim stripped */

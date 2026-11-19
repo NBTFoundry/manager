@@ -215,7 +215,8 @@ build/nbt-verify test-v1.nbt apps-public.pem test demo-1
 
 `--setting 'background|Background color|blue|blue,red,green,black'` declares a
 setting; `--bridge`, `--bridge-uses` and `--bridge-optional` declare bridge
-capabilities ([PROTOCOL.md](PROTOCOL.md)). Sequences must increase; an older
+capabilities ([PROTOCOL.md](PROTOCOL.md)), `--bridge-files` the files an
+application accepts ([docs/files-bridge.md](docs/files-bridge.md)). Sequences must increase; an older
 signed release needs the explicit recovery operation. Applications built with
 `NBTFoundry/sdk` get the lifecycle contract, bridge channels, display and audio.
 
@@ -240,6 +241,11 @@ link.
   counts, and journal records never supply paths. QNX 6.5 lacks the
   directory-relative calls needed to close every race against a hostile process
   of the same user, so other processes of that user are trusted.
+- **Applications' files.** Files the user brings for an application (capability
+  `files`) are the one thing outside it: `/mnt/share/nbt-manager` on the hard
+  disk, too large for the 492 MB `/var` partition, under the same ownership,
+  device and link checks, bounded by each package's signed policy
+  ([docs/files-bridge.md](docs/files-bridge.md)).
 - **Health checks and rollback.** A new application or manager version must show
   readiness and 10 seconds of heartbeats; otherwise the previous one is restored.
   The launcher supervises the worker and GUI with bounded restarts and persisted

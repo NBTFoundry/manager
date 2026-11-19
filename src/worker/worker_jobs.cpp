@@ -6,6 +6,7 @@
 #include "nbt/worker/worker.hpp"
 
 #include "nbt/log.h"
+#include "nbt/worker/usb_files.hpp"
 
 #include <errno.h>
 #include <stdio.h>
@@ -72,10 +73,27 @@ bool Worker::finishTask(uint64_t nowMs) {
     case Task::Setup:
         setupReady_ = true; // until takeSetup()
         return true;
+    case Task::FilesScan:
+    case Task::FilesImport:
+        task_.usb->end(task_.result);
+        break;
     default:
         break;
     }
     clearTask(task_);
+    return true;
+}
+
+bool Worker::startFiles(UsbFiles &usb, bool importing, uint64_t nowMs) {
+    if (busy() || taskPending()) {
+        return false;
+    }
+    clearTask(task_);
+    task_.task = importing ? Task::FilesImport : Task::FilesScan;
+    task_.usb = &usb;
+    snprintf(task_.app, sizeof(task_.app), "%s", usb.app());
+    usb.begin(importing);
+    startTask(nowMs);
     return true;
 }
 

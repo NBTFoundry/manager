@@ -4,11 +4,15 @@ import re
 
 VERSION = re.compile(r"([1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{0,23}\Z")
-CURRENT = ("1.4|show,status,live-settings,most,gamepad,controller",)  # matches nbt_bridge_current
+CURRENT = ("1.5|show,status,live-settings,most,gamepad,controller,files",)  # matches nbt_bridge_current
 # One rule of a MOST policy (src/model/most_policy.cpp, docs/most-bridge.md).
 MOST_RULE = re.compile(r"(?:rx:\*\.\*\.\*|(?:rx|tx):[0-9A-F]{2}\.(?:\*|[0-9A-F]{2})\.(?:\*|[0-9A-F]{3})"
                        r"|ctl:[0-9A-F]{2}\.[0-9A-F]{2}|sub:[0-9A-F]{2}\.[0-9A-F]{2}\.[0-9A-F]{3})\Z")
 MOST_MAX, MOST_RULES, MOST_CONTROLS = 640, 48, 16
+# A files policy (src/model/files_policy.cpp, docs/files-bridge.md).
+FILES_EXTENSION = re.compile(r"[a-z0-9]{1,8}\Z")
+FILES_NUMBER = re.compile(r"[1-9][0-9]{0,4}\Z")
+FILES_MAX, FILES_EXTENSIONS, FILES_FILE_MIB, FILES_QUOTA_MIB = 160, 16, 4096, 65536
 
 
 def version(text):
@@ -44,9 +48,25 @@ def most_policy(text):
     return text
 
 
-def requirement(ver, uses, optional, most=""):
+def files_policy(text):
+    """Validates a files policy as the C parser does; returns it unchanged."""
+    parts = text.split("|")
+    if len(text) > FILES_MAX or len(parts) != 3:
+        raise ValueError("invalid files policy: extensions|largest file MiB|quota MiB")
+    extensions = parts[0].split(",")
+    if (not 1 <= len(extensions) <= FILES_EXTENSIONS or len(set(extensions)) != len(extensions) or
+            not all(FILES_EXTENSION.fullmatch(e) for e in extensions) or
+            not all(FILES_NUMBER.fullmatch(n) for n in parts[1:])):
+        raise ValueError("invalid files policy (see docs/files-bridge.md)")
+    largest, quota = int(parts[1]), int(parts[2])
+    if largest > FILES_FILE_MIB or quota > FILES_QUOTA_MIB or quota < largest:
+        raise ValueError("files policy limits: largest file 1-4096 MiB, quota 1-65536 MiB and at least the largest file")
+    return text
+
+
+def requirement(ver, uses, optional, most="", files=""):
     if ver is None:
-        if uses or optional or most:
+        if uses or optional or most or files:
             raise ValueError("bridge capabilities require --bridge")
         return ""
     major, minor = version(ver)
@@ -57,8 +77,13 @@ def requirement(ver, uses, optional, most=""):
         raise ValueError("required and optional bridge capabilities overlap")
     if ("most" in required | wanted) != bool(most):
         raise ValueError("a MOST policy (--bridge-most) is required exactly when most is declared")
+    if ("files" in required | wanted) != bool(files):
+        raise ValueError("a files policy (--bridge-files) is required exactly when files is declared")
+    if files and major == 1 and minor < 5:
+        raise ValueError("files requires bridge 1.5")
     text = f"bridge={ver}\nbridge-uses={uses}\nbridge-optional={optional}\n"
-    return text + (f"bridge-most={most_policy(most)}\n" if most else "")
+    text += f"bridge-most={most_policy(most)}\n" if most else ""
+    return text + (f"bridge-files={files_policy(files)}\n" if files else "")
 
 
 def provider(values):

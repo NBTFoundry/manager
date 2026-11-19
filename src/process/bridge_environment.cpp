@@ -1,9 +1,24 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/bridge_environment.hpp"
+#include "nbt/log.h"
+#include "nbt/storage/files_root.hpp"
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 namespace nbt {
 namespace process {
+bool filesDir(const char *app, char *out, size_t size) {
+    storage::FilesRoot root;
+    core::Status status = root.open(storage::FilesRoot::location());
+    if (status.ok()) {
+        status = root.appDir(app, true, core::Span<char>(out, size));
+    }
+    if (!status.ok()) {
+        nbt_logf("host %s: files unavailable: %s (errno %d)", app, status.message(), status.code());
+        return false;
+    }
+    return true;
+}
 size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridge_version &grant,
                          const char *launch) {
     if (grant.major) {

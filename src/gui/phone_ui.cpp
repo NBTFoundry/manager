@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/phone_ui.hpp"
+#include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/setup_ui.hpp"
@@ -9,7 +10,7 @@
 namespace nbt {
 namespace gui {
 bool phonePress(UiController &ui, Key key) {
-    if (setupPress(ui, key)) {
+    if (setupPress(ui, key) || filesPress(ui, key)) {
         return true;
     }
     if (ui.screen == Waiting) {
@@ -69,7 +70,8 @@ bool phoneRequest(const UiController &ui, int kind, Request &request) {
         snprintf(out, size, "PHONE FORGET %s", ui.phoneIds[ui.phoneSelected]);
         break;
     default:
-        return setupRequest(kind, request) || languageRequest(ui, kind, request);
+        return setupRequest(kind, request) || languageRequest(ui, kind, request) ||
+               filesRequest(ui, kind, request);
     }
     return true;
 }

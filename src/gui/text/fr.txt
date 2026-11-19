@@ -32,6 +32,45 @@ setting_release = Rendre le contrôleur
 value_on = activé
 value_off = désactivé
 
+# Files (files_ui.cpp)
+files = Fichiers
+files_title = {1} : fichiers
+files_usage = {1} fichiers, {2}
+files_space = {1} sur {2} utilisés
+files_none = Aucun fichier : envoyez-en depuis le téléphone ou une clé USB
+files_import = Importer depuis une clé USB
+files_more = Fichiers suivants
+file_row = {1}  ({2})
+file_delete_question = Supprimer {1} ?
+file_delete_note = Il est supprimé de la voiture seulement
+yes_delete = Oui, supprimer
+file_deleted = {1} supprimé
+cannot_delete_file = Impossible de supprimer {1}
+usb_title = Clé USB : fichiers pour {1}
+usb_scanning = Recherche de fichiers sur les clés USB
+usb_found = {1} trouvés
+usb_none = Aucun fichier pour {1} sur la clé USB
+usb_no_stick = Aucune clé USB trouvée
+usb_import_all = Tout importer ({1})
+usb_importing = Importation {1} sur {2}
+usb_imported = Importé
+usb_stored = {1}  (dans la voiture)
+usb_more = Suite
+usb_stopped = Importation arrêtée : {1}
+files_busy = Occupé ; réessayez dans un instant
+files_unavailable = Le disque dur n'est pas disponible
+reason_quota = l'espace de cette application est plein
+reason_space = le disque dur est plein
+reason_count = trop de fichiers
+reason_size = un fichier est trop volumineux
+reason_changed = un fichier a changé sur la clé
+reason_read = la clé n'a pas pu être lue
+reason_other = une erreur s'est produite
+size_kb = {1} Ko
+size_mb = {1} Mo
+size_gb = {1} Go
+decimal_mark = ,
+
 # Language
 language = Langue
 language_auto_named = Automatique ({1})

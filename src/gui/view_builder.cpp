@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/view_builder.hpp"
+#include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/phone_ui.hpp"
 
@@ -124,6 +125,9 @@ void buildSettings(const UiController &ui, UiView *v) {
         addAction(v, text(T_PAIRED_PHONES));
         addAction(v, text(T_STATUS)); // status_page.hpp
     } else {
+        if (ui.filesEntry()) { // its files, before Uninstall (filesItem)
+            addAction(v, text(T_FILES));
+        }
         textf(label, sizeof(label), T_UNINSTALL_APP, ui.settingsApp);
         addAction(v, label);
     }
@@ -240,6 +244,11 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
         break;
     case LanguagePick:
         languageView(ui, v);
+        break;
+    case Files:
+    case FileDelete:
+    case UsbFiles:
+        filesView(ui, v);
         break;
     case Waiting:
     case PhoneConfirm:

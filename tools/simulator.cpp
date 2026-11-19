@@ -144,7 +144,88 @@ static void random_hex(char *out, size_t bytes) {
     }
 }
 
+/* Settings > Files for media-player (capability `files`): its files, and a USB
+ * stick whose scan takes a second and whose import takes two. */
+static struct {
+    char names[24][40];
+    unsigned count;
+    int phase; /* 0 idle, 1 scanning, 2 scanned, 3 importing, 4 imported */
+    uint64_t since;
+    int which; /* -1 all */
+} sim_files = {{"Morning drive.mp3", "Podcast 12.mp3"}, 2, 0, 0, -1};
+static const char *const sim_stick[] = {"Album 1 - Track 01.mp3", "Album 1 - Track 02.mp3",
+                                        "Evening.flac"};
+
+static bool sim_stored(const char *name) {
+    for (unsigned i = 0; i < sim_files.count; ++i) {
+        if (!strcmp(sim_files.names[i], name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void sim_files_command(const char *command, char *reply, size_t size, uint64_t now) {
+    char verb[16] = "", app[49] = "", arg[16] = "";
+    size_t used;
+    if (sscanf(command + 6, "%15s %48s %15s", verb, app, arg) < 2) {
+        snprintf(reply, size, "ERR invalid-command");
+        return;
+    }
+    if (strcmp(verb, "DELETE") && strcmp(verb, "SCAN") && strcmp(verb, "USB") &&
+        strcmp(verb, "IMPORT")) { // FILES <app> first|next
+        used = (size_t)snprintf(reply, size, "FILES\t%u\t%u\t1073741824\t9000000000\t0",
+                                sim_files.count, sim_files.count * 4500000u);
+        for (unsigned i = 0; i < sim_files.count && used < size; ++i) {
+            used +=
+                (size_t)snprintf(reply + used, size - used, "\t%s\t4500000", sim_files.names[i]);
+        }
+        return;
+    }
+    if (!strcmp(verb, "DELETE")) {
+        const unsigned i = (unsigned)atoi(arg);
+        if (i < sim_files.count) {
+            memmove(sim_files.names[i], sim_files.names[i + 1],
+                    (sim_files.count - i - 1) * sizeof(sim_files.names[0]));
+            --sim_files.count;
+        }
+        snprintf(reply, size, "OK");
+        return;
+    }
+    if (!strcmp(verb, "SCAN") || !strcmp(verb, "IMPORT")) {
+        sim_files.phase = verb[0] == 'S' ? 1 : 3;
+        sim_files.since = now;
+        sim_files.which = strcmp(arg, "all") ? atoi(arg) : -1;
+        snprintf(reply, size, "OK");
+        return;
+    }
+    if ((sim_files.phase == 1 || sim_files.phase == 3) && now - sim_files.since > 2000) {
+        for (int i = 0; sim_files.phase == 3 && i < 3; ++i) {
+            if ((sim_files.which < 0 || sim_files.which == i) && !sim_stored(sim_stick[i]) &&
+                sim_files.count < 24) {
+                snprintf(sim_files.names[sim_files.count++], 40, "%s", sim_stick[i]);
+            }
+        }
+        ++sim_files.phase;
+    }
+    static const char *const phases[] = {"idle", "scanning", "scanned", "importing", "imported"};
+    const uint64_t elapsed = now - sim_files.since;
+    used = (size_t)snprintf(
+        reply, size, "USB\t%s\t-\t%d\t%d\t%u\t%d", phases[sim_files.phase],
+        sim_files.phase == 3 ? (int)(elapsed / 700) : 0, sim_files.which < 0 ? 3 : 1,
+        sim_files.phase == 3 ? (unsigned)(elapsed / 20) : 0, sim_files.phase == 1 ? 0 : 3);
+    for (int i = 0; sim_files.phase != 1 && i < 3 && used < size; ++i) {
+        used +=
+            (size_t)snprintf(reply + used, size - used, "\t%s\t%u\t%d", sim_stick[i],
+                             3200000u + 900000u * (unsigned)i, sim_stored(sim_stick[i]) ? 1 : 0);
+    }
+}
+
 static void worker(const char *command, char *reply, size_t size, uint64_t now) {
+    if (!strncmp(command, "FILES ", 6)) {
+        sim_files_command(command, reply, size, now);
+        return;
+    }
     if (w.stopping >= 0 && now - w.stop_ms > 1500) {
         w.running[w.stopping] = 0;
         w.stopping = -1;
@@ -224,7 +305,9 @@ static void worker(const char *command, char *reply, size_t size, uint64_t now) 
             return;
         }
         used = (size_t)snprintf(reply, size, "SETTINGS\t%u\t%s", (unsigned)list->count,
-                                !strcmp(app, "test") ? "live" : "restart");
+                                !strcmp(app, "test")           ? "live"
+                                : !strcmp(app, "media-player") ? "restart+files"
+                                                               : "restart");
         for (i = 0; i < list->count && used + 1 < size; ++i) {
             int n;
             reply[used++] = '\t';

@@ -13,8 +13,8 @@ namespace nbt {
 namespace worker {
 PhoneApi::PhoneApi(Worker &worker)
     : worker_(worker), root_(worker.root()), phones_(root_), actions_(worker, phones_),
-      door_(false), receiving_(false), systemLog_(false), wakeMs_(0), bssid_(), host_(),
-      wakePath_() {
+      files_(worker), door_(false), receiving_(false), systemLog_(false), wakeMs_(0), bssid_(),
+      host_(), wakePath_() {
 }
 void PhoneApi::address(const char *host, const char *interfaceName) {
     snprintf(host_, sizeof(host_), "%s", host);
@@ -45,8 +45,10 @@ bool PhoneApi::begin(const http::Request &request, uint64_t now) {
     if (request.route == http::Nonce) {
         return true;
     }
+    const bool files = request.route == http::FilesList || request.route == http::FilesPut ||
+                       request.route == http::FilesData || request.route == http::FilesRemove;
     if (door_ && (request.route == http::Pair || request.route == http::Upload ||
-                  request.route == http::Remove || request.route == http::Status)) {
+                  request.route == http::Remove || request.route == http::Status || files)) {
         return false;
     }
     if (!nonces_.take(request.nonce, now) || !nonces_.signatureAllowed(now)) {
@@ -66,6 +68,9 @@ bool PhoneApi::begin(const http::Request &request, uint64_t now) {
     if (request.route == http::Upload || request.route == http::Remove) {
         return !receiving_ && !actions_.pending() && worker_.state().state != State::Verified &&
                !worker_.busy();
+    }
+    if (request.route == http::FilesData) {
+        return files_.dataAllowed(request, now);
     }
     return true;
 }
@@ -176,6 +181,12 @@ int PhoneApi::execute(const http::Request &request, const char *body, uint64_t n
         }
         return status;
     }
+    case http::FilesList:
+        return files_.list(body, out);
+    case http::FilesPut:
+        return files_.put(request.keyId, body, now, out);
+    case http::FilesRemove:
+        return files_.remove(body, out);
     default:
         return 400;
     }

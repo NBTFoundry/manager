@@ -33,6 +33,45 @@ setting_release = 交还控制器
 value_on = 开
 value_off = 关
 
+# Files (files_ui.cpp)
+files = 文件
+files_title = {1}：文件
+files_usage = {1} 个文件，{2}
+files_space = 已用 {1} / {2}
+files_none = 暂无文件：请从手机或 U 盘发送
+files_import = 从 U 盘导入
+files_more = 更多文件
+file_row = {1}  ({2})
+file_delete_question = 删除 {1}？
+file_delete_note = 仅从车辆中删除
+yes_delete = 是，删除
+file_deleted = 已删除 {1}
+cannot_delete_file = 无法删除 {1}
+usb_title = U 盘：{1} 的文件
+usb_scanning = 正在 U 盘上查找文件
+usb_found = 找到 {1} 个
+usb_none = U 盘上没有 {1} 的文件
+usb_no_stick = 未找到 U 盘
+usb_import_all = 全部导入（{1}）
+usb_importing = 正在导入第 {1} 个，共 {2} 个
+usb_imported = 已导入
+usb_stored = {1}  （已在车上）
+usb_more = 更多
+usb_stopped = 导入已停止：{1}
+files_busy = 忙碌中；请稍后再试
+files_unavailable = 硬盘不可用
+reason_quota = 此应用的空间已满
+reason_space = 硬盘已满
+reason_count = 文件过多
+reason_size = 文件过大
+reason_changed = U 盘上的文件已更改
+reason_read = 无法读取 U 盘
+reason_other = 发生错误
+size_kb = {1} KB
+size_mb = {1} MB
+size_gb = {1} GB
+decimal_mark = .
+
 # Language
 language = 语言
 language_auto_named = 自动（{1}）

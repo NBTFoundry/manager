@@ -32,19 +32,27 @@ void encodeRecord(const nbt_gamepad_wire_state &state, uint32_t count, uint64_t 
     memcpy(out, kMagic, sizeof(kMagic));
     put(out + 4, count, 4);
     put(out + 8, now, 8);
-    if (nbt_gamepad_wire_encode(&state, out + 16, NBT_GAMEPAD_WIRE_SIZE) < 0) {
+    // The family goes in byte 44, the wire state's byte 3 stays 0: hosts of
+    // the previous release read the record and reject a family there.
+    nbt_gamepad_wire_state wire = state;
+    wire.family = 0;
+    if (state.family > NBT_GAMEPAD_FAMILY_MAX || (state.family && !state.connected) ||
+        nbt_gamepad_wire_encode(&wire, out + 16, NBT_GAMEPAD_WIRE_SIZE) < 0) {
         memset(out, 0, kStateRecordSize); // an invalid state is published as none
         return;
     }
     put(out + 40, count, 4);
+    out[44] = state.family;
 }
 nbt_gamepad_wire_state decodeRecord(const uint8_t *p, size_t size, uint64_t now) {
     nbt_gamepad_wire_state s;
     if (!p || size != kStateRecordSize || memcmp(p, kMagic, sizeof(kMagic)) ||
         get(p + 4, 4) != get(p + 40, 4) ||
-        nbt_gamepad_wire_decode(p + 16, NBT_GAMEPAD_WIRE_SIZE, &s)) {
+        nbt_gamepad_wire_decode(p + 16, NBT_GAMEPAD_WIRE_SIZE, &s) || s.family ||
+        p[44] > NBT_GAMEPAD_FAMILY_MAX || (p[44] && !s.connected) || p[45] || p[46] || p[47]) {
         return disconnected();
     }
+    s.family = p[44];
     const uint64_t stamp = get(p + 8, 8);
     if (now < stamp || now - stamp > kStateStaleMs) {
         return disconnected(); // the GUI stopped publishing

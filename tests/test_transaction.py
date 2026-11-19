@@ -121,7 +121,7 @@ class TransactionTests(unittest.TestCase):
         return run(PROBE, self.root, "test", command, env=env)
 
     def test_bridge_dependency_rejection_precedes_executable_changes(self):
-        for args, reason in ((["--bridge", "1.5"], b"needs bridge 1.5"),
+        for args, reason in ((["--bridge", "1.6"], b"needs bridge 1.6"),
                              (["--bridge", "2.0"], b"does not serve"),
                              (["--bridge", "1.0", "--bridge-uses", "future"], b"not implemented")):
             with self.subTest(args=args):
@@ -146,7 +146,7 @@ class TransactionTests(unittest.TestCase):
         self.assertEqual(self.command("begin").returncode, 0)
         env = self.command("candidate-env")
         self.assertEqual(env.returncode, 0, env.stderr)
-        self.assertIn(b"NBT_BRIDGE=1.4\nNBT_BRIDGE_CAPS=show,status\n", env.stdout)
+        self.assertIn(b"NBT_BRIDGE=1.5\nNBT_BRIDGE_CAPS=show,status\n", env.stdout)
         self.assertNotIn(b"NBT_STATUS_FD=", env.stdout)  # candidate has no user status channel
         self.assertNotIn(b"NBT_BRIDGE=", self.command("env").stdout)  # previous executable's record
         self.assertEqual(self.command("confirm", fault="confirmed").returncode, 91)
@@ -154,7 +154,7 @@ class TransactionTests(unittest.TestCase):
         expected = (self.state / "installed").read_bytes()
         self.assertTrue(expected.startswith(b"NBTSTATE2\n"))
         self.assertIn(b"bridge-optional=show,status\n", expected)
-        self.assertIn(b"NBT_BRIDGE=1.4\n", self.command("env").stdout)
+        self.assertIn(b"NBT_BRIDGE=1.5\n", self.command("env").stdout)
         # A failed candidate without the bridge must restore the declaration
         # with the executable, including after a restart in recovery itself.
         self.make_upload(self.old, 3)
@@ -206,6 +206,45 @@ class TransactionTests(unittest.TestCase):
         self.make_upload(self.old, 3)
         self.assertEqual(self.command("begin").returncode, 0)
         self.assertTrue((self.state / "journal").read_bytes().startswith(b"NBTJ3\n"))
+        self.assertEqual(self.command("confirm").returncode, 0)
+        self.assertTrue((self.state / "installed").read_bytes().startswith(b"NBTSTATE1\n"))
+
+    def test_files_policy_is_signed_journaled_and_recorded(self):
+        policy = "sfc,smc|16|1024"
+        # The packager refuses a policy without `files`, `files` without one,
+        # a bad policy, and a bridge older than 1.5.
+        for args in ((["--bridge", "1.5", "--bridge-files", policy]),
+                     (["--bridge", "1.5", "--bridge-uses", "files"]),
+                     (["--bridge", "1.5", "--bridge-uses", "files", "--bridge-files", "SFC|16|1024"]),
+                     (["--bridge", "1.5", "--bridge-uses", "files", "--bridge-files", "sfc|16|8"]),
+                     (["--bridge", "1.4", "--bridge-uses", "files", "--bridge-files", policy])):
+            with self.subTest(args=args):
+                source = Path(self.tmp.name) / "source"
+                source.write_bytes(self.new)
+                result = run("python3", PACK, "--app", "test", "--version", "v9", "--sequence", 9, "--compat",
+                             "demo-1", "--key", self.key, "--output", Path(self.tmp.name) / "refused", *args, source)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse((Path(self.tmp.name) / "refused").exists())
+        self.make_upload(self.new, 2, "--bridge", "1.5", "--bridge-uses", "files", "--bridge-files", policy)
+        self.assertEqual(self.command("begin").returncode, 0)
+        journal = (self.state / "journal").read_bytes()
+        self.assertTrue(journal.startswith(b"NBTJ4\n"))
+        self.assertIn(f"new_bridge-files={policy}\n".encode(), journal)
+        self.assertEqual(self.command("confirm").returncode, 0)
+        record = (self.state / "installed").read_bytes()
+        self.assertTrue(record.startswith(b"NBTSTATE4\n"))
+        self.assertTrue(record.endswith(f"bridge-uses=files\nbridge-optional=\nbridge-files={policy}\n".encode()))
+        # A policy under another level, or level 4 without one, is not a record.
+        for text in (record.replace(b"NBTSTATE4\n", b"NBTSTATE3\n"),
+                     record.split(b"bridge-files=")[0].replace(b"bridge-uses=files", b"bridge-uses=")):
+            with self.subTest(text=text[:10]):
+                self.write_private(self.state / "installed", text)
+                self.assertNotEqual(self.command("env").returncode, 0)
+        self.write_private(self.state / "installed", record)
+        # Removing the dependency returns to NBTSTATE1 through an NBTJ4 journal.
+        self.make_upload(self.old, 3)
+        self.assertEqual(self.command("begin").returncode, 0)
+        self.assertTrue((self.state / "journal").read_bytes().startswith(b"NBTJ4\n"))
         self.assertEqual(self.command("confirm").returncode, 0)
         self.assertTrue((self.state / "installed").read_bytes().startswith(b"NBTSTATE1\n"))
 

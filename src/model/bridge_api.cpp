@@ -142,8 +142,8 @@ void nbt_bridge_current(nbt_bridge_provider *out) {
     memset(out, 0, sizeof(*out));
     out->count = 1;
     out->versions[0].major = 1;
-    out->versions[0].minor = 4;
-    static const char kCaps[] = "show,status,live-settings,most,gamepad,controller";
+    out->versions[0].minor = 5;
+    static const char kCaps[] = "show,status,live-settings,most,gamepad,controller,files";
     memcpy(out->versions[0].caps, kCaps, sizeof(kCaps));
 }
 
@@ -190,6 +190,10 @@ int nbt_bridge_check(const nbt_bridge_requirement *need, const nbt_bridge_provid
     if (need->most[0] && !nbt_bridge_cap_has(served->caps, "most")) {
         return nbt::model::failCheck(error, size,
                                      "declares MOST functions; this manager does not serve most");
+    }
+    if (need->files[0] && !nbt_bridge_cap_has(served->caps, "files")) {
+        return nbt::model::failCheck(error, size,
+                                     "declares files; this manager does not serve files");
     }
     for (const char *p = need->uses; *p;) {
         p = nbt::model::nextCapName(p, name);

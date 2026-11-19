@@ -2,11 +2,13 @@
 #include "nbt/process/host_start.hpp"
 
 #include "nbt/bridge.h"
+#include "nbt/process/bridge_environment.hpp"
 #include "nbt/process/host_control.hpp"
 #include "nbt/util.h"
 
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 namespace nbt {
@@ -46,6 +48,23 @@ int prepareHostStart(nbt_fs *fs, const char *app, int lease, HostStart *out, cha
         return refuse(reason, size, error, errno, "installed record unreadable", NULL);
     }
     channels.prepare(app, out->record.bridge, provider.versions[0].caps, available);
+    // Files live on the hard disk: without a usable root the capability is
+    // unavailable (a required one then refuses the start below).
+    char folder[NBT_PATH_MAX];
+    if (out->record.bridge.files[0] && nbt_bridge_cap_has(available, "files") &&
+        !filesDir(app, folder, sizeof(folder))) {
+        char filtered[NBT_BRIDGE_CAPS_MAX + 1];
+        nbt_bridge_caps_without(available, "files", filtered);
+        memcpy(available, filtered, sizeof(filtered));
+    }
+    // The grant first: the environment needs it too, and only this says what is missing.
+    detail[0] = 0;
+    result =
+        nbt_bridge_check(&out->record.bridge, &provider, available, &grant, detail, sizeof(detail));
+    if (result) {
+        channels.releaseChildren();
+        return refuse(reason, size, error, 0, "bridge grant refused", detail);
+    }
     errno = 0;
     if (nbt_app_environment_build(fs, app, "user", &out->record.bridge, available,
                                   &out->environment) ||
@@ -53,12 +72,6 @@ int prepareHostStart(nbt_fs *fs, const char *app, int lease, HostStart *out, cha
         const int saved = errno;
         channels.releaseChildren();
         return refuse(reason, size, error, saved, "environment", NULL);
-    }
-    detail[0] = 0;
-    result =
-        nbt_bridge_check(&out->record.bridge, &provider, available, &grant, detail, sizeof(detail));
-    if (result) {
-        return refuse(reason, size, error, 0, "bridge grant refused", detail);
     }
     out->canShow = nbt_bridge_cap_has(grant.caps, "show");
     out->canStatus = nbt_bridge_cap_has(grant.caps, "status");

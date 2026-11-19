@@ -37,6 +37,8 @@ def main():
     parser.add_argument("--bridge-optional", default="", help="optional comma-separated capabilities")
     parser.add_argument("--bridge-most", default="",
                         help="MOST policy, required with capability most: rx:FB.II.FFF,tx:...,ctl:FB.II,sub:FB.II.FFF")
+    parser.add_argument("--bridge-files", default="",
+                        help="files policy, required with capability files: ext,ext|largest file MiB|quota MiB")
     parser.add_argument("executable", type=Path)
     args = parser.parse_args()
     if not APP_TOKEN.fullmatch(args.app) or not TOKEN.fullmatch(args.compat):
@@ -44,7 +46,8 @@ def main():
     if not VERSION.fullmatch(args.version) or not 0 < args.sequence < 2**64:
         parser.error("invalid version or release sequence")
     try:
-        bridge_text = bridge.requirement(args.bridge, args.bridge_uses, args.bridge_optional, args.bridge_most)
+        bridge_text = bridge.requirement(args.bridge, args.bridge_uses, args.bridge_optional, args.bridge_most,
+                                         args.bridge_files)
     except ValueError as error:
         parser.error(str(error))
     keys = set()

@@ -12,7 +12,18 @@
 namespace nbt {
 namespace worker {
 
-enum class Task { None, VerifyNew, VerifyInstalled, InstallNew, InstallUpdate, Setup };
+enum class Task {
+    None,
+    VerifyNew,
+    VerifyInstalled,
+    InstallNew,
+    InstallUpdate,
+    Setup,
+    FilesScan,  // an application's files on a USB stick (usb_files.hpp)
+    FilesImport // copied to the car
+};
+
+class UsbFiles;
 
 struct TaskContext {
     Task task;
@@ -25,6 +36,7 @@ struct TaskContext {
     unsigned char digest[32];
     bool recovery;
     const char *hmiRoot;
+    UsbFiles *usb; // FilesScan, FilesImport
     unsigned changed;
     uint64_t elapsedMs;
     int result;

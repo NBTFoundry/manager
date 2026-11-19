@@ -192,9 +192,11 @@ bridge-optional=show
 
 `bridge` names the required major and minimum minor. Required capabilities must
 be implemented; optional capabilities are granted only when available. The
-current bridge is **1.4 with `show,status,live-settings,most,gamepad,controller`**, so the example grants `show`.
+current bridge is **1.5 with `show,status,live-settings,most,gamepad,controller,files`**, so the example grants `show`.
 An application declaring `most` adds a fourth field, `bridge-most=<policy>`, the
-MOST functions it may use ([MOST bridge](docs/most-bridge.md)).
+MOST functions it may use ([MOST bridge](docs/most-bridge.md)). One declaring
+`files` (bridge 1.5 or later) adds `bridge-files=<policy>` after it, the files it
+accepts ([files bridge](docs/files-bridge.md)).
 Without these fields an application gets no bridge. All three fields are
 required together, with canonical version numbers and bounded, unique,
 disjoint capability lists. See [the bridge contract](docs/app-bridge.md) for
@@ -205,7 +207,8 @@ The worker checks dependencies after verifying the package and before review;
 messages. It rechecks before installation. Installed requirements are part of
 `NBTSTATE2` and its recovery journal (`NBTJ2`), paired with the executable across
 confirmation and rollback. A MOST policy makes them `NBTSTATE3`/`NBTJ3`, which add
-`bridge-most=` (`old_`/`new_` prefixed in the journal) after `bridge-optional=`.
+`bridge-most=` (`old_`/`new_` prefixed in the journal) after `bridge-optional=`;
+a files policy makes them `NBTSTATE4`/`NBTJ4`, which add `bridge-files=` last.
 Each version is written exactly when needed and a record of another version is
 rejected, so an older manager never misreads a policy. No-bridge apps keep the
 existing record formats.
@@ -241,6 +244,33 @@ change (`include/nbt/controller_wire.h`; reader `nbt::controller::Input`,
 surface that is not paused; going quiet sends a released, disconnected state
 first. No signed policy is needed and no raw MOST is exposed. See
 [the bridge contract](docs/app-bridge.md), section 4.
+
+## Applications' files
+
+Bridge **1.5** adds `files`: a folder of files the user brings to the car, on
+the head unit's hard disk, bounded by the signed `bridge-files=` policy. User
+launches granted it receive `NBT_FILES_DIR`, read only for the application.
+Bridge 1.5 also puts the gamepad's family in byte 3 of its state, for
+applications declaring 1.5 or later. See
+[the files contract](docs/files-bridge.md) for the policy, storage and checks.
+
+A paired phone uses `/v1/files/list`, `put`, `data` and `remove` (routes
+below). The GUI's Settings > Files page uses these commands; replies are one
+line, files are addressed by their index in the worker's own listing, so names
+never cross the command line:
+
+| Command | Reply |
+| --- | --- |
+| `FILES <app> first` or `next` | `FILES\t<count>\t<used>\t<quota>\t<free>\t<more>`, then `\t<name>\t<size>` for up to 12 files, the first page or the next one |
+| `FILES DELETE <app> <i>` | `OK`: file `i` of the last page deleted |
+| `FILES SCAN <app>` | `OK`: the USB sticks are scanned on the worker's job |
+| `FILES USB <app> <offset>` | `USB\t<phase>\t<reason>\t<done>\t<total>\t<percent>\t<count>`, then `\t<name>\t<size>\t<0 or 1: stored>` for up to 12 files from `offset`; phase `idle`, `scanning`, `scanned`, `importing`, `imported` or `failed`, reason `-` or a word |
+| `FILES IMPORT <app> all` or `<i>` | `OK`: every file found, or one, copied on the worker's job |
+
+Refusals are `ERR <reason>`: `app`, `busy`, `unavailable`, `invalid-command`
+or a files reason (`quota`, `space`, `count`, `size`, `type`, `name`,
+`missing`). `SETTINGS <app> live` answers `live+files` or `restart+files` for
+an application granted `files`.
 
 ## Application settings
 
@@ -523,6 +553,13 @@ connections, a 5-second header deadline, a 15-second inactivity timeout and a
 | `POST /v1/logs/system` | empty | `sloginfo` output, its newest 8 MiB as raw bytes; one at a time (409) | Yes |
 | `POST /v1/logs/manager` | empty | NBT Manager's debug log, `debug.log.1` then `debug.log`, the newest 4 MiB of each, raw; empty while the debug log is off | Yes |
 | `POST /v1/logs/clear` | `app\n` | `OK\n`; the application's log emptied, `output.log.1` removed | Yes |
+| `POST /v1/files/list` | `app\t<after>\n` | `FILES\t<count>\t<used>\t<quota>\t<largest>\t<free>\t<more>\t<extensions>\n`, then up to 20 `name\tsize\n` after `<after>` | No |
+| `POST /v1/files/put` | `app\tname\tsize\tsha256\n` | `OK\n`; the file is admitted and this phone holds a 60-second ticket for its bytes | No |
+| `POST /v1/files/data` | the file announced, `application/octet-stream` | `OK\n` once stored; from the ticket's phone, of its size and SHA-256 | No |
+| `POST /v1/files/remove` | `app\tname\n` | `OK\n`; deleted at once, without a car prompt (the phone app asks) | No |
+
+The files routes refuse with `ERR <reason>\n` and an HTTP status that says
+which ([docs/files-bridge.md](docs/files-bridge.md)).
 
 Application sequences are decimal uint64 values; preserve them without floating
 point conversion on the phone. Lists have at most 16 installed applications and

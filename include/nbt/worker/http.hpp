@@ -22,8 +22,16 @@ enum Route {
     LogsApp,
     LogsSystem,
     LogsClear,
-    LogsManager
+    LogsManager,
+    FilesList,
+    FilesPut,
+    FilesData,
+    FilesRemove
 };
+/* Routes whose body is streamed to a file rather than read into memory. */
+inline bool streamed(Route route) {
+    return route == Upload || route == FilesData;
+}
 enum ParseResult { Invalid = -1, Incomplete = 0, Complete = 1 };
 struct Request {
     Request() {

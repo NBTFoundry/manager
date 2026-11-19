@@ -142,6 +142,18 @@ def capture_languages(out):
             s.still(out / f"{code}-status.png")
         finally:
             s.close()
+        # media-player's files: its list, a USB stick's files, an import.
+        s = Session(NBT_LANGUAGE=code, NBT_SIM_CAR_LANGUAGE="1")
+        try:
+            s.key("Return", hold=1.9, after=1.2)                       # media-player's settings
+            s.key("Down"); s.key("Return", after=0.8)                  # Files
+            s.still(out / f"{code}-files.png")
+            s.key("Return", after=3.0)                                 # Import from a USB stick
+            s.still(out / f"{code}-usb.png")
+            s.key("Return", after=1.0)                                 # Import all
+            s.still(out / f"{code}-importing.png")
+        finally:
+            s.close()
 
 
 def main():

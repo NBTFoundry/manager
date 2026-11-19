@@ -12,24 +12,25 @@ namespace gamepad {
 namespace {
 bool same(const nbt_gamepad_wire_state &a, const nbt_gamepad_wire_state &b) {
     return a.connected == b.connected && a.buttons == b.buttons && a.lx == b.lx && a.ly == b.ly &&
-           a.rx == b.rx && a.ry == b.ry && a.lt == b.lt && a.rt == b.rt;
+           a.rx == b.rx && a.ry == b.ry && a.lt == b.lt && a.rt == b.rt && a.family == b.family;
 }
 } // namespace
 Relay::Relay()
     : mutex_(), socket_(), thread_(), path_(NBT_GAMEPAD_STATE_PATH), started_(false),
-      stopping_(false), active_(false), focused_(false), focusAt_(0), sentAt_(0), sequence_(0),
-      sent_(), reader_() {
+      stopping_(false), active_(false), focused_(false), family_(false), focusAt_(0), sentAt_(0),
+      sequence_(0), sent_(), reader_() {
 }
 Relay::~Relay() {
     stop();
 }
-bool Relay::start(int fd, const char *path) {
+bool Relay::start(int fd, const char *path, bool family) {
     core::UniqueFd incoming(fd);
     if (started_ || fd < 0) {
         return false;
     }
     socket_ = std::move(incoming);
     path_ = path ? path : NBT_GAMEPAD_STATE_PATH;
+    family_ = family;
     stopping_ = active_ = focused_ = false;
     focusAt_ = sentAt_ = 0;
     memset(&sent_, 0, sizeof(sent_));
@@ -88,6 +89,9 @@ void Relay::run() {
         memset(&state, 0, sizeof(state));
         if (active && shown(now)) {
             state = reader_.read(path_, now);
+            if (!family_) {
+                state.family = 0;
+            }
         }
         if (!same(state, sent_) || now >= sentAt_ + 100) {
             state.sequence = sequence_++;
