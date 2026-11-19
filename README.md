@@ -1,4 +1,21 @@
-# NBT Manager
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+    <img src="docs/assets/logo-light.svg" alt="NBTFoundry" height="44">
+  </picture>
+</p>
+
+<h1 align="center">NBT Manager</h1>
+
+<p align="center">
+  <b>Your own applications on the iDrive screen.</b><br>
+  Sent from your phone, approved on the car, rolled back if they fail.
+</p>
+
+<p align="center">
+  <img src="docs/assets/manager-install.gif" width="720"
+       alt="An update arrives from a phone; the driver reviews it on the car, installs it, and the health check passes">
+</p>
 
 An application manager for BMW head units: it installs, updates, runs and removes
 signed third-party applications on the car's own screen, launched from the iDrive
@@ -37,6 +54,32 @@ BMW AG.
   not act on the controller ([docs/input-capture.md](docs/input-capture.md)).
 - **Diagnostics.** A per-application log and a debug log, readable from the
   phone, and a Settings → Status page with a live gamepad test.
+
+## On the car
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/manager-menu.png" alt="The manager's menu: installed applications and Settings"><br>
+      <sub>The menu, opened from iDrive: push to start, hold for settings</sub></td>
+    <td width="50%"><img src="docs/assets/manager-settings.gif" alt="Holding the push on an application fills a bar, then opens its settings"><br>
+      <sub>Hold the push on an application to open its settings</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/manager-pair-qr.png" alt="Pair a phone: a Wi-Fi QR code for the phone app"><br>
+      <sub>Pairing: the phone app scans the car's Wi-Fi code…</sub></td>
+    <td><img src="docs/assets/manager-pair-code.png" alt="Pair Demo phone? A six-digit code to compare with the phone"><br>
+      <sub>…and the driver confirms the six digits the phone shows</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/manager-settings.png" alt="The manager's settings list"><br>
+      <sub>The manager's own settings</sub></td>
+    <td><img src="docs/assets/manager-app.png" alt="The test application: HELLO WORLD on a blue background"><br>
+      <sub>An application on the panel (the test application)</sub></td>
+  </tr>
+</table>
+
+Screens come from the GUI simulator, framed as the head unit's 1440×540 panel;
+`make simulator && python3 tools/capture_ui.py` renders them again.
 
 ## How it fits together
 

@@ -98,6 +98,22 @@ static nbt_settings *settings_of(const char *name) {
     return app_index(name) >= 0 ? &settings[app_index(name)] : NULL;
 }
 
+/* The banner's version: NBT_SIM_VERSION, or "sim". */
+static const char *sim_version(void) {
+    const char *value = getenv("NBT_SIM_VERSION");
+    return value && *value ? value : "sim";
+}
+
+/* A fixed review digest (NBT_SIM_DIGEST, 64 hex digits) for repeatable captures. */
+static bool fixed_digest(char *out) {
+    const char *value = getenv("NBT_SIM_DIGEST");
+    if (!value || strlen(value) != 64 || strspn(value, "0123456789abcdef") != 64) {
+        return false;
+    }
+    memcpy(out, value, 65);
+    return true;
+}
+
 static void random_hex(char *out, size_t bytes) {
     unsigned char raw[32];
     size_t i;
@@ -239,7 +255,9 @@ static void phone(void) {
         phonePending = true;
     } else if (w.state == 1 || w.state == 0) {
         w.state = 2;
-        random_hex(w.digest, 32);
+        if (!fixed_digest(w.digest)) {
+            random_hex(w.digest, 32);
+        }
         snprintf(w.app, sizeof(w.app), "test");
     }
 }
@@ -325,7 +343,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     declare();
-    ui.setVersion("sim");
+    ui.setVersion(sim_version());
     puts("Up/Down or wheel: move   Enter/click: select (hold: settings)   Backspace/Esc: back   M: "
          "MENU\n"
          "U: phone requests pairing, or uploads a package   Q/Ctrl+C: quit");
@@ -427,7 +445,7 @@ int main(int argc, char **argv) {
             if (!ui.init("uap0", 8080).ok()) {
                 break;
             }
-            ui.setVersion("sim");
+            ui.setVersion(sim_version());
             dirty = 1;
             continue;
         }
