@@ -21,8 +21,8 @@ static const uint64_t kPreviewMs = 15000u, kHealthCheckMs = 45000u, kIdleMs = 12
 
 GuiSession::GuiSession()
     : config_(), client_(), channel_(client_), ui_(), view_(), shown_(), screen_(), volumeOsd_(),
-      panel_(), plugin_(), capture_(), gamepad_(), nowMs_(0), deadlineMs_(0), heartbeatMs_(0),
-      backHoldMs_(0), pacer_(), inputFd_(-1), hidden_(true), exitReason_("error") {
+      panel_(), plugin_(), capture_(), gamepad_(), language_(), nowMs_(0), deadlineMs_(0),
+      heartbeatMs_(0), backHoldMs_(0), pacer_(), inputFd_(-1), hidden_(true), exitReason_("error") {
 }
 
 GuiSession::~GuiSession() {
@@ -35,9 +35,6 @@ int GuiSession::init(const GuiSessionConfig &config) {
         return -1;
     }
     ui_.setVersion(config_.version);
-    if (config_.recovered) {
-        ui_.setNotice("recovered from a fault");
-    }
     return 0;
 }
 
@@ -93,6 +90,10 @@ core::Status GuiSession::startWorker() {
 
 int GuiSession::start(bool &workerStarted) {
     const core::Result<uint64_t> startMs = core::monotonicMs();
+    language_.start(config_.root, config_.languagePath, ui_); // before any text is shown
+    if (config_.recovered) {
+        ui_.setNotice(text(T_RECOVERED));
+    }
     errno = 0; // 0 in the log: the check failed without a system call's error
     if (!startMs.get() || !capture_.start(config_.capturePath, startMs.value()) ||
         !plugin_.start(config_.signalPath, config_.livenessPath, startMs.value())) {
@@ -107,7 +108,7 @@ int GuiSession::start(bool &workerStarted) {
         exitReason_ = status.code() == ENODEV ? "LayerManager did not answer" : exitReason_;
         return status.code() == ENODEV ? 1 : -1;
     }
-    shown_.setErrorMessage("Starting");
+    shown_.setErrorMessage(text(T_STARTING));
     if (drawUi(shown_)) { // the first post makes LayerManager create the surface
         nbt_logf("first frame failed");
         return -1;
@@ -183,7 +184,7 @@ int GuiSession::servicePanel(bool &shouldExit) {
             capture_.latchEscape();
             if (ui_.target[0] && (panel_.active(display::kAppSurface) || ui_.appRun)) {
                 nbt_logf("forced escape from %s; stopping", ui_.target);
-                ui_.abortApp("Stopping %s");
+                ui_.abortApp(T_STOPPING_APP);
                 flushEscapeStop(channel_, ui_);
             } else {
                 nbt_logf("forced escape; closing");
@@ -200,7 +201,7 @@ int GuiSession::servicePanel(bool &shouldExit) {
         nbt_logf("%s %s; the manager is shown again", ui_.target,
                  failed ? "did not appear" : (lost ? "left the panel" : "ended"));
         if (failed) {
-            ui_.abortApp("%s did not appear");
+            ui_.abortApp(T_APP_NOT_SHOWN);
         }
         return showManager();
     }
@@ -243,6 +244,7 @@ int GuiSession::stepWorkerAndUi() {
         deadlineMs_ = nowMs_ + kIdleMs;
     }
     gatherStatus(ui_, captureWatch_, gamepad_, inputFd_ >= 0);
+    language_.poll(ui_, nowMs_);
     ui_.pump(channel_);
     if (gamepad_.takeHandover()) {
         handOver();

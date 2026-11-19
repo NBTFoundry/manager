@@ -19,6 +19,7 @@
 #endif
 
 #include "capture_diag.hpp"
+#include "car_language.hpp"
 #include "focus_events.hpp"
 #include "framework.hpp"
 #include "launcher_spawn.hpp"
@@ -56,6 +57,7 @@ PollRunnable pollRunnable;
 void *pollVtable[5];
 bool polling = false;
 nbt::plugin::PhoneRuntime phoneRuntime;
+nbt::plugin::CarLanguage carLanguage;
 nbt::plugin::CaptureDiagLogState captureDiagState;
 bool requestOpen(bmw::PluginApp *app);
 
@@ -131,6 +133,7 @@ void runnablePoll(void *) {
             phoneRuntime.openFailed();
         }
         apply(instance, hold->poll(now, guiRunning()));
+        carLanguage.poll(now);
         nbt::plugin::pollCaptureDiag(captureDiagState);
         if (!polling) {
             polling = true;
@@ -201,6 +204,7 @@ bool onInit(bmw::PluginApp *app) {
     if (initialized) {
         nbt::plugin::startFocusEvents(app);
         phoneRuntime.start(app, nowMs());
+        carLanguage.start(app, nowMs());
         polling = true;
         app->post(reinterpret_cast<bmw::Runnable *>(&pollRunnable), 1000);
     }
@@ -208,6 +212,7 @@ bool onInit(bmw::PluginApp *app) {
 }
 
 void onFinalize(bmw::PluginApp *app) {
+    carLanguage.stop();
     phoneRuntime.stop();
     nbt::plugin::stopFocusEvents();
     if (hold) {

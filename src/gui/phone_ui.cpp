@@ -1,4 +1,5 @@
 #include "nbt/gui/phone_ui.hpp"
+#include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/setup_ui.hpp"
 #include "nbt/util.h"
@@ -12,11 +13,11 @@ bool phonePress(UiController &ui, Key key) {
     }
     if (ui.screen == Waiting) {
         if (key == KeyBack || ui.focus == 1) {
-            ui.leaveSession("Session closed");
+            ui.leaveSession(text(T_SESSION_CLOSED));
         } else if (ui.hasWifi()) {
             ui.queued = R_PHONE_OPEN;
         } else {
-            snprintf(ui.message, sizeof(ui.message), "Wi-Fi details unavailable");
+            textf(ui.message, sizeof(ui.message), T_WIFI_DETAILS_UNAVAILABLE);
         }
         return true;
     }
@@ -67,7 +68,7 @@ bool phoneRequest(const UiController &ui, int kind, Request &request) {
         snprintf(out, size, "PHONE FORGET %s", ui.phoneIds[ui.phoneSelected]);
         break;
     default:
-        return setupRequest(kind, request);
+        return setupRequest(kind, request) || languageRequest(ui, kind, request);
     }
     return true;
 }
@@ -108,7 +109,7 @@ bool pending(UiController &ui, const char *reply) {
     if (!strcmp(reply, "PHONE\tnone")) {
         if (ui.phoneAction[0] && (ui.screen == PhoneConfirm || ui.screen == Uninstall)) {
             ui.phoneAction[0] = 0;
-            ui.showResult("Phone request ended", "Try again from the phone");
+            ui.showResult(text(T_PHONE_REQUEST_ENDED), text(T_RETRY_FROM_PHONE));
         }
         return true;
     }
@@ -177,7 +178,7 @@ int phoneReply(UiController &ui, int kind, const char *reply, uint64_t now) {
         }
     } else if (kind == R_PHONES) {
         if (ReplyParser::isError(reply)) {
-            ui.showResult("Cannot read paired phones", "");
+            ui.showResult(text(T_CANNOT_READ_PHONES), "");
             return 0;
         }
         ok = parsePhones(ui, reply);
@@ -193,26 +194,26 @@ int phoneReply(UiController &ui, int kind, const char *reply, uint64_t now) {
     } else if (kind == R_PHONE_YES || kind == R_PHONE_NO) {
         if (!strcmp(reply, "OK paired") || !strcmp(reply, "OK removed") ||
             !strcmp(reply, "OK cancelled")) {
-            ui.showResult(kind == R_PHONE_NO ? "Request rejected"
-                          : ui.phonePair     ? "Phone paired"
-                                             : "Application uninstalled",
+            ui.showResult(text(kind == R_PHONE_NO ? T_REQUEST_REJECTED
+                               : ui.phonePair     ? T_PHONE_PAIRED
+                                                  : T_APP_UNINSTALLED),
                           "");
         } else if (ReplyParser::isError(reply)) {
-            ui.showResult("Phone action failed", "Try again from the phone");
+            ui.showResult(text(T_PHONE_ACTION_FAILED), text(T_RETRY_FROM_PHONE));
         } else {
             ok = false;
         }
         ui.phoneAction[0] = 0;
         ui.queued = R_CANCEL;
     } else if (ReplyParser::isError(reply)) {
-        ui.showResult("Phone action unavailable", "");
+        ui.showResult(text(T_PHONE_ACTION_UNAVAILABLE), "");
     } else {
         ok = false;
     }
     if (ok) {
         return 0;
     }
-    ui.fail(1, "Worker protocol error");
+    ui.fail(1, text(T_WORKER_PROTOCOL_ERROR));
     return -1;
 }
 } // namespace gui

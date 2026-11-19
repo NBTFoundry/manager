@@ -49,6 +49,10 @@ int openPrivate(const char *path, bool writing) {
 }
 } // namespace
 
+int privateRecordOpen(const char *path, bool writing) {
+    return openPrivate(path, writing);
+}
+
 bool phoneDoorClaim(const char *path) {
     const int fd = openPrivate(path, true);
     if (fd < 0) {

@@ -255,7 +255,7 @@ static void manager_settings(UiController *ui) {
 /* Settings > Pair a phone: the session gives the Wi-Fi details, then the code. */
 static void pair_from_settings(UiController *ui, const char *session_reply) {
     manager_settings(ui);
-    while (ui->focus < ui->settings.count) {
+    while (ui->focus < ui->managerEntry(nbt::gui::EntryPair)) {
         press(ui, nbt::gui::KeyDown, 1);
     }
     CHECK(!strcmp(view(ui).items[ui->focus], "Pair a phone"));
@@ -316,10 +316,10 @@ static void test_main_menu_and_banner(void) {
     v = view(&ui);
     CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "Settings") &&
           !strcmp(v.items[0], "Debug log: off"));
-    CHECK(v.itemCount == 6 && !strcmp(v.items[3], "Pair a phone") &&
-          !strcmp(v.items[4], "Paired phones") && !strcmp(v.items[5], "Status") &&
-          !view_contains(&ui, "Stop"));
-    CHECK(v.itemStyle[5] == nbt::gui::ItemAction);
+    CHECK(v.itemCount == 7 && !strcmp(v.items[3], "Language: Automatic (English)") &&
+          !strcmp(v.items[4], "Pair a phone") && !strcmp(v.items[5], "Paired phones") &&
+          !strcmp(v.items[6], "Status") && !view_contains(&ui, "Stop"));
+    CHECK(v.itemStyle[3] == nbt::gui::ItemEntry && v.itemStyle[6] == nbt::gui::ItemAction);
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 3);
     exchange(&ui, "RUNNING status", "RUNNING\t0"); /* the running state is asked again */
@@ -336,7 +336,7 @@ static void test_status_page(void) {
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
-    for (unsigned i = 0; i < 5; ++i) {
+    for (unsigned i = 0; i < 6; ++i) {
         press(&ui, nbt::gui::KeyDown, 1);
     }
     press(&ui, nbt::gui::KeyDown, 0); // Status is the last item
@@ -383,7 +383,7 @@ static void test_status_page(void) {
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Status);
     press(&ui, nbt::gui::KeyBack, 1);
-    CHECK(ui.screen == nbt::gui::Settings && ui.focus == 5);
+    CHECK(ui.screen == nbt::gui::Settings && ui.focus == 6);
     /* What the session gathers: here no capture ring, no MOST input and no
      * pad service (host build); the last error screen is kept. */
     nbt::gui::CaptureWatch capture;
@@ -652,7 +652,7 @@ static void test_uninstall(void) {
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
-    CHECK(view(&ui).itemCount == 6 && !view_contains(&ui, "Uninstall"));
+    CHECK(view(&ui).itemCount == 7 && !view_contains(&ui, "Uninstall"));
 }
 
 static void test_stop_failures(void) {
@@ -1163,7 +1163,7 @@ static void test_app_settings(void) {
     CHECK(!view_contains(&ui, "Cannot read"));
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
     v = view(&ui);
-    CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "Settings") && v.itemCount == 6);
+    CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "Settings") && v.itemCount == 7);
     CHECK(!strcmp(v.items[0], "Debug log: off") &&
           !strcmp(v.items[2], "Hand back controller: off"));
     CHECK(view_contains(&ui, "Changes apply when the manager next opens"));
@@ -1185,7 +1185,7 @@ static void test_app_settings(void) {
     loaded(&ui, "APPS\t0", "RUNNING\t0");
     press(&ui, nbt::gui::KeySelect, 1); /* Settings is the only item */
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
-    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 6);
+    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 7);
     /* Full declarations exceed the old 1024-byte limit; all twelve settings
      * remain navigable, followed by Stop and Uninstall for a running app. */
     {
@@ -1498,7 +1498,8 @@ static void test_application_status(void) {
     }
     CHECK(used > 1024 && used < sizeof(reply));
     loaded(&ui, apps, reply);
-    CHECK(strlen(view(&ui).items[0]) == nbt::gui::kItemTextMax);
+    // The longest name with the longest status fits whole.
+    CHECK(strlen(view(&ui).items[0]) == nbt::gui::kIdMax + nbt::gui::kAppStatusMax + 4);
     CHECK(strstr(view(&ui).items[15], "abcdefghijklmnopqrstuvwx)"));
 }
 
@@ -1526,7 +1527,7 @@ static void test_quarantine_unblock_and_abort_app(void) {
     /* abortApp stops a hung/failed screen app with STOP <app> fault and clears stopping on Apps. */
     ui.go(nbt::gui::Apps);
     strcpy(ui.target, "test");
-    ui.abortApp("Stopping %s");
+    ui.abortApp(nbt::gui::T_STOPPING_APP);
     exchange(&ui, "STOP test fault", "OK");
     CHECK(ui.stopping == 1 && ui.screen == nbt::gui::Apps);
     exchange(&ui, "STATUS", "STATUS\t0\t-\t-\t-\t0\t-\tApplication stopped");

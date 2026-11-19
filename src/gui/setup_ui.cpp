@@ -6,6 +6,7 @@
  * That request runs OnOffDSICommander appreset, which restarts the whole head
  * unit (the user, 2026-11-18), not iDrive alone. */
 #include "nbt/gui/setup_ui.hpp"
+#include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/log.h"
 #include <stdio.h>
@@ -45,11 +46,14 @@ bool setupRequest(int kind, Request &request) {
 int setupReply(UiController &ui, int kind, const char *reply, uint64_t now) {
     if (kind == R_IDRIVE_RESTART) {
         if (!strcmp(reply, "OK")) {
-            ui.showResult("Restarting the head unit", "The whole system restarts");
+            ui.showResult(text(T_RESTARTING), text(T_WHOLE_SYSTEM_RESTARTS));
         } else {
-            ui.showResult("Cannot restart", "Switch the car off and on instead");
+            ui.showResult(text(T_CANNOT_RESTART), text(T_SWITCH_OFF_ON));
         }
         return 0;
+    }
+    if (kind == R_LANGUAGE) {
+        return languageReply(ui, reply);
     }
     if (kind != R_SETUP) {
         return -1;
@@ -72,13 +76,12 @@ int setupReply(UiController &ui, int kind, const char *reply, uint64_t now) {
 }
 
 void setupView(UiView &v) {
-    snprintf(v.title, sizeof(v.title), "Restart head unit?");
-    snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]), "NBT Manager's iDrive entry was updated");
-    snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]), "It loads when the head unit restarts");
-    snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]),
-             "The whole system restarts, as car off/on");
-    snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "Later");
-    snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "Restart head unit");
+    textf(v.title, sizeof(v.title), T_RESTART_QUESTION);
+    textf(v.lines[v.lineCount++], sizeof(v.lines[0]), T_ENTRY_UPDATED);
+    textf(v.lines[v.lineCount++], sizeof(v.lines[0]), T_LOADS_ON_RESTART);
+    textf(v.lines[v.lineCount++], sizeof(v.lines[0]), T_RESTART_LIKE_OFF_ON);
+    textf(v.items[v.itemCount++], sizeof(v.items[0]), T_LATER);
+    textf(v.items[v.itemCount++], sizeof(v.items[0]), T_RESTART_HEAD_UNIT);
 }
 
 } // namespace gui

@@ -12,8 +12,15 @@ namespace gui {
 
 static const size_t kAppStatusMax = NBT_BRIDGE_STATUS_MAX;
 static const size_t kIdMax = 48;
-static const size_t kItemTextMax = kIdMax + kAppStatusMax + 4;
-static const size_t kTextMax = 52;
+/* Bytes of UTF-8 in a title, line or dialog text: translated texts are longer
+ * than English ones, and a Chinese or Japanese character takes three bytes.
+ * The renderer cuts what does not fit the panel (src/gui/text/en.txt). */
+static const size_t kTextMax = 128;
+/* An item: an application with its status ("name  (status)"), or a text. */
+static const size_t kItemTextMax =
+    kIdMax + kAppStatusMax + 4 > kTextMax ? kIdMax + kAppStatusMax + 4 : kTextMax;
+/* Display columns of a line before a long reason wraps (ViewBuilder). */
+static const size_t kWrapColumns = 52;
 static const size_t kLines = 6;
 static const size_t kAppsMax = 16;
 static const size_t kItems = kAppsMax + 2;
@@ -36,8 +43,9 @@ enum Screen {
     Phones,
     PhoneForget,
     RestartIdrive,
-    Status,     // Settings > Status (status_page.hpp)
-    GamepadTest // its gamepad test
+    Status,       // Settings > Status (status_page.hpp)
+    GamepadTest,  // its gamepad test
+    LanguagePick, // Settings > Language (language_ui.hpp)
 };
 enum Key { KeyUp, KeyDown, KeySelect, KeyBack };
 enum ItemStyle { ItemEntry, ItemAction };

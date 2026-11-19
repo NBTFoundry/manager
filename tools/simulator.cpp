@@ -10,12 +10,17 @@
  * "test" then shows the test application's own screen (its background colour
  * from Settings) until Backspace/Escape (BACK) or M; the simulator then opens
  * the manager again, as it does at once for "media-player".
+ * Languages: NBT_LANGUAGE is the Language setting (auto|en|fr|de|it|es|zh|ja,
+ * default auto); NBT_SIM_CAR_LANGUAGE is iDrive's vehicle.language number
+ * (nbt/model/language.hpp; 1 German, 6 French, 11 Chinese, 13 Japanese...),
+ * unset as when the plugin reported none. Settings > Language changes it.
  * Usage: nbt-simulator [scale] */
 #include "nbt/core/system.hpp"
 #include "nbt/gui/frame.hpp"
 #include "nbt/gui/qr_code.hpp"
 #include "nbt/gui/ui_controller.hpp"
 #include "nbt/gui/ui_renderer.hpp"
+#include "nbt/model/language.hpp"
 #include "nbt/settings.h"
 #include "nbt/util.h"
 
@@ -96,6 +101,19 @@ static nbt_settings *settings_of(const char *name) {
         return &manager_settings;
     }
     return app_index(name) >= 0 ? &settings[app_index(name)] : NULL;
+}
+
+/* The language setting and iDrive's language, from the environment. */
+static void sim_language(nbt::gui::UiController &ui) {
+    const char *setting = getenv("NBT_LANGUAGE"), *car = getenv("NBT_SIM_CAR_LANGUAGE");
+    nbt::model::Language language = nbt::model::LangEn;
+    if (setting && !nbt::model::languageSettingParse(setting, ui.languageChoice)) {
+        fprintf(stderr, "NBT_LANGUAGE is one of auto, en, fr, de, it, es, zh, ja\n");
+    }
+    ui.carLanguage = car && nbt::model::languageFromCar(static_cast<unsigned>(atoi(car)), language)
+                         ? language
+                         : -1;
+    ui.applyLanguage();
 }
 
 /* The banner's version: NBT_SIM_VERSION, or "sim". */
@@ -218,9 +236,14 @@ static void worker(const char *command, char *reply, size_t size, uint64_t now) 
     } else if (!strncmp(command, "SET ", 4)) {
         char app[49], key[17], value[13];
         nbt_settings *list = NULL;
-        int setting = -1;
+        int setting = -1, choice = 0;
         if (sscanf(command + 4, "%48s %16s %12s", app, key, value) == 3) {
             list = settings_of(app);
+            if (!strcmp(app, "manager") && !strcmp(key, "language")) {
+                snprintf(reply, size, "%s",
+                         nbt::model::languageSettingParse(value, choice) ? "OK" : "ERR settings");
+                return;
+            }
         }
         if (list) {
             setting = nbt_settings_find(list, key);
@@ -344,6 +367,7 @@ int main(int argc, char **argv) {
     }
     declare();
     ui.setVersion(sim_version());
+    sim_language(ui);
     puts("Up/Down or wheel: move   Enter/click: select (hold: settings)   Backspace/Esc: back   M: "
          "MENU\n"
          "U: phone requests pairing, or uploads a package   Q/Ctrl+C: quit");

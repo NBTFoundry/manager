@@ -54,6 +54,12 @@ Reset between runs with `rm debug.log debug.log.1; touch debug.log; chmod 600 de
 | Select the entry | The manager window appears within a few seconds | `plugin ... entry selected; manager not running`, `plugin ... hold phase 1: spawn hold`, `gui ... start slot 0`, `gui ... worker started`, `worker ... start` |
 | Select the entry again while it is shown | No second window | `plugin ... entry selected; manager running` |
 | `pidin` | One launcher, one GUI (`gui`) and one worker (`worker`) from the active slot | — |
+| Boot, wait a minute (debug log on) | The plugin reads iDrive's language (car data `vehicle.language`); iDrive stays responsive | `plugin ... iDrive language <n>`: record `n` with iDrive's language setting |
+| Select the entry | The manager shows iDrive's language when it has it (English, French, German, Italian, Spanish, Chinese, Japanese), English otherwise | `gui ... language auto, iDrive <n>, shown <code>` |
+| Change iDrive's language, with the manager closed and then open | The manager follows (open: within two seconds) | `plugin ... iDrive language <m>`, `gui ... iDrive language <m>; shown <code>` |
+| Settings > Language, a language; reopen; then Automatic | Shown at once and kept; Automatic follows iDrive again | `gui ... language <code>` |
+| No `iDrive language` line after two minutes | Record it: car data did not answer. Automatic shows English; a language chosen in Settings > Language still applies | — |
+| `ls -l /dev/shmem/nbt-manager.language` | Owned by the HMI's user, mode `600` | — |
 
 ## 3. Controller input
 

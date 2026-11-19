@@ -1,0 +1,204 @@
+# Italiano. Keys and placeholders: en.txt (tools/gui_text.py).
+
+# Main menu
+running = in esecuzione
+settings = Impostazioni
+no_apps = Nessuna applicazione installata
+menu_hint = Premi per avviare; tieni premuto per le impostazioni
+app_settings = Impostazioni di {1}
+keep_holding = Tieni premuto per aprirle
+loading_apps = Caricamento delle applicazioni
+starting = Avvio
+recovered = ripristinato dopo un errore
+controller_config_invalid = Configurazione del controller non valida; valori predefiniti
+
+# Settings
+apply_manager_next = Valide alla prossima apertura del gestore
+apply_now = Valide subito
+apply_app_next = Valide al prossimo avvio di {1}
+no_settings = {1} non ha impostazioni
+setting_row = {1}: {2}
+current_choice = {1}  (attuale)
+stop_app = Arresta {1}
+unblock_app = Sblocca {1}
+uninstall_app = Disinstalla {1}
+pair_phone = Associa un telefono
+paired_phones = Telefoni associati
+status = Stato
+back = Indietro
+setting_debug_log = Log di debug
+setting_invert = Inverti la manopola
+setting_release = Restituisci il controller
+value_on = attivo
+value_off = disattivo
+
+# Language
+language = Lingua
+language_auto_named = Automatica ({1})
+language_hint = Automatica segue la lingua dell'iDrive
+
+# Review and install
+review_update = Verifica aggiornamento
+review_new = Verifica nuova applicazione
+confirm_older = Conferma versione precedente
+confirm_install = Conferma installazione
+versions = Installata: {1}, nuova: {2}
+version = Versione {1}
+reject = Rifiuta
+install = Installa
+install_older = Installa, anche se precedente
+older_warning = Potrebbe essere sostituita da una versione precedente
+no = No
+yes_install = Sì, installa
+installing_title = Installazione
+installing_app = Installazione di {1} {2}
+install_or_update = Installazione o aggiornamento
+error = Errore
+ok = OK
+close = Chiudi
+retry = Riprova
+install_failed = Installazione non riuscita
+update_installed = Aggiornamento installato
+update_ready = Aggiornamento pronto
+update_failed = Aggiornamento non riuscito
+update_not_installed = Aggiornamento non installato
+update_rejected = Aggiornamento rifiutato
+upload_rejected = Invio rifiutato
+session_ended = Sessione terminata
+
+# Uninstall
+uninstall_question = Disinstallare {1}?
+requested_by = Richiesto da {1}
+uninstall_deletes = {1} e tutti i suoi dati verranno eliminati
+cannot_undo = L'operazione non può essere annullata
+yes_uninstall = Sì, disinstalla
+uninstalling_app = Disinstallazione di {1}
+app_uninstalled_named = {1} disinstallata
+stop_first = Prima arresta {1}
+busy_uninstall_later = Occupato; disinstalla {1} più tardi
+cannot_uninstall = Impossibile disinstallare {1}
+
+# Starting and stopping
+starting_app = Avvio di {1}
+stopping_app = Arresto di {1}
+app_stopped = {1} arrestata
+cannot_stop = Impossibile arrestare {1}
+already_running = {1} è già in esecuzione
+screen_taken = {1}: un'altra app ha lo schermo
+blocked_faults = {1} bloccata dopo errori
+cannot_start = Impossibile avviare {1}
+app_not_shown = {1} non è comparsa
+app_unblocked = {1} sbloccata
+cannot_unblock = Impossibile sbloccare {1}
+
+# Errors
+cannot_list = Impossibile elencare le applicazioni
+cannot_read_settings = Impossibile leggere le impostazioni
+cannot_read_app_settings = Impossibile leggere le impostazioni di {1}
+cannot_save_setting = Impossibile salvare l'impostazione
+worker_protocol_error = Errore di protocollo del servizio
+worker_unavailable = Servizio non disponibile
+
+# Pairing and phones
+opening_pairing = Apertura dell'associazione
+pairing_closed = Associazione chiusa
+pairing_timeout = Tempo scaduto; nessun pacchetto ricevuto
+session_closed = Sessione chiusa
+cannot_open_session = Impossibile aprire la sessione
+wifi_unavailable = Rete Wi-Fi non disponibile
+cannot_pair = Impossibile associare un telefono
+car_wifi_unavailable = Dati Wi-Fi dell'auto non disponibili
+wifi_details_unavailable = Dati Wi-Fi non disponibili
+scan_code = Scansiona questo codice Wi-Fi in NBT Manager
+confirm_digits = Conferma qui che le cifre coincidono
+closes_in = Si chiude tra {1} s
+cancel = Annulla
+waiting_phone = In attesa di un telefono associato
+pair_question = Associare {1}?
+confirm_code = Conferma solo se il telefono mostra questo codice:
+yes_pair = Sì, associa
+no_phones = Nessun telefono associato
+remove_question = Rimuovere {1}?
+pair_again = Questo telefono dovrà essere associato di nuovo
+yes_remove_phone = Sì, rimuovi il telefono
+phone_request_ended = Richiesta del telefono terminata
+retry_from_phone = Riprova dal telefono
+cannot_read_phones = Impossibile leggere i telefoni associati
+request_rejected = Richiesta rifiutata
+phone_paired = Telefono associato
+app_uninstalled = Applicazione disinstallata
+phone_action_failed = Azione del telefono non riuscita
+phone_action_unavailable = Azione del telefono non disponibile
+
+# Restarting the head unit
+restarting = Riavvio dell'unità principale
+whole_system_restarts = L'intero sistema si riavvia
+cannot_restart = Impossibile riavviare
+switch_off_on = Spegni e riaccendi invece l'auto
+restart_question = Riavviare l'unità principale?
+entry_updated = La voce iDrive di NBT Manager è stata aggiornata
+loads_on_restart = Si carica al riavvio dell'unità principale
+restart_like_off_on = L'intero sistema si riavvia, come spegnendo e riaccendendo l'auto
+later = Più tardi
+restart_head_unit = Riavvia l'unità principale
+
+# Settings > Status and the gamepad test
+gamepad_test = Test del gamepad
+plug_pad = Collega un gamepad alla porta USB dell'auto
+pressed = Premuti: {1}
+left_stick = Stick sinistro: x {1}, y {2}
+right_stick = Stick destro: x {1}, y {2}
+triggers = Grilletti: sinistro {1}, destro {2}
+back_leaves = BACK sul controller iDrive per uscire
+nothing = nessuno
+keys = Tasti: {1}
+controller = Controller iDrive: {1}
+controller_most = letto tramite MOST
+controller_none = non letto (nessun ingresso MOST)
+last_error = Ultimo errore: {1}
+no_error = nessuno dall'apertura del gestore
+test_gamepad = Prova il gamepad
+pad_unavailable = Gamepad: non disponibile
+pad_found = Gamepad: {1} ({2})
+pad_held = Gamepad: USB occupata da un altro processo
+pad_no_usb = Gamepad: nessuno stack USB (usbd_connect {1})
+pad_not_connected = Gamepad: USB non ancora connessa
+pad_open_failed = Gamepad: impossibile aprire {1}
+pad_retrying = {1}; nuovo tentativo
+pad_none = Gamepad: nessuno trovato
+pad_generic = gamepad
+keys_too_escape = Anche l'iDrive riceve i tasti (BACK tenuto 5 s)
+keys_too_observer = Anche l'iDrive riceve i tasti (shim non bloccante)
+keys_too_no_shim = Anche l'iDrive riceve i tasti (shim non caricato)
+keys_kept = sottratti all'iDrive
+keys_escaped = rilasciati (BACK tenuto 5 s): li riceve l'iDrive
+keys_observer = shim osservatore: li riceve l'iDrive
+keys_no_shim = nessuno shim nell'iDrive: li riceve l'iDrive
+unknown = sconosciuto
+
+# The worker's own messages
+w_installing_update = Installazione dell'aggiornamento
+w_checking_health = Verifica del funzionamento dell'applicazione
+w_restoring = Ripristino dell'applicazione precedente
+w_restarting_app = Riavvio dell'applicazione
+w_app_stopped = Applicazione arrestata
+w_stopping_app = Arresto dell'applicazione
+w_update_installed = Aggiornamento installato
+w_settings_not_updated = Aggiornamento installato; impostazioni non aggiornate
+w_manager_starts = NBT Manager {1} si avvia alla prossima apertura di App Manager
+w_screen_taken = Un'altra applicazione ha lo schermo
+w_already_running = Applicazione già in esecuzione
+w_blocked = Applicazione bloccata dopo errori
+w_app_installed = Applicazione installata
+w_app_started = Applicazione avviata
+w_installing_app = Installazione dell'applicazione
+w_checking_package = Verifica del pacchetto
+w_package_rejected = Pacchetto rifiutato: {1}
+w_package_verified = Pacchetto verificato; approva nell'iDrive
+w_ready_upload = Pronto per l'invio
+w_session_closed = Sessione chiusa
+w_session_expired = Sessione scaduta
+w_recovered = Applicazione ripristinata dopo la conferma
+w_update_failed_restored = Aggiornamento non riuscito; applicazione precedente ripristinata
+w_stopped_unexpectedly = l'applicazione si è arrestata inaspettatamente
+w_manager_busy = NBT Manager è occupato

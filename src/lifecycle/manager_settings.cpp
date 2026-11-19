@@ -2,6 +2,7 @@
 
 #include "nbt/controller_config.h"
 #include "nbt/manager_settings.h"
+#include "nbt/model/language.hpp"
 #include "nbt/storage/phone_store.hpp"
 
 #include <errno.h>
@@ -101,33 +102,19 @@ int debugLog(nbt_fs *fs, int on) {
     return barrier(fs);
 }
 
-int controller(nbt_fs *fs, const char *key, int on) {
-    char text[NBT_CONTROLLER_CONFIG_MAX + 1];
-    nbt_ccs_config config;
+/* Writes `text` to `next`, synced, and renames it over `kind`. */
+int replace(nbt_fs *fs, nbt_fs_path_kind next, nbt_fs_path_kind kind, const char *text, size_t n) {
     size_t done = 0;
     int result = 0;
-    (void)nbt_controller_config_load(fs, &config);
-    if (!strcmp(key, "invert")) {
-        config.invert = on;
-    } else {
-        config.release = (uint8_t)on;
-    }
-    const int n = nbt_controller_config_format(&config, text, sizeof(text));
-    if (n < 0) {
-        errno = EINVAL;
+    if (nbt_fs_unlink(fs, next, "manager", NULL) && errno != ENOENT) {
         return -1;
     }
-    if (nbt_fs_unlink(fs, NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT, "manager", NULL) &&
-        errno != ENOENT) {
-        return -1;
-    }
-    const int fd =
-        nbt_fs_open(fs, NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT, "manager", NULL, NBT_FS_CREATE);
+    const int fd = nbt_fs_open(fs, next, "manager", NULL, NBT_FS_CREATE);
     if (fd < 0) {
         return -1;
     }
-    while (done < (size_t)n && !result) {
-        const ssize_t w = write(fd, text + done, (size_t)n - done);
+    while (done < n && !result) {
+        const ssize_t w = write(fd, text + done, n - done);
         if (w < 0 && errno == EINTR) {
             continue;
         }
@@ -143,16 +130,46 @@ int controller(nbt_fs *fs, const char *key, int on) {
     if (close(fd)) {
         result = -1;
     }
-    if (result ||
-        nbt_fs_rename(fs, NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT, NBT_FS_MANAGER_CONTROLLER_CONFIG,
-                      "manager", NULL) ||
-        barrier(fs)) {
+    if (result || nbt_fs_rename(fs, next, kind, "manager", NULL) || barrier(fs)) {
         const int saved = errno;
-        (void)nbt_fs_unlink(fs, NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT, "manager", NULL);
+        (void)nbt_fs_unlink(fs, next, "manager", NULL);
         errno = saved;
         return -1;
     }
     return 0;
+}
+
+int controller(nbt_fs *fs, const char *key, int on) {
+    char text[NBT_CONTROLLER_CONFIG_MAX + 1];
+    nbt_ccs_config config;
+    (void)nbt_controller_config_load(fs, &config);
+    if (!strcmp(key, "invert")) {
+        config.invert = on;
+    } else {
+        config.release = (uint8_t)on;
+    }
+    const int n = nbt_controller_config_format(&config, text, sizeof(text));
+    if (n < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    return replace(fs, NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT, NBT_FS_MANAGER_CONTROLLER_CONFIG,
+                   text, (size_t)n);
+}
+
+/* The screen's language (nbt/model/language.hpp): not a declared setting,
+ * since it has more choices than a declaration allows. */
+int language(nbt_fs *fs, const char *value) {
+    int choice = model::kLanguageAuto;
+    char text[model::kLanguageFileMax + 1];
+    if (!model::languageSettingParse(value, choice)) {
+        errno = EINVAL;
+        return -1;
+    }
+    const size_t n = strlen(model::languageSettingCode(choice));
+    memcpy(text, model::languageSettingCode(choice), n);
+    text[n] = '\n';
+    return replace(fs, NBT_FS_MANAGER_LANGUAGE_NEXT, NBT_FS_MANAGER_LANGUAGE, text, n + 1);
 }
 
 int loadLegacy(nbt_fs *fs, nbt_settings *settings) {
@@ -185,6 +202,9 @@ int setLegacy(nbt_fs *fs, const char *key, const char *value) {
         storage::ManagedRoot root(*fs);
         storage::PhoneStore phones(root);
         return phones.initialize() && phones.setOpenEnabled(!strcmp(value, "on")) ? 0 : -1;
+    }
+    if (!strcmp(key, "language")) {
+        return language(fs, value);
     }
     if (declare(&settings)) {
         return -1;

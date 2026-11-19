@@ -1,4 +1,5 @@
 #include "nbt/gui/view_builder.hpp"
+#include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/phone_ui.hpp"
 
 #include <stdarg.h>
@@ -22,29 +23,37 @@ void addAction(UiView *v, const char *label) {
     addItem(v, label);
 }
 
-void addLine(UiView *v, const char *format, const char *a, const char *b) {
+void addText(UiView *v, TextId id, const char *a = NULL, const char *b = NULL) {
     if (v->lineCount < kLines) {
-        ViewBuilder::formatText(v->lines[v->lineCount++], sizeof(v->lines[0]), format, a, b);
+        textf(v->lines[v->lineCount++], sizeof(v->lines[0]), id, a, b);
     }
 }
 
-// A reason too long for one line goes on two, broken at a space.
-void addWrapped(UiView *v, const char *text) {
-    size_t cut = strlen(text);
-    if (cut > kTextMax) {
-        for (cut = kTextMax; cut > kTextMax / 2 && text[cut] != ' ';) {
-            --cut;
+void addLine(UiView *v, const char *line) {
+    if (v->lineCount < kLines) {
+        ViewBuilder::formatText(v->lines[v->lineCount++], sizeof(v->lines[0]), "%s", line);
+    }
+}
+
+// A reason too long for one line goes on two, broken at a space when there is
+// one in the second half (Chinese and Japanese have none: at a character).
+void addWrapped(UiView *v, const char *reason) {
+    size_t cut = utf8Fit(reason, kTextMax, kWrapColumns);
+    if (reason[cut]) {
+        size_t space = cut;
+        while (space > cut / 2 && reason[space] != ' ') {
+            --space;
         }
-        cut = text[cut] == ' ' ? cut : kTextMax;
+        cut = reason[space] == ' ' ? space : cut;
     }
     char first[kTextMax + 1];
-    memcpy(first, text, cut);
+    memcpy(first, reason, cut);
     first[cut] = 0;
     if (cut) {
-        addLine(v, "%s", first, NULL);
+        addLine(v, first);
     }
-    if (text[cut]) {
-        addLine(v, "%s", text + cut + (text[cut] == ' ' ? 1 : 0), NULL);
+    if (reason[cut]) {
+        addLine(v, reason + cut + (reason[cut] == ' ' ? 1 : 0));
     }
 }
 
@@ -54,83 +63,71 @@ void buildMainMenu(const UiController &ui, UiView *v) {
         char label[kItemTextMax + 1];
         if (ui.running[i]) {
             ViewBuilder::formatText(label, sizeof(label), "%s  (%s)", ui.apps[i],
-                                    ui.appStatus[i][0] ? ui.appStatus[i] : "running");
+                                    ui.appStatus[i][0] ? ui.appStatus[i] : text(T_RUNNING));
         } else {
             ViewBuilder::formatText(label, sizeof(label), "%s", ui.apps[i]);
         }
         addItem(v, label);
     }
-    addAction(v, "Settings"); // a paired phone sends packages while this menu shows
+    addAction(v, text(T_SETTINGS)); // a paired phone sends packages while this menu shows
     if (ui.message[0]) {
-        addLine(v, "%s", ui.message, NULL);
+        addLine(v, ui.message);
     }
     if (ui.notice[0]) {
-        addLine(v, "%s", ui.notice, NULL);
+        addLine(v, ui.notice);
     }
     if (ui.captureNote[0]) {
-        addLine(v, "%s", ui.captureNote, NULL);
+        addLine(v, ui.captureNote);
     }
-    if (!ui.appCount) {
-        addLine(v, "No applications installed", NULL, NULL);
-    } else {
-        addLine(v, "Push to start; hold for settings", NULL, NULL);
-    }
+    addText(v, ui.appCount ? T_MENU_HINT : T_NO_APPS);
     if (ui.holding && ui.holdIndex < ui.appCount && ui.clockMs >= ui.holdMs &&
         ui.clockMs - ui.holdMs >= kHoldShowMs) {
         const uint64_t held = ui.clockMs - ui.holdMs;
         v->modal.shown = 1;
-        ViewBuilder::formatText(v->modal.title, sizeof(v->modal.title), "%s settings",
-                                ui.apps[ui.holdIndex]);
-        ViewBuilder::formatText(v->modal.text, sizeof(v->modal.text), "Keep holding to open them");
+        textf(v->modal.title, sizeof(v->modal.title), T_APP_SETTINGS, ui.apps[ui.holdIndex]);
+        textf(v->modal.text, sizeof(v->modal.text), T_KEEP_HOLDING);
         v->modal.progress = held >= kHoldMs ? 100 : static_cast<int>(held * 100u / kHoldMs);
     }
 }
 
 void buildSettings(const UiController &ui, UiView *v) {
-    if (ui.managerSettings()) {
-        ViewBuilder::formatText(v->title, sizeof(v->title), "Settings");
-    } else {
-        ViewBuilder::formatText(v->title, sizeof(v->title), "%s settings", ui.settingsApp);
-    }
+    const bool manager = ui.managerSettings();
+    textf(v->title, sizeof(v->title), manager ? T_SETTINGS : T_APP_SETTINGS, ui.settingsApp);
     if (ui.message[0]) {
-        addLine(v, "%s", ui.message, NULL);
+        addLine(v, ui.message);
     }
-    if (ui.managerSettings()) {
-        addLine(v, "Changes apply when the manager next opens", NULL, NULL);
-    } else if (ui.settings.count && ui.liveSettings) {
-        addLine(v, "Changes apply at once", NULL, NULL);
-    } else if (ui.settings.count) {
-        addLine(v, "Changes apply when %s next starts", ui.settingsApp, NULL);
-    } else {
-        addLine(v, "%s has no settings", ui.settingsApp, NULL);
-    }
+    addText(v,
+            manager                                ? T_APPLY_MANAGER_NEXT
+            : ui.settings.count && ui.liveSettings ? T_APPLY_NOW
+            : ui.settings.count                    ? T_APPLY_APP_NEXT
+                                                   : T_NO_SETTINGS,
+            ui.settingsApp);
+    char label[kTextMax + 1];
     for (size_t i = 0; i < ui.settings.count; ++i) {
-        char label[kTextMax + 1];
-        ViewBuilder::formatText(label, sizeof(label), "%s: %s", ui.settings.items[i].label,
-                                ui.settings.items[i].value);
+        const nbt_setting &s = ui.settings.items[i];
+        textf(label, sizeof(label), T_SETTING_ROW, settingLabel(ui, s), settingChoice(ui, s.value));
         addItem(v, label);
     }
     if (ui.stopEntry()) {
-        char label[kTextMax + 1];
-        ViewBuilder::formatText(label, sizeof(label), "Stop %s", ui.settingsApp);
+        textf(label, sizeof(label), T_STOP_APP, ui.settingsApp);
         addAction(v, label);
     }
     if (ui.unblockEntry()) {
-        char label[kTextMax + 1];
-        ViewBuilder::formatText(label, sizeof(label), "Unblock %s", ui.settingsApp);
+        textf(label, sizeof(label), T_UNBLOCK_APP, ui.settingsApp);
         addAction(v, label);
     }
-    if (ui.managerSettings()) {
-        addAction(v, "Pair a phone");
-        addAction(v, "Paired phones");
-        addAction(v, "Status"); // status_page.hpp
+    if (manager) {
+        languageEntry(ui, label, sizeof(label)); // EntryLanguage, as a setting
+        addItem(v, label);
+        addAction(v, text(T_PAIR_PHONE));
+        addAction(v, text(T_PAIRED_PHONES));
+        addAction(v, text(T_STATUS)); // status_page.hpp
     } else {
-        char label[kTextMax + 1];
-        ViewBuilder::formatText(label, sizeof(label), "Uninstall %s", ui.settingsApp);
+        textf(label, sizeof(label), T_UNINSTALL_APP, ui.settingsApp);
         addAction(v, label);
     }
     if (!v->itemCount) {
-        addAction(v, "Back");
+        addAction(v, text(T_BACK));
     }
 }
 
@@ -139,31 +136,62 @@ void buildSettings(const UiController &ui, UiView *v) {
 void buildReviewConfirm(const UiController &ui, UiView *v) {
     const bool update = ui.review.installed[0] != 0;
     if (ui.screen == Review) {
-        ViewBuilder::formatText(v->title, sizeof(v->title), "%s",
-                                update ? "Review update" : "Review new application");
+        textf(v->title, sizeof(v->title), update ? T_REVIEW_UPDATE : T_REVIEW_NEW);
     } else {
-        ViewBuilder::formatText(v->title, sizeof(v->title), "%s",
-                                ui.recovery ? "Confirm older version" : "Confirm install");
+        textf(v->title, sizeof(v->title), ui.recovery ? T_CONFIRM_OLDER : T_CONFIRM_INSTALL);
     }
     const bool manager = !strcmp(ui.review.app, "manager");
-    addLine(v, "%s", manager ? "NBT Manager" : ui.review.app, NULL);
+    addLine(v, manager ? "NBT Manager" : ui.review.app);
     if (update) {
-        addLine(v, "Installed: %s, new: %s", ui.review.installed, ui.review.proposed);
+        addText(v, T_VERSIONS, ui.review.installed, ui.review.proposed);
     } else {
-        addLine(v, "Version %s", ui.review.proposed, NULL);
+        addText(v, T_VERSION, ui.review.proposed);
     }
     if (ui.screen == Review) {
-        addItem(v, "Reject");
-        addItem(v, "Install");
+        addItem(v, text(T_REJECT));
+        addItem(v, text(T_INSTALL));
         if (update && !manager) { // only newer manager releases are accepted
-            addItem(v, "Install, even if older");
+            addItem(v, text(T_INSTALL_OLDER));
         }
     } else {
         if (ui.recovery) {
-            addLine(v, "It may replace it with an older version", NULL, NULL);
+            addText(v, T_OLDER_WARNING);
         }
-        addItem(v, "No");
-        addItem(v, "Yes, install");
+        addItem(v, text(T_NO));
+        addItem(v, text(T_YES_INSTALL));
+    }
+}
+
+void buildUninstall(const UiController &ui, UiView *v) {
+    textf(v->title, sizeof(v->title), T_UNINSTALL_QUESTION, ui.settingsApp);
+    if (ui.queued == R_REMOVE || ui.outstanding == R_REMOVE) {
+        addLine(v, ui.message);
+    }
+    if (ui.phoneAction[0]) {
+        addText(v, T_REQUESTED_BY, ui.phoneName);
+    }
+    addText(v, T_UNINSTALL_DELETES, ui.settingsApp);
+    addText(v, T_CANNOT_UNDO);
+    addItem(v, text(T_NO));
+    addItem(v, text(T_YES_UNINSTALL));
+}
+
+void buildChoice(const UiController &ui, UiView *v) {
+    if (ui.settingIndex >= ui.settings.count) {
+        return;
+    }
+    const nbt_setting *s = &ui.settings.items[ui.settingIndex];
+    ViewBuilder::formatText(v->title, sizeof(v->title), "%s", settingLabel(ui, *s));
+    addText(v, ui.managerSettings() ? T_SETTINGS : T_APP_SETTINGS, ui.settingsApp);
+    for (size_t i = 0; i < s->choice_count; ++i) {
+        char label[kTextMax + 1];
+        const char *choice = settingChoice(ui, s->choices[i]);
+        if (strcmp(s->choices[i], s->value)) {
+            ViewBuilder::formatText(label, sizeof(label), "%s", choice);
+        } else {
+            textf(label, sizeof(label), T_CURRENT_CHOICE, choice);
+        }
+        addItem(v, label);
     }
 }
 
@@ -176,6 +204,8 @@ void ViewBuilder::formatText(char *out, size_t size, const char *format, ...) {
     va_end(args);
     if (n < 0) {
         out[0] = 0;
+    } else if (static_cast<size_t>(n) >= size) {
+        utf8TrimEnd(out); // cut at a whole character
     }
 }
 
@@ -193,7 +223,7 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
     switch (ui.screen) {
     case Loading:
         formatText(v.title, sizeof(v.title), "NBT App Manager %s", ui.version);
-        addLine(&v, "Loading applications", NULL, NULL);
+        addText(&v, T_LOADING_APPS);
         break;
     case Apps:
         buildMainMenu(ui, &v);
@@ -202,34 +232,13 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
         buildSettings(ui, &v);
         break;
     case Uninstall:
-        formatText(v.title, sizeof(v.title), "Uninstall %s?", ui.settingsApp);
-        if (ui.queued == R_REMOVE || ui.outstanding == R_REMOVE) {
-            addLine(&v, "%s", ui.message, NULL);
-        }
-        if (ui.phoneAction[0]) {
-            addLine(&v, "Requested by %s", ui.phoneName, NULL);
-        }
-        addLine(&v, "%s and all its data are deleted", ui.settingsApp, NULL);
-        addLine(&v, "This cannot be undone", NULL, NULL);
-        addItem(&v, "No");
-        addItem(&v, "Yes, uninstall");
+        buildUninstall(ui, &v);
         break;
     case Choice:
-        if (ui.settingIndex < ui.settings.count) {
-            const nbt_setting *s = &ui.settings.items[ui.settingIndex];
-            formatText(v.title, sizeof(v.title), "%s", s->label);
-            if (ui.managerSettings()) {
-                addLine(&v, "Settings", NULL, NULL);
-            } else {
-                addLine(&v, "%s settings", ui.settingsApp, NULL);
-            }
-            for (size_t i = 0; i < s->choice_count; ++i) {
-                char label[kTextMax + 1];
-                formatText(label, sizeof(label),
-                           strcmp(s->choices[i], s->value) ? "%s" : "%s  (current)", s->choices[i]);
-                addItem(&v, label);
-            }
-        }
+        buildChoice(ui, &v);
+        break;
+    case LanguagePick:
+        languageView(ui, v);
         break;
     case Waiting:
     case PhoneConfirm:
@@ -248,8 +257,8 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
         buildReviewConfirm(ui, &v);
         break;
     case Progress:
-        formatText(v.title, sizeof(v.title), "Installing");
-        addLine(&v, "%s", ui.message, NULL);
+        textf(v.title, sizeof(v.title), T_INSTALLING_TITLE);
+        addLine(&v, ui.message);
         addWrapped(&v, ui.detail);
         if (ui.healthMs && ui.clockMs >= ui.healthMs) { // it has to run kAppHealthMs
             const uint64_t done = (ui.clockMs - ui.healthMs) * 100u / kAppHealthMs;
@@ -258,39 +267,14 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
         break;
     case Result:
     case Error:
-        formatText(v.title, sizeof(v.title), ui.screen == Result ? "Install or update" : "Error");
-        addLine(&v, "%s", ui.message, NULL);
+        textf(v.title, sizeof(v.title), ui.screen == Result ? T_INSTALL_OR_UPDATE : T_ERROR);
+        addLine(&v, ui.message);
         addWrapped(&v, ui.detail);
-        addItem(&v, ui.screen == Result ? "OK" : (ui.fatal ? "Close" : "Retry"));
+        addItem(&v, text(ui.screen == Result ? T_OK : (ui.fatal ? T_CLOSE : T_RETRY)));
         break;
     }
     v.focus = (v.itemCount && ui.focus < v.itemCount) ? ui.focus : 0;
     return core::Status();
-}
-
-bool Modal::valid() const {
-    return !shown || (itemCount <= kModalItems && progress >= -1 && progress <= 100 &&
-                      (!itemCount || focus < itemCount));
-}
-
-bool Modal::operator==(const Modal &other) const {
-    return shown == other.shown && progress == other.progress && itemCount == other.itemCount &&
-           focus == other.focus && !memcmp(title, other.title, sizeof(title)) &&
-           !memcmp(text, other.text, sizeof(text)) && !memcmp(items, other.items, sizeof(items));
-}
-
-bool UiView::valid() const {
-    return lineCount <= kLines && itemCount <= kItems && progress >= -1 && progress <= 100 &&
-           (!itemCount || focus < itemCount) && modal.valid();
-}
-
-bool UiView::operator==(const UiView &other) const {
-    return screen == other.screen && focus == other.focus && busy == other.busy &&
-           progress == other.progress && lineCount == other.lineCount &&
-           itemCount == other.itemCount && !memcmp(title, other.title, sizeof(title)) &&
-           !memcmp(code, other.code, sizeof(code)) && !memcmp(lines, other.lines, sizeof(lines)) &&
-           !memcmp(items, other.items, sizeof(items)) &&
-           !memcmp(itemStyle, other.itemStyle, sizeof(itemStyle)) && modal == other.modal;
 }
 
 } // namespace gui

@@ -1,6 +1,7 @@
 #include "nbt/gui/capture_watch.hpp"
 
 #include "nbt/capture/diag.h"
+#include "nbt/gui/text.hpp"
 #include "nbt/log.h"
 
 #include <errno.h>
@@ -10,19 +11,37 @@ namespace nbt {
 namespace gui {
 namespace {
 
-const char *text(CaptureWatch::State state) {
+/* The note on the manager's list, in the current language. */
+const char *noteText(CaptureWatch::State state) {
     switch (state) {
     case CaptureWatch::Escaped:
-        return "iDrive gets the keys too (BACK held 5 s)";
+        return text(T_KEYS_TOO_ESCAPE);
     case CaptureWatch::Observer:
-        return "iDrive gets the keys too (shim not blocking)";
+        return text(T_KEYS_TOO_OBSERVER);
     case CaptureWatch::NotLoaded:
-        return "iDrive gets the keys too (shim not loaded)";
+        return text(T_KEYS_TOO_NO_SHIM);
     default:
         return "";
     }
 }
 
+/* The state on Settings > Status, in the current language. */
+const char *stateText(CaptureWatch::State state) {
+    switch (state) {
+    case CaptureWatch::Blocking:
+        return text(T_KEYS_KEPT);
+    case CaptureWatch::Escaped:
+        return text(T_KEYS_ESCAPED);
+    case CaptureWatch::Observer:
+        return text(T_KEYS_OBSERVER);
+    case CaptureWatch::NotLoaded:
+        return text(T_KEYS_NO_SHIM);
+    default:
+        return text(T_UNKNOWN);
+    }
+}
+
+/* The state in the debug log, in English. */
 const char *name(CaptureWatch::State state) {
     switch (state) {
     case CaptureWatch::Blocking:
@@ -81,11 +100,11 @@ bool CaptureWatch::poll(const char *path, uint64_t generation, bool wanted, uint
 }
 
 const char *CaptureWatch::note() const {
-    return text(state_);
+    return noteText(state_);
 }
 
 const char *CaptureWatch::describe() const {
-    return name(state_);
+    return stateText(state_);
 }
 
 } // namespace gui

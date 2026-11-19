@@ -1,0 +1,205 @@
+# 简体中文. Keys and placeholders: en.txt (tools/gui_text.py). After a change,
+# regenerate the fonts (tools/make_fonts.py): they hold only these characters.
+
+# Main menu
+running = 运行中
+settings = 设置
+no_apps = 未安装应用
+menu_hint = 按下启动；长按打开设置
+app_settings = {1} 设置
+keep_holding = 继续按住以打开
+loading_apps = 正在加载应用
+starting = 正在启动
+recovered = 已从故障中恢复
+controller_config_invalid = 控制器配置无效；已使用默认值
+
+# Settings
+apply_manager_next = 下次打开管理器时生效
+apply_now = 立即生效
+apply_app_next = {1} 下次启动时生效
+no_settings = {1} 没有设置
+setting_row = {1}：{2}
+current_choice = {1}（当前）
+stop_app = 停止 {1}
+unblock_app = 解除阻止 {1}
+uninstall_app = 卸载 {1}
+pair_phone = 配对手机
+paired_phones = 已配对的手机
+status = 状态
+back = 返回
+setting_debug_log = 调试日志
+setting_invert = 反转旋钮
+setting_release = 交还控制器
+value_on = 开
+value_off = 关
+
+# Language
+language = 语言
+language_auto_named = 自动（{1}）
+language_hint = 自动：跟随 iDrive 的语言
+
+# Review and install
+review_update = 查看更新
+review_new = 查看新应用
+confirm_older = 确认安装旧版本
+confirm_install = 确认安装
+versions = 已安装：{1}，新版本：{2}
+version = 版本 {1}
+reject = 拒绝
+install = 安装
+install_older = 安装（即使版本较旧）
+older_warning = 可能会以较旧的版本替换
+no = 否
+yes_install = 是，安装
+installing_title = 正在安装
+installing_app = 正在安装 {1} {2}
+install_or_update = 安装或更新
+error = 错误
+ok = 确定
+close = 关闭
+retry = 重试
+install_failed = 安装失败
+update_installed = 更新已安装
+update_ready = 更新已就绪
+update_failed = 更新失败
+update_not_installed = 更新未安装
+update_rejected = 已拒绝更新
+upload_rejected = 上传被拒绝
+session_ended = 会话已结束
+
+# Uninstall
+uninstall_question = 卸载 {1}？
+requested_by = 请求来自 {1}
+uninstall_deletes = {1} 及其所有数据都将被删除
+cannot_undo = 此操作无法撤销
+yes_uninstall = 是，卸载
+uninstalling_app = 正在卸载 {1}
+app_uninstalled_named = {1} 已卸载
+stop_first = 请先停止 {1}
+busy_uninstall_later = 忙碌中；请稍后卸载 {1}
+cannot_uninstall = 无法卸载 {1}
+
+# Starting and stopping
+starting_app = 正在启动 {1}
+stopping_app = 正在停止 {1}
+app_stopped = {1} 已停止
+cannot_stop = 无法停止 {1}
+already_running = {1} 已在运行
+screen_taken = {1}：其他应用正在使用屏幕
+blocked_faults = {1} 因故障已被阻止
+cannot_start = 无法启动 {1}
+app_not_shown = {1} 未显示
+app_unblocked = {1} 已解除阻止
+cannot_unblock = 无法解除阻止 {1}
+
+# Errors
+cannot_list = 无法列出应用
+cannot_read_settings = 无法读取设置
+cannot_read_app_settings = 无法读取 {1} 的设置
+cannot_save_setting = 无法保存设置
+worker_protocol_error = 服务协议错误
+worker_unavailable = 服务不可用
+
+# Pairing and phones
+opening_pairing = 正在打开配对
+pairing_closed = 配对已关闭
+pairing_timeout = 已超时；未收到软件包
+session_closed = 会话已关闭
+cannot_open_session = 无法打开会话
+wifi_unavailable = Wi-Fi 网络不可用
+cannot_pair = 无法配对手机
+car_wifi_unavailable = 无法获取车辆的 Wi-Fi 信息
+wifi_details_unavailable = 无法获取 Wi-Fi 信息
+scan_code = 在 NBT Manager 中扫描此 Wi-Fi 码
+confirm_digits = 在此确认数字一致
+closes_in = {1} 秒后关闭
+cancel = 取消
+waiting_phone = 正在等待已配对的手机
+pair_question = 配对 {1}？
+confirm_code = 仅当手机显示此代码时确认：
+yes_pair = 是，配对
+no_phones = 没有已配对的手机
+remove_question = 移除 {1}？
+pair_again = 此手机需要重新配对
+yes_remove_phone = 是，移除手机
+phone_request_ended = 手机请求已结束
+retry_from_phone = 请在手机上重试
+cannot_read_phones = 无法读取已配对的手机
+request_rejected = 请求已拒绝
+phone_paired = 手机已配对
+app_uninstalled = 应用已卸载
+phone_action_failed = 手机操作失败
+phone_action_unavailable = 手机操作不可用
+
+# Restarting the head unit
+restarting = 正在重启主机
+whole_system_restarts = 整个系统将重启
+cannot_restart = 无法重启
+switch_off_on = 请改为将车辆熄火后重新启动
+restart_question = 重启主机？
+entry_updated = NBT Manager 的 iDrive 入口已更新
+loads_on_restart = 主机重启后加载
+restart_like_off_on = 整个系统将重启，如同车辆熄火后重新启动
+later = 稍后
+restart_head_unit = 重启主机
+
+# Settings > Status and the gamepad test
+gamepad_test = 手柄测试
+plug_pad = 将手柄插入车辆的 USB 接口
+pressed = 按下：{1}
+left_stick = 左摇杆：x {1}，y {2}
+right_stick = 右摇杆：x {1}，y {2}
+triggers = 扳机：左 {1}，右 {2}
+back_leaves = 按 iDrive 控制器上的 BACK 退出
+nothing = 无
+keys = 按键：{1}
+controller = iDrive 控制器：{1}
+controller_most = 通过 MOST 读取
+controller_none = 未读取（无 MOST 输入）
+last_error = 上次错误：{1}
+no_error = 自打开管理器以来无
+test_gamepad = 测试手柄
+pad_unavailable = 手柄：不可用
+pad_found = 手柄：{1}（{2}）
+pad_held = 手柄：USB 被其他进程占用
+pad_no_usb = 手柄：无 USB 协议栈（usbd_connect {1}）
+pad_not_connected = 手柄：USB 尚未连接
+pad_open_failed = 手柄：无法打开 {1}
+pad_retrying = {1}；正在重试
+pad_none = 手柄：未找到
+pad_generic = 手柄
+keys_too_escape = iDrive 也会收到按键（已按住 BACK 5 秒）
+keys_too_observer = iDrive 也会收到按键（shim 未拦截）
+keys_too_no_shim = iDrive 也会收到按键（shim 未加载）
+keys_kept = 已对 iDrive 屏蔽
+keys_escaped = 已释放（已按住 BACK 5 秒）：iDrive 会收到
+keys_observer = 观察模式 shim：iDrive 会收到
+keys_no_shim = iDrive 中无 shim：iDrive 会收到
+unknown = 未知
+
+# The worker's own messages
+w_installing_update = 正在安装更新
+w_checking_health = 正在检查应用运行状况
+w_restoring = 正在恢复之前的应用
+w_restarting_app = 正在重启应用
+w_app_stopped = 应用已停止
+w_stopping_app = 正在停止应用
+w_update_installed = 更新已安装
+w_settings_not_updated = 更新已安装；设置未更新
+w_manager_starts = NBT Manager {1} 将在下次打开 App Manager 时启动
+w_screen_taken = 其他应用正在使用屏幕
+w_already_running = 应用已在运行
+w_blocked = 应用因故障已被阻止
+w_app_installed = 应用已安装
+w_app_started = 应用已启动
+w_installing_app = 正在安装应用
+w_checking_package = 正在检查软件包
+w_package_rejected = 软件包被拒绝：{1}
+w_package_verified = 软件包已验证；请在 iDrive 中批准
+w_ready_upload = 准备接收上传
+w_session_closed = 会话已关闭
+w_session_expired = 会话已过期
+w_recovered = 提交后已恢复应用
+w_update_failed_restored = 更新失败；已恢复之前的应用
+w_stopped_unexpectedly = 应用意外停止
+w_manager_busy = NBT Manager 正忙

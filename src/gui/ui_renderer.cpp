@@ -2,6 +2,8 @@
 #include "nbt/gui/ui_renderer.hpp"
 
 #include "lvgl/lvgl.h"
+#include "nbt/gui/text.hpp"
+#include "nbt/gui/ui_fonts.hpp"
 #include "nbt/util.h"
 
 #include <errno.h>
@@ -239,8 +241,8 @@ int renderList(lv_obj_t *screen, const UiView *v, const lv_font_t *itemFont, int
 core::Status UiRenderer::render(const UiView &viewRef, const QrCode *qr, Frame &frameRef) {
     const UiView *v = &viewRef;
     Frame *frame = &frameRef;
-    const lv_font_t *titleFont = &lv_font_montserrat_24, *lineFont = &lv_font_montserrat_14,
-                    *itemFont = &lv_font_montserrat_18;
+    const UiFonts fonts = uiFonts(currentLanguage());
+    const lv_font_t *titleFont = fonts.title, *lineFont = fonts.line, *itemFont = fonts.item;
     size_t qrScale = 0, qx = 0, qy = 0;
     if (!v || !frame->valid() || frame->width > kMaxSide || frame->height > kMaxSide ||
         !v->valid() || (qr && (!qr->size() || qr->size() > kQrMaxSize)) ||

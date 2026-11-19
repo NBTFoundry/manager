@@ -33,11 +33,14 @@
 #define LV_DRAW_SW_SUPPORT_A8 1
 #define LV_DRAW_SW_SUPPORT_I1 1
 
-#define LV_FONT_MONTSERRAT_14 1
-#define LV_FONT_MONTSERRAT_18 1
-#define LV_FONT_MONTSERRAT_24 1
-/* The pairing code, as large as the phone shows it. */
+/* Text uses the manager's own fonts, in its languages (src/gui/fonts/,
+ * tools/make_fonts.py): the built-in Montserrat covers ASCII only. */
+#define LV_FONT_MONTSERRAT_14 0
+#define LV_FONT_MONTSERRAT_18 0
+#define LV_FONT_MONTSERRAT_24 0
+/* The pairing code (digits), as large as the phone shows it. */
 #define LV_FONT_MONTSERRAT_48 1
-#define LV_FONT_DEFAULT &lv_font_montserrat_18
+#define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(nbt_font_latin_18)
+#define LV_FONT_DEFAULT &nbt_font_latin_18
 
 #endif

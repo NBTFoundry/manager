@@ -103,7 +103,7 @@ const char *familyName(gamepad::Family family) {
     case gamepad::DualSense:
         return "DualSense";
     default:
-        return "pad";
+        return text(T_PAD_GENERIC);
     }
 }
 
@@ -114,24 +114,29 @@ void GamepadInput::describe(const gamepad::Service::Report &r, char *pad, char *
         return;
     }
     detail[0] = 0;
+    char number[16];
     if (!r.running) {
-        ViewBuilder::formatText(pad, size, "Gamepad: not available");
+        textf(pad, size, T_PAD_UNAVAILABLE);
     } else if (r.family != gamepad::Unsupported) {
-        ViewBuilder::formatText(pad, size, "Gamepad: %s (%04x:%04x)", familyName(r.family),
-                                r.vendor, r.product);
+        ViewBuilder::formatText(number, sizeof(number), "%04x:%04x", r.vendor, r.product);
+        textf(pad, size, T_PAD_FOUND, familyName(r.family), number);
     } else if (r.lockRefused) {
-        ViewBuilder::formatText(pad, size, "Gamepad: USB held by another process");
+        textf(pad, size, T_PAD_HELD);
     } else if (!r.owner && r.problem.connectError) {
-        ViewBuilder::formatText(pad, size, "Gamepad: no USB stack (usbd_connect %d)",
-                                r.problem.connectError);
+        ViewBuilder::formatText(number, sizeof(number), "%d", r.problem.connectError);
+        textf(pad, size, T_PAD_NO_USB, number);
     } else if (!r.owner) {
-        ViewBuilder::formatText(pad, size, "Gamepad: USB not connected yet");
+        textf(pad, size, T_PAD_NOT_CONNECTED);
     } else if (r.problem.step) {
-        ViewBuilder::formatText(pad, size, "Gamepad: %04x:%04x could not be opened",
-                                r.problem.vendor, r.problem.product);
-        ViewBuilder::formatText(detail, size, "  %s; retrying", r.problem.step);
+        ViewBuilder::formatText(number, sizeof(number), "%04x:%04x", r.problem.vendor,
+                                r.problem.product);
+        textf(pad, size, T_PAD_OPEN_FAILED, number);
+        if (size > 2) { // indented under the pad's line
+            detail[0] = detail[1] = ' ';
+            textf(detail + 2, size - 2, T_PAD_RETRYING, r.problem.step);
+        }
     } else {
-        ViewBuilder::formatText(pad, size, "Gamepad: none found");
+        textf(pad, size, T_PAD_NONE);
     }
 }
 bool GamepadInput::takeHandover() {

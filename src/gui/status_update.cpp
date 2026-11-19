@@ -1,9 +1,18 @@
 #include "nbt/gui/status_update.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/view_builder.hpp"
+#include "nbt/gui/worker_text.hpp"
 #include <string.h>
 namespace nbt {
 namespace gui {
+namespace {
+/* The result screen, with the worker's reason in the current language. */
+void result(UiController &ui, TextId what, const char *reason) {
+    char why[sizeof(ui.detail)];
+    workerText(why, sizeof(why), reason);
+    ui.showResult(text(what), why);
+}
+} // namespace
 void updateUiStatus(UiController &ui) {
     const WorkerStatus &s = ui.status;
     if ((ui.screen == Apps || ui.screen == Waiting || ui.screen == Settings ||
@@ -15,6 +24,8 @@ void updateUiStatus(UiController &ui) {
         return;
     }
     const bool ours = ui.app[0] && !strcmp(s.app, ui.app);
+    // "Stopping <app>" is still the message shown: the outcome replaces it.
+    const bool stopShown = ui.stopNote[0] && !strcmp(ui.message, ui.stopNote);
     switch (ui.screen) {
     case Apps:
     case Settings:
@@ -22,17 +33,17 @@ void updateUiStatus(UiController &ui) {
             return;
         }
         if (s.state == W_FAILED) {
-            if (ui.screen == Settings || !strncmp(ui.message, "Stopping ", 9)) {
-                ViewBuilder::formatText(ui.message, sizeof(ui.message), "Cannot stop %s",
-                                        ui.target);
+            if (ui.screen == Settings || stopShown) {
+                textf(ui.message, sizeof(ui.message), T_CANNOT_STOP, ui.target);
             }
         } else if (!strcmp(s.message, "Application stopped")) {
-            if (ui.screen == Settings || !strncmp(ui.message, "Stopping ", 9)) {
-                ViewBuilder::formatText(ui.message, sizeof(ui.message), "%s stopped", ui.target);
+            if (ui.screen == Settings || stopShown) {
+                textf(ui.message, sizeof(ui.message), T_APP_STOPPED, ui.target);
             }
         } else {
             return;
         }
+        ui.stopNote[0] = 0;
         ui.stopping = 0;
         ui.queued = R_RUNNING;
         return;
@@ -52,7 +63,7 @@ void updateUiStatus(UiController &ui) {
             ui.go(Review);
             return;
         }
-        ui.showResult(s.state == W_FAILED ? "Upload rejected" : "Session ended", s.message);
+        result(ui, s.state == W_FAILED ? T_UPLOAD_REJECTED : T_SESSION_ENDED, s.message);
         ui.queued = R_CANCEL;
         return;
     case Review:
@@ -65,28 +76,27 @@ void updateUiStatus(UiController &ui) {
             ui.go(Review);
             return;
         }
-        ui.showResult("Session ended", s.message);
+        result(ui, T_SESSION_ENDED, s.message);
         ui.queued = R_CANCEL;
         return;
     case Progress:
         if (s.state == W_INSTALLING && ours) {
-            ViewBuilder::formatText(ui.detail, sizeof(ui.detail), "%s", s.message);
+            workerText(ui.detail, sizeof(ui.detail), s.message);
             if (!ui.healthMs && !strcmp(s.message, "Checking application health")) {
                 ui.healthMs = ui.clockMs ? ui.clockMs : 1; // the progress bar's start
             }
             return;
         }
         if (s.state == W_INSTALLED && ours) {
-            ui.showResult(strcmp(s.app, "manager") ? "Update installed" : "Update ready",
+            ui.showResult(text(strcmp(s.app, "manager") ? T_UPDATE_INSTALLED : T_UPDATE_READY),
                           s.installed);
         } else {
-            ui.showResult(s.state == W_FAILED ? "Update failed" : "Update not installed",
-                          s.message);
+            result(ui, s.state == W_FAILED ? T_UPDATE_FAILED : T_UPDATE_NOT_INSTALLED, s.message);
         }
         return;
     case Result:
         if (s.message[0]) {
-            ViewBuilder::formatText(ui.detail, sizeof(ui.detail), "%s", s.message);
+            workerText(ui.detail, sizeof(ui.detail), s.message);
         }
         return;
     default:

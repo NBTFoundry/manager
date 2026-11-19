@@ -1,0 +1,205 @@
+# 日本語. Keys and placeholders: en.txt (tools/gui_text.py). After a change,
+# regenerate the fonts (tools/make_fonts.py): they hold only these characters.
+
+# Main menu
+running = 実行中
+settings = 設定
+no_apps = アプリはインストールされていません
+menu_hint = 押して起動、長押しで設定
+app_settings = {1} の設定
+keep_holding = 押し続けると開きます
+loading_apps = アプリを読み込み中
+starting = 起動中
+recovered = エラーから復旧しました
+controller_config_invalid = コントローラー設定が無効です。既定値を使用します
+
+# Settings
+apply_manager_next = 次にマネージャーを開いたときに反映されます
+apply_now = すぐに反映されます
+apply_app_next = 次に {1} を起動したときに反映されます
+no_settings = {1} には設定がありません
+setting_row = {1}：{2}
+current_choice = {1}（現在）
+stop_app = {1} を停止
+unblock_app = {1} のブロックを解除
+uninstall_app = {1} をアンインストール
+pair_phone = スマートフォンをペアリング
+paired_phones = ペアリング済みのスマートフォン
+status = ステータス
+back = 戻る
+setting_debug_log = デバッグログ
+setting_invert = ノブの回転を反転
+setting_release = コントローラーを戻す
+value_on = オン
+value_off = オフ
+
+# Language
+language = 言語
+language_auto_named = 自動（{1}）
+language_hint = 自動：iDrive の言語に合わせます
+
+# Review and install
+review_update = アップデートを確認
+review_new = 新しいアプリを確認
+confirm_older = 古いバージョンを確認
+confirm_install = インストールを確認
+versions = インストール済み：{1}、新規：{2}
+version = バージョン {1}
+reject = 拒否
+install = インストール
+install_older = 古くてもインストール
+older_warning = 古いバージョンに置き換わる場合があります
+no = いいえ
+yes_install = はい、インストール
+installing_title = インストール中
+installing_app = {1} {2} をインストール中
+install_or_update = インストールまたはアップデート
+error = エラー
+ok = OK
+close = 閉じる
+retry = 再試行
+install_failed = インストールに失敗しました
+update_installed = アップデートをインストールしました
+update_ready = アップデートの準備ができました
+update_failed = アップデートに失敗しました
+update_not_installed = アップデートはインストールされませんでした
+update_rejected = アップデートを拒否しました
+upload_rejected = アップロードが拒否されました
+session_ended = セッションが終了しました
+
+# Uninstall
+uninstall_question = {1} をアンインストールしますか？
+requested_by = {1} からのリクエスト
+uninstall_deletes = {1} とそのすべてのデータが削除されます
+cannot_undo = この操作は元に戻せません
+yes_uninstall = はい、アンインストール
+uninstalling_app = {1} をアンインストール中
+app_uninstalled_named = {1} をアンインストールしました
+stop_first = 先に {1} を停止してください
+busy_uninstall_later = 処理中です。後で {1} をアンインストールしてください
+cannot_uninstall = {1} をアンインストールできません
+
+# Starting and stopping
+starting_app = {1} を起動中
+stopping_app = {1} を停止中
+app_stopped = {1} を停止しました
+cannot_stop = {1} を停止できません
+already_running = {1} はすでに実行中です
+screen_taken = {1}：別のアプリが画面を使用中です
+blocked_faults = {1} はエラーのためブロックされました
+cannot_start = {1} を起動できません
+app_not_shown = {1} が表示されませんでした
+app_unblocked = {1} のブロックを解除しました
+cannot_unblock = {1} のブロックを解除できません
+
+# Errors
+cannot_list = アプリ一覧を取得できません
+cannot_read_settings = 設定を読み込めません
+cannot_read_app_settings = {1} の設定を読み込めません
+cannot_save_setting = 設定を保存できません
+worker_protocol_error = サービスのプロトコルエラー
+worker_unavailable = サービスを利用できません
+
+# Pairing and phones
+opening_pairing = ペアリングを開いています
+pairing_closed = ペアリングを終了しました
+pairing_timeout = タイムアウト：パッケージを受信しませんでした
+session_closed = セッションを閉じました
+cannot_open_session = セッションを開けません
+wifi_unavailable = Wi-Fi ネットワークを利用できません
+cannot_pair = スマートフォンをペアリングできません
+car_wifi_unavailable = 車両の Wi-Fi 情報を取得できません
+wifi_details_unavailable = Wi-Fi 情報を取得できません
+scan_code = この Wi-Fi コードを NBT Manager でスキャン
+confirm_digits = ここで数字が一致することを確認してください
+closes_in = あと {1} 秒で閉じます
+cancel = キャンセル
+waiting_phone = ペアリング済みのスマートフォンを待機中
+pair_question = {1} とペアリングしますか？
+confirm_code = スマートフォンにこのコードが表示されている場合のみ確認：
+yes_pair = はい、ペアリング
+no_phones = ペアリング済みのスマートフォンはありません
+remove_question = {1} を削除しますか？
+pair_again = このスマートフォンは再度ペアリングが必要になります
+yes_remove_phone = はい、削除する
+phone_request_ended = スマートフォンからのリクエストが終了しました
+retry_from_phone = スマートフォンから再試行してください
+cannot_read_phones = ペアリング済みのスマートフォンを読み込めません
+request_rejected = リクエストを拒否しました
+phone_paired = スマートフォンをペアリングしました
+app_uninstalled = アプリをアンインストールしました
+phone_action_failed = スマートフォンの操作に失敗しました
+phone_action_unavailable = スマートフォンの操作は利用できません
+
+# Restarting the head unit
+restarting = ヘッドユニットを再起動中
+whole_system_restarts = システム全体が再起動します
+cannot_restart = 再起動できません
+switch_off_on = 代わりに車両の電源を入れ直してください
+restart_question = ヘッドユニットを再起動しますか？
+entry_updated = NBT Manager の iDrive エントリーが更新されました
+loads_on_restart = ヘッドユニットの再起動後に読み込まれます
+restart_like_off_on = 車両の電源を入れ直したときと同様に、システム全体が再起動します
+later = 後で
+restart_head_unit = ヘッドユニットを再起動
+
+# Settings > Status and the gamepad test
+gamepad_test = ゲームパッドのテスト
+plug_pad = 車両の USB ポートにゲームパッドを接続してください
+pressed = 押下中：{1}
+left_stick = 左スティック：x {1}、y {2}
+right_stick = 右スティック：x {1}、y {2}
+triggers = トリガー：左 {1}、右 {2}
+back_leaves = iDrive コントローラーの BACK で終了
+nothing = なし
+keys = キー：{1}
+controller = iDrive コントローラー：{1}
+controller_most = MOST で読み取り
+controller_none = 読み取りなし（MOST 入力なし）
+last_error = 前回のエラー：{1}
+no_error = マネージャーを開いてからなし
+test_gamepad = ゲームパッドをテスト
+pad_unavailable = ゲームパッド：利用不可
+pad_found = ゲームパッド：{1}（{2}）
+pad_held = ゲームパッド：USB は別のプロセスが使用中
+pad_no_usb = ゲームパッド：USB スタックなし（usbd_connect {1}）
+pad_not_connected = ゲームパッド：USB 未接続
+pad_open_failed = ゲームパッド：{1} を開けません
+pad_retrying = {1}。再試行中
+pad_none = ゲームパッド：見つかりません
+pad_generic = ゲームパッド
+keys_too_escape = iDrive もキーを受信します（BACK を 5 秒押し）
+keys_too_observer = iDrive もキーを受信します（shim がブロックしていません）
+keys_too_no_shim = iDrive もキーを受信します（shim 未読み込み）
+keys_kept = iDrive から遮断中
+keys_escaped = 解放（BACK を 5 秒押し）：iDrive が受信
+keys_observer = 監視用 shim：iDrive が受信
+keys_no_shim = iDrive に shim なし：iDrive が受信
+unknown = 不明
+
+# The worker's own messages
+w_installing_update = アップデートをインストール中
+w_checking_health = アプリの動作を確認中
+w_restoring = 以前のアプリを復元中
+w_restarting_app = アプリを再起動中
+w_app_stopped = アプリを停止しました
+w_stopping_app = アプリを停止中
+w_update_installed = アップデートをインストールしました
+w_settings_not_updated = アップデートをインストールしました。設定は更新されていません
+w_manager_starts = NBT Manager {1} は次に App Manager を開いたときに起動します
+w_screen_taken = 別のアプリが画面を使用中です
+w_already_running = アプリはすでに実行中です
+w_blocked = アプリはエラーのためブロックされました
+w_app_installed = アプリをインストールしました
+w_app_started = アプリを起動しました
+w_installing_app = アプリをインストール中
+w_checking_package = パッケージを確認中
+w_package_rejected = パッケージが拒否されました：{1}
+w_package_verified = パッケージを確認しました。iDrive で承認してください
+w_ready_upload = アップロードの準備ができました
+w_session_closed = セッションを閉じました
+w_session_expired = セッションの有効期限が切れました
+w_recovered = コミット後にアプリを復旧しました
+w_update_failed_restored = アップデートに失敗しました。以前のアプリを復元しました
+w_stopped_unexpectedly = アプリが予期せず停止しました
+w_manager_busy = NBT Manager は処理中です

@@ -31,7 +31,7 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
     switch (kind) {
     case R_LIST:
         if (ReplyParser::isError(replyText)) {
-            fail(0, "Cannot list applications");
+            fail(0, text(T_CANNOT_LIST));
             return 0;
         }
         if (ReplyParser::parseApps(*this, replyText)) {
@@ -41,7 +41,7 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         return 0;
     case R_RUNNING:
         if (ReplyParser::isError(replyText)) {
-            fail(0, "Cannot list applications");
+            fail(0, text(T_CANNOT_LIST));
             return 0;
         }
         if (ReplyParser::parseRunning(*this, replyText)) {
@@ -64,10 +64,9 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
     case R_SESSION:
         if (ReplyParser::isError(replyText)) {
             pairRequested = 0;
-            ViewBuilder::formatText(message, sizeof(message), "%s",
-                                    strcmp(replyText, "ERR network-unavailable")
-                                        ? "Cannot open session"
-                                        : "Wi-Fi network unavailable");
+            textf(message, sizeof(message),
+                  strcmp(replyText, "ERR network-unavailable") ? T_CANNOT_OPEN_SESSION
+                                                               : T_WIFI_UNAVAILABLE);
             return 0;
         }
         if (ReplyParser::parseSession(*this, replyText)) {
@@ -82,7 +81,7 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
             if (hasWifi()) {
                 queued = R_PHONE_OPEN;
             } else {
-                showResult("Cannot pair a phone", "The car's Wi-Fi details are unavailable");
+                showResult(text(T_CANNOT_PAIR), text(T_CAR_WIFI_UNAVAILABLE));
                 queued = R_CANCEL;
             }
         }
@@ -113,13 +112,12 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         if (!strcmp(replyText, "ERR quarantined")) {
             strcpy(quarantinedApp, target);
         }
-        ViewBuilder::formatText(message, sizeof(message),
-                                !strcmp(replyText, "ERR running") ? "%s is already running"
-                                : !strcmp(replyText, "ERR screen")
-                                    ? "%s: another app has the screen"
-                                : !strcmp(replyText, "ERR quarantined") ? "%s blocked after faults"
-                                                                        : "Cannot start %s",
-                                target);
+        textf(message, sizeof(message),
+              !strcmp(replyText, "ERR running")       ? T_ALREADY_RUNNING
+              : !strcmp(replyText, "ERR screen")      ? T_SCREEN_TAKEN
+              : !strcmp(replyText, "ERR quarantined") ? T_BLOCKED_FAULTS
+                                                      : T_CANNOT_START,
+              target);
         queued = R_RUNNING;
         return 0;
     case R_STOP:
@@ -131,25 +129,25 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         if (!ReplyParser::isError(replyText)) {
             break;
         }
-        ViewBuilder::formatText(message, sizeof(message), "Cannot stop %s", target);
+        textf(message, sizeof(message), T_CANNOT_STOP, target);
         queued = R_RUNNING;
         return 0;
     case R_REMOVE:
         if (!strcmp(replyText, "OK") || !strcmp(replyText, "ERR missing")) {
             queued = R_LIST; // reload the list without it
             mainMenu(0);
-            ViewBuilder::formatText(message, sizeof(message), "%s uninstalled", target);
+            textf(message, sizeof(message), T_APP_UNINSTALLED_NAMED, target);
             return 0;
         }
         if (!ReplyParser::isError(replyText)) {
             break;
         }
         go(Settings);
-        ViewBuilder::formatText(message, sizeof(message),
-                                !strcmp(replyText, "ERR running") ? "Stop %s first"
-                                : !strcmp(replyText, "ERR busy")  ? "Busy; uninstall %s later"
-                                                                  : "Cannot uninstall %s",
-                                target);
+        textf(message, sizeof(message),
+              !strcmp(replyText, "ERR running") ? T_STOP_FIRST
+              : !strcmp(replyText, "ERR busy")  ? T_BUSY_UNINSTALL_LATER
+                                                : T_CANNOT_UNINSTALL,
+              target);
         queued = R_RUNNING;
         return 0;
     case R_APPROVE:
@@ -161,7 +159,7 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         if (!ReplyParser::isError(replyText)) {
             break;
         }
-        showResult("Installation failed", "");
+        showResult(text(T_INSTALL_FAILED), "");
         queued = R_STATUS;
         return 0;
     case R_CANCEL:
@@ -174,12 +172,9 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
             if (screen != Apps) {
                 leaveSettings();
             }
-            if (managerSettings()) {
-                ViewBuilder::formatText(message, sizeof(message), "Cannot read settings");
-            } else {
-                ViewBuilder::formatText(message, sizeof(message), "Cannot read %s settings",
-                                        settingsApp);
-            }
+            textf(message, sizeof(message),
+                  managerSettings() ? T_CANNOT_READ_SETTINGS : T_CANNOT_READ_APP_SETTINGS,
+                  settingsApp);
             return 0;
         }
         if (ReplyParser::parseSettings(*this, replyText)) {
@@ -199,7 +194,7 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         go(Settings);
         focus = settingIndex;
         if (strcmp(replyText, "OK")) {
-            ViewBuilder::formatText(message, sizeof(message), "Cannot save the setting");
+            textf(message, sizeof(message), T_CANNOT_SAVE_SETTING);
         }
         queued = R_SETTINGS;
         return 0;
@@ -207,28 +202,31 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         if (!strcmp(replyText, "OK")) {
             quarantinedApp[0] = 0;
             go(Settings);
-            ViewBuilder::formatText(message, sizeof(message), "%s unblocked", settingsApp);
+            textf(message, sizeof(message), T_APP_UNBLOCKED, settingsApp);
             return 0;
         }
         if (!ReplyParser::isError(replyText)) {
             break;
         }
-        ViewBuilder::formatText(message, sizeof(message), "Cannot unblock %s", settingsApp);
+        textf(message, sizeof(message), T_CANNOT_UNBLOCK, settingsApp);
         return 0;
     default:
         break;
     }
-    fail(1, "Worker protocol error");
+    fail(1, text(T_WORKER_PROTOCOL_ERROR));
     clearSecrets();
     return -1;
 }
 
-void UiController::abortApp(const char *format) {
+void UiController::abortApp(TextId why) {
     appRun = 0;
     handover = 0;
     const size_t i = appIndex(target);
     mainMenu(i < appCount ? i : 0);
-    ViewBuilder::formatText(message, sizeof(message), format, target);
+    textf(message, sizeof(message), why, target);
+    if (why == T_STOPPING_APP) {
+        memcpy(stopNote, message, sizeof(stopNote));
+    }
     if (target[0] && !stopping) {
         faultStop = 1;
         queued = R_STOP;
@@ -236,7 +234,7 @@ void UiController::abortApp(const char *format) {
 }
 
 void UiController::requestFailed() {
-    fail(1, "Worker unavailable");
+    fail(1, text(T_WORKER_UNAVAILABLE));
     clearSecrets();
 }
 

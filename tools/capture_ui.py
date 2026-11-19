@@ -4,9 +4,12 @@
 (PNG) and short animations (GIF), framed like the head unit's 1440x540 panel.
 
     make simulator && python3 tools/capture_ui.py [--out docs/assets]
+    make simulator && python3 tools/capture_ui.py --languages --out /tmp/languages
 
 Needs Xvfb, python-xlib, ffmpeg and ImageMagick (`magick`); pngquant is used
 when present. The simulator's worker is simulated: nothing is installed.
+--languages captures the main screens in each language instead, to review
+translations on the panel (not for the documentation).
 """
 
 import argparse
@@ -31,7 +34,7 @@ DIGEST = "3f9a6c1e8b2d47f0a5c3e9d1b7f2a4c6e8d0b3f5a7c9e1d3b5f7a9c1e3d5b7f9"
 class Session:
     """Xvfb, the simulator and an XTest connection."""
 
-    def __init__(self):
+    def __init__(self, **environment):
         r, w = os.pipe()
         self.xvfb = subprocess.Popen(
             ["Xvfb", "-displayfd", str(w), "-screen", "0", f"{WIDTH}x{HEIGHT}x24", "-nolisten", "tcp"],
@@ -45,7 +48,8 @@ class Session:
             number += chunk
         os.close(r)
         self.name = ":" + number.decode().strip()
-        env = dict(os.environ, DISPLAY=self.name, NBT_SIM_VERSION="v1", NBT_SIM_DIGEST=DIGEST)
+        env = dict(os.environ, DISPLAY=self.name, NBT_SIM_VERSION="v1", NBT_SIM_DIGEST=DIGEST,
+                   **environment)
         self.sim = subprocess.Popen([str(SIM), "2"], env=env, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL)
         self.d = xdisplay.Display(self.name)
@@ -108,9 +112,41 @@ def frame_gif(src, dst, width=960, fps=12):
         "-loop", "0", str(dst)], check=True)
 
 
+def capture_languages(out):
+    """Each language's menu, settings, Language list, review, pairing code and
+    status, as `<code>-<screen>.png`; iDrive in German, so Automatic shows it."""
+    for code in ("en", "fr", "de", "it", "es", "zh", "ja"):
+        s = Session(NBT_LANGUAGE=code, NBT_SIM_CAR_LANGUAGE="1")
+        try:
+            s.still(out / f"{code}-menu.png")
+            s.key("u", after=1.6)                                      # an update arrives
+            s.still(out / f"{code}-review.png")
+            s.key("Return", after=0.8)                                 # Reject
+            s.key("Down"); s.key("Down"); s.key("Return", after=0.8)   # Settings
+            s.still(out / f"{code}-settings.png")
+            for _ in range(3):
+                s.key("Down")
+            s.key("Return", after=0.8)                                 # Language
+            s.still(out / f"{code}-language.png")
+            s.key("BackSpace", after=0.8)
+            s.key("Down"); s.key("Return", after=1.5)                  # Pair a phone
+            s.key("u", after=1.5)                                      # a phone asks to pair
+            s.still(out / f"{code}-pair-code.png")
+            s.key("Return", after=0.8)                                 # No
+            s.key("Return", after=0.8)                                 # OK: the main menu
+            s.key("Down"); s.key("Down"); s.key("Return", after=0.8)   # Settings
+            for _ in range(6):
+                s.key("Down")
+            s.key("Return", after=0.8)                                 # Status
+            s.still(out / f"{code}-status.png")
+        finally:
+            s.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=ROOT / "docs" / "assets")
+    parser.add_argument("--languages", action="store_true", help="each language's screens, for review")
     args = parser.parse_args()
     if not SIM.is_file():
         sys.exit(f"{SIM} is missing: run make simulator")
@@ -118,6 +154,10 @@ def main():
         if not shutil.which(tool):
             sys.exit(f"{tool} is required")
     args.out.mkdir(parents=True, exist_ok=True)
+    if args.languages:
+        capture_languages(args.out)
+        print(f"captures in {args.out}")
+        return
     with tempfile.TemporaryDirectory(prefix="nbt-capture-") as temporary:
         tmp = Path(temporary)
 
@@ -128,7 +168,7 @@ def main():
             s.still(tmp / "menu.png")
             s.key("Down"); s.key("Down"); s.key("Return", after=0.8)   # Settings
             s.still(tmp / "settings.png")
-            for _ in range(3):
+            for _ in range(4):
                 s.key("Down")
             s.key("Return", after=1.5)                                 # Pair a phone
             s.still(tmp / "pair-qr.png")

@@ -129,7 +129,11 @@ typedef enum {
     NBT_FS_SHIM_STATE_NEXT,
     /* The capture shim itself, next to the environment file that names it. */
     NBT_FS_CAPTURE_SHIM,
-    NBT_FS_CAPTURE_SHIM_NEXT
+    NBT_FS_CAPTURE_SHIM_NEXT,
+    /* manager/language: the manager screen's language setting, replaced
+     * through its .next (nbt/model/language.hpp). */
+    NBT_FS_MANAGER_LANGUAGE,
+    NBT_FS_MANAGER_LANGUAGE_NEXT
 } nbt_fs_path_kind;
 
 /* NBT_FS_APPEND opens an existing debug log (NBT_FS_MANAGER_LOG) for

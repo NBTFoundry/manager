@@ -347,6 +347,23 @@ class AppSettingsTests(unittest.TestCase):
             with self.subTest(line=line):
                 self.assertEqual(command(line), "ERR invalid-command")
         self.assertIn("\nknob_back_slot=1\n", conf.read_text())
+
+        # The screen's language: set, but not listed (it has more choices than
+        # a declaration allows, so phones keep reading the manager's settings).
+        language = manager / "language"
+        self.assertFalse(language.exists())
+        self.assertEqual(command("SET manager language fr"), "OK")
+        self.assertEqual(language.read_text(), "fr\n")
+        self.assertEqual(language.stat().st_mode & 0o777, 0o600)
+        self.assertFalse((manager / "language.next").exists())
+        self.assertEqual(command("SET manager language auto"), "OK")
+        self.assertEqual(language.read_text(), "auto\n")
+        for value in ("nl", "FR", "fr-FR", "automatic", "x" * 12):
+            with self.subTest(value=value):
+                self.assertEqual(command("SET manager language " + value), "ERR settings")
+        self.assertEqual(language.read_text(), "auto\n")
+        self.assertEqual(command("SETTINGS manager").count("\t"), 4)
+        self.assertNotIn("language", command("SETTINGS manager"))
         self.assertEqual(command("QUIT"), "OK")
 
     def test_started_application_receives_its_settings(self):

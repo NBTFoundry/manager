@@ -275,6 +275,39 @@ open(root + "/stopped", "w").close()
         self.assertEqual(process.wait(timeout=10), 0)  # slot 0 is MENU again
         self.assertEqual(self.registered_instances(dsi_log), [0x01, 0x02, 0x03, 0x05, 0x10, 0x12, 0x14])
 
+    def test_language_from_setting_and_idrive(self):
+        # Automatic shows iDrive's language, from the plugin's record; a
+        # chosen language wins; a language the manager lacks shows English.
+        try:
+            left, right = socket.socketpair()
+        except PermissionError:
+            self.skipTest("sandbox blocks local socket traffic")
+        left.close()
+        right.close()
+        debug = self.root / "manager" / "debug.log"
+        debug.write_text("")
+        debug.chmod(0o600)
+        record = Path(self.tmp.name) / "car-language"
+        self.env["NBT_TEST_CAR_LANGUAGE"] = str(record)
+
+        def shown(value, expected):
+            descriptor = os.open(record, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            os.write(descriptor, b"NBTLANG1\nvalue=%d\n" % value)
+            os.close(descriptor)
+            process = self.start()
+            self.wait_for(lambda: expected in debug.read_text())
+            process.terminate()
+            self.assertEqual(process.wait(timeout=10), 0)
+
+        shown(13, "language auto, iDrive 13, shown ja")
+        shown(7, "language auto, iDrive 7, shown en")  # Dutch
+        language = self.root / "manager" / "language"
+        language.write_text("fr\n")
+        language.chmod(0o600)
+        shown(13, "language fr, iDrive 13, shown fr")
+        language.write_text("nl\n")
+        shown(1, "language auto, iDrive 1, shown de")
+
     def requests(self, dsi_log, number):
         return [line.split()[2] for line in dsi_log.read_text().splitlines()
                 if line.startswith("REQUEST %x " % number)]

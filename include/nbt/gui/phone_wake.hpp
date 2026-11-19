@@ -12,6 +12,10 @@ struct PhoneWake {
     uint64_t when;
     PhoneWakeState state;
 };
+/* A record shared by the plugin and the manager: a private regular file of
+ * this user with one name, opened without following links (created when
+ * `writing`); -1 for anything else. */
+int privateRecordOpen(const char *path, bool writing);
 bool phoneDoorClaim(const char *path);
 bool phoneDoorReset(const char *path);
 bool phoneWakeParse(const char *text, size_t size, PhoneWake &wake);

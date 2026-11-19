@@ -16,7 +16,11 @@
  * file is absent or invalid. Changing one rewrites the whole file, through
  * controller.conf.next, with every key (other keys keep their values in
  * effect). Instances and key slots are left to the desktop installer: with
- * wrong ones the controller cannot reach this menu anyway. */
+ * wrong ones the controller cannot reach this menu anyway.
+ *
+ * SET also takes language, auto|en|fr|de|it|es|zh|ja, written to
+ * manager/language (nbt/model/language.hpp). It is not listed: a declared
+ * setting has at most six choices, and the GUI has its own Language screen. */
 
 #include "nbt/fs.h"
 #include "nbt/settings.h"

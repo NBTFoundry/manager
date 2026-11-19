@@ -4,6 +4,7 @@
 #include "nbt/core/crash.hpp"
 #include "nbt/core/system.hpp"
 #include "nbt/fs.h"
+#include "nbt/gui/car_language.hpp"
 #include "nbt/gui/gui_session.hpp"
 #include "nbt/gui/hmi_hold.hpp"
 #include "nbt/log.h"
@@ -155,7 +156,8 @@ int main(int argc, char **argv) {
                                          nbt::gui::kHoldLivenessPath,
                                          NBT_CAPTURE_CONTROL_PATH,
                                          NBT_CAPTURE_DIAG_PATH,
-                                         recovered};
+                                         recovered,
+                                         nbt::gui::kCarLanguagePath};
     const char *inputLibrary = NULL;
 #ifdef NBT_TESTING
     char testLivenessPath[PATH_MAX];
@@ -186,6 +188,9 @@ int main(int argc, char **argv) {
         config.capturePath = getenv("NBT_TEST_CAPTURE_CONTROL");
     }
     config.diagPath = getenv("NBT_TEST_CAPTURE_DIAG"); // unset: not watched
+    if (testWorker || getenv("NBT_TEST_CAR_LANGUAGE")) {
+        config.languagePath = getenv("NBT_TEST_CAR_LANGUAGE"); // unset: none
+    }
     inputLibrary = getenv("NBT_TEST_INPUT_LIBRARY");
 #endif
 
@@ -244,7 +249,7 @@ int main(int argc, char **argv) {
     }
     configStatus = nbt_controller_config_load(&fs, &controller);
     if (configStatus < 0) {
-        session.setNotice("Controller config invalid; defaults used");
+        session.setNotice(nbt::gui::text(nbt::gui::T_CONTROLLER_CONFIG_INVALID));
     }
     nbt_logf("controller config %s", configStatus > 0 ? "absent; defaults"
                                      : configStatus   ? "invalid; defaults"

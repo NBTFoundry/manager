@@ -1,9 +1,9 @@
 #include "nbt/gui/ui_controller.hpp"
 
+#include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/phone_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/setup_ui.hpp"
-#include "nbt/gui/view_builder.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -52,7 +52,7 @@ int UiController::press(Key key) {
     if (inputBusy() || stopping) {
         return 0;
     }
-    if (phonePress(*this, key) || statusPress(*this, key)) {
+    if (phonePress(*this, key) || statusPress(*this, key) || languagePress(*this, key)) {
         return 1;
     }
     switch (screen) {
@@ -73,13 +73,13 @@ int UiController::press(Key key) {
         queued = R_SETTINGS;
         return 1;
     case Settings:
-        if (managerSettings() && key == KeySelect && focus == settings.count) {
+        if (managerSettings() && key == KeySelect && focus == managerEntry(EntryPair)) {
             pairRequested = 1; // the session gives the Wi-Fi details for the code
             queued = R_SESSION;
-            ViewBuilder::formatText(message, sizeof(message), "Opening pairing");
+            textf(message, sizeof(message), T_OPENING_PAIRING);
             return 1;
         }
-        if (managerSettings() && key == KeySelect && focus == settings.count + 1) {
+        if (managerSettings() && key == KeySelect && focus == managerEntry(EntryPhones)) {
             queued = R_PHONES;
             return 1;
         }
@@ -87,7 +87,8 @@ int UiController::press(Key key) {
             strcpy(target, settingsApp);
             faultStop = 0;
             queued = R_STOP;
-            ViewBuilder::formatText(message, sizeof(message), "Stopping %s", target);
+            textf(message, sizeof(message), T_STOPPING_APP, target);
+            memcpy(stopNote, message, sizeof(stopNote));
             return 1;
         }
         if (key == KeySelect && unblockEntry() && focus == unblockItem()) {
@@ -123,7 +124,7 @@ int UiController::press(Key key) {
         queued = R_SET;
         return 1;
     case Pairing:
-        leaveSession("Pairing closed");
+        leaveSession(text(T_PAIRING_CLOSED));
         return 1;
     case Uninstall:
         if (phoneAction[0]) {
@@ -137,11 +138,11 @@ int UiController::press(Key key) {
         }
         strcpy(target, settingsApp);
         queued = R_REMOVE;
-        ViewBuilder::formatText(message, sizeof(message), "Uninstalling %s", target);
+        textf(message, sizeof(message), T_UNINSTALLING_APP, target);
         return 1;
     case Review:
         if (key == KeyBack || focus == 0) {
-            leaveSession("Update rejected");
+            leaveSession(text(T_UPDATE_REJECTED));
             return 1;
         }
         recovery = focus == 2;
@@ -154,7 +155,7 @@ int UiController::press(Key key) {
         }
         if (!ReplyParser::samePackage(status, review)) {
             if (status.state != W_VERIFIED || strcmp(status.app, app)) {
-                leaveSession("Session ended");
+                leaveSession(text(T_SESSION_ENDED));
                 return 1;
             }
             review = status;
@@ -164,8 +165,7 @@ int UiController::press(Key key) {
         go(Progress);
         healthMs = 0;
         queued = R_APPROVE;
-        ViewBuilder::formatText(message, sizeof(message), "Installing %s %s", review.app,
-                                review.proposed);
+        textf(message, sizeof(message), T_INSTALLING_APP, review.app, review.proposed);
         detail[0] = 0;
         return 1;
     case Result:
@@ -196,7 +196,7 @@ int UiController::release(Key key) {
     }
     strcpy(target, apps[holdIndex]);
     queued = R_START;
-    ViewBuilder::formatText(message, sizeof(message), "Starting %s", target);
+    textf(message, sizeof(message), T_STARTING_APP, target);
     return 1;
 }
 
@@ -213,7 +213,7 @@ int UiController::nextRequest(uint64_t nowMs, Request &request) {
     }
     if (screen == Pairing && !queued && !connected) {
         if (nowMs >= pairingDeadlineMs) {
-            leaveSession("Timed out; no package received");
+            leaveSession(text(T_PAIRING_TIMEOUT));
         } else {
             pairingLeftS = static_cast<unsigned>((pairingDeadlineMs - nowMs + 999u) / 1000u);
         }

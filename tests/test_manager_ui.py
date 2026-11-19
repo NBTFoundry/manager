@@ -163,11 +163,13 @@ class ManagerUiTests(unittest.TestCase):
         self.fail(f"Expected screen {screen}: {view.text()}")
 
     def pair_phone(self):
-        # Settings is the main menu's last item; Pair a phone follows its three settings.
+        # Settings is the main menu's last item; Pair a phone follows its three
+        # settings and Language.
         view = self.send("down", "down", "down", "select")
         self.assertEqual(view.screen, SETTINGS, view.text())
-        self.assertEqual(view.items[3:], ["Pair a phone", "Paired phones", "Status"])
-        view = self.send("down", "down", "down", "select", "address", "link")
+        self.assertEqual(view.items[3:], ["Language: Automatic (English)", "Pair a phone",
+                                          "Paired phones", "Status"])
+        view = self.send("down", "down", "down", "down", "select", "address", "link")
         self.assertEqual(view.screen, PAIRING, view.text())
         self.assertTrue(self.link.startswith("WIFI:T:WPA;"))
         self.assertNotIn("http", self.link)
@@ -271,7 +273,7 @@ class ManagerUiTests(unittest.TestCase):
         # Settings > Status (its last item), then the gamepad test, each frame
         # drawn by the renderer; BACK returns to Status, then to Settings.
         view = self.send("down", "down", "down", "select")
-        view = self.send("down", "down", "down", "down", "down", "select")
+        view = self.send("down", "down", "down", "down", "down", "down", "select")
         self.assertEqual((view.screen, view.title), (STATUS, "Status"), view.text())
         self.assertEqual(view.items, ["Test the gamepad"])
         self.assertIn("Last error: none since the manager opened", view.lines)
@@ -282,7 +284,7 @@ class ManagerUiTests(unittest.TestCase):
         view = self.send("back")
         self.assertEqual(view.screen, STATUS, view.text())
         view = self.send("back")
-        self.assertEqual((view.screen, view.focus), (SETTINGS, 5), view.text())
+        self.assertEqual((view.screen, view.focus), (SETTINGS, 6), view.text())
         self.send("back")
         self.finish()
 

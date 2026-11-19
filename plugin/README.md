@@ -62,6 +62,22 @@ launch, input and display clean-up. The desktop installer performs the initial p
 an explicit setup operation when the HMI filesystem is writable.
 
 
+## iDrive's language
+
+`car_language.cpp` subscribes to car data `vehicle.language`
+(`{"language":<n>}`) when iDrive initialises the plugin and asks for it every
+5 seconds until it answers, then once a minute in case changes are not
+delivered. A new value is written to `/dev/shmem/nbt-manager.language`
+(`src/gui/car_language.cpp`: a private record, as the wake records) and logged
+as `iDrive language <n>`; the GUI reads it once a second for its Automatic
+language (PROTOCOL.md, "Manager GUI controller"). The callback only parses a
+short ASCII value and writes a few bytes. The numbers' meaning comes from
+AAIdrive, which reads the same property through BMW's remote app interface;
+reading it from this plugin, and the values, are car checks
+(`docs/bench-checklist.md`, step 2). `kCarLanguage` switches it off. The menu
+entry's own text, "App Manager", comes from the resource ZIPs
+(`make_resources.py`) and is not translated.
+
 ## Phone wake and door
 
 The plugin keeps a one-second idle poll as well as the active hold poll. After 15 seconds it asks the launcher for `--door`; a shared-memory guard

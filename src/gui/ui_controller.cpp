@@ -15,23 +15,6 @@
 namespace nbt {
 namespace gui {
 
-const char *screenName(Screen screen) {
-    static const char *const names[] = {
-        "loading",       "apps",   "settings",     "pairing",        "review",    "confirm",
-        "progress",      "result", "error",        "choice",         "uninstall", "waiting",
-        "phone-confirm", "phones", "phone-forget", "restart-idrive", "status",    "gamepad-test"};
-    return static_cast<unsigned>(screen) < sizeof(names) / sizeof(names[0]) ? names[screen]
-                                                                            : "unknown";
-}
-
-void UiView::setErrorMessage(const char *message) {
-    *this = UiView();
-    screen = Error;
-    snprintf(title, sizeof(title), "NBT MANAGER");
-    snprintf(lines[0], sizeof(lines[0]), "%s", message);
-    lineCount = 1;
-}
-
 UiController::UiController()
     : screen(Loading), interfaceName(), port(0), version(), apps(), appCount(0), appStatus(),
       running(), app(), target(), stopping(0), settingsApp(), liveSettings(0), settings(),
@@ -74,6 +57,10 @@ void UiController::mainMenu(size_t index) {
 
 bool UiController::managerSettings() const {
     return !strcmp(settingsApp, "manager");
+}
+
+void UiController::applyLanguage() {
+    setCurrentLanguage(model::languageEffective(languageChoice, carLanguage));
 }
 
 size_t UiController::appIndex(const char *name) const {
@@ -125,11 +112,13 @@ size_t UiController::itemCount() const {
     case Apps:
         return appCount + 1;
     case Settings: {
-        const size_t n = managerSettings() ? settings.count + 3 : uninstallItem() + 1;
+        const size_t n = managerSettings() ? managerEntry(kManagerEntries) : uninstallItem() + 1;
         return n ? n : 1;
     }
     case Choice:
         return settingIndex < settings.count ? settings.items[settingIndex].choice_count : 0;
+    case LanguagePick: // Automatic, then each language
+        return 1 + model::kLanguageCount;
     case Pairing:
     case Result:
     case Error:
@@ -238,7 +227,7 @@ void UiController::logChanges() {
 
 void UiController::handoverFailed() {
     appRun = 0;
-    ViewBuilder::formatText(message, sizeof(message), "%s did not appear", target);
+    textf(message, sizeof(message), T_APP_NOT_SHOWN, target);
 }
 
 void UiController::setNotice(const char *value) {

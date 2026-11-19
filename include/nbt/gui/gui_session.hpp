@@ -8,6 +8,7 @@
 #include "nbt/gui/capture_watch.hpp"
 #include "nbt/gui/frame_pacer.hpp"
 #include "nbt/gui/gamepad_input.hpp"
+#include "nbt/gui/language_watch.hpp"
 #include "nbt/gui/plugin_link.hpp"
 #include "nbt/gui/screen_window.hpp"
 #include "nbt/gui/ui_controller.hpp"
@@ -35,6 +36,7 @@ struct GuiSessionConfig {
     const char *capturePath;
     const char *diagPath; // the capture shim's ring (CaptureWatch); NULL: not watched
     bool recovered;
+    const char *languagePath; // iDrive's language from the plugin (car_language.hpp); NULL: none
 };
 
 class GuiSession {
@@ -91,6 +93,7 @@ private:
     CaptureLink capture_;
     CaptureWatch captureWatch_;
     GamepadInput gamepad_;
+    LanguageWatch language_;
     uint64_t nowMs_;
     uint64_t deadlineMs_;
     uint64_t heartbeatMs_;

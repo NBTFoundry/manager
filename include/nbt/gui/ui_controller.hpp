@@ -5,6 +5,7 @@
 #include "nbt/core/span.hpp"
 #include "nbt/core/status.hpp"
 #include "nbt/gui/status_page.hpp"
+#include "nbt/gui/text.hpp"
 #include "nbt/gui/ui_view.hpp"
 #include "nbt/gui/wifi_code.hpp"
 #include "nbt/process.h"
@@ -59,8 +60,12 @@ enum RequestKind {
     R_PHONES,
     R_PHONE_FORGET,
     R_SETUP, // after R_PHONE_*: replies go through phoneReply, then setupReply
-    R_IDRIVE_RESTART
+    R_IDRIVE_RESTART,
+    R_LANGUAGE // SET manager language: languageReply, after setupReply
 };
+
+/* The manager's Settings list: its declared settings, then these. */
+enum ManagerEntry { EntryLanguage, EntryPair, EntryPhones, EntryStatus, kManagerEntries };
 
 class WorkerChannel;
 
@@ -116,8 +121,9 @@ public:
         return ended;
     }
     void handoverFailed();
-    /* Aborts a running or failed screen application: returns to Apps and stops `target`. */
-    void abortApp(const char *format);
+    /* Aborts a running or failed screen application: returns to Apps and stops
+     * `target`, saying `why` ({1}: the application). */
+    void abortApp(TextId why);
     /* Logs screen changes without credentials or request bodies. */
     void logChanges();
     void setNotice(const char *notice);
@@ -146,6 +152,11 @@ public:
     void go(Screen nextScreen);
     void mainMenu(size_t index);
     bool managerSettings() const;
+    size_t managerEntry(ManagerEntry entry) const {
+        return settings.count + static_cast<size_t>(entry);
+    }
+    /* Shows the language the setting and iDrive ask for (nbt/model/language.hpp). */
+    void applyLanguage();
     size_t appIndex(const char *name) const;
     bool stopEntry() const;
     bool unblockEntry() const {
@@ -223,6 +234,10 @@ public:
     uint64_t setupAtMs = 0; // not before
     int faultStop = 0;
     char quarantinedApp[kIdMax + 1] = {};
+    char stopNote[kTextMax + 1] = {};          // "Stopping <app>" while that is the message shown
+    int languageChoice = model::kLanguageAuto; // manager/language, as loaded or saved
+    int carLanguage = -1;                      // iDrive's language as a model::Language; -1 unknown
+    int languagePick = -1;                     // the choice being saved (R_LANGUAGE)
     StatusFacts facts; // Settings > Status and the gamepad test (gatherStatus)
 
 private:

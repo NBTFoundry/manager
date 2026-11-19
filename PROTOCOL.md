@@ -349,8 +349,14 @@ malformed), `START <app>` replies `ERR quarantined` and the Settings page offers
 | --- | --- | --- | --- |
 | `debug_log` | Debug log | `off`, `on` | `manager/debug.log` exists. `on` creates it empty (mode 0600) and the worker logs from then on; `off` moves it to `manager/debug.log.1`, replacing the previous copy, so the last log can still be fetched, and every writer stops at its next line. A log file the writers would refuse (wrong owner, mode or type) makes both commands answer `ERR settings`. |
 | `invert` | Invert knob | `off`, `on` | `invert=` in `manager/controller.conf` |
+| `language` | Language | `auto`, `en`, `fr`, `de`, `it`, `es`, `zh`, `ja` | The language of the manager's screen, one line in `manager/language` (mode 0600, replaced through `manager/language.next`); absent or invalid is `auto`. |
 | `phone_open` | Open from phone | `off`, `on` | Enable stationary, home-screen wake requests; defaults off. |
 | `release` | Hand back controller | `off`, `on` | `release=` in `manager/controller.conf` |
+
+`SETTINGS manager` lists `debug_log`, `invert` and `release` only. `SET` also
+takes `phone_open` and `language`: `language` has more choices than a
+declaration allows (six), so listing it would make phone apps that check that
+limit reject the whole reply. The GUI has its own Language screen for it.
 
 The controller values reported are those in effect: the defaults when `controller.conf` is absent or invalid. Changing one writes the complete configuration in effect, every key included, through `manager/controller.conf.next` (synced, then renamed), so keys set with the desktop installer keep their values and an invalid file is replaced by the defaults plus the change. The GUI reads the controller configuration when it starts, so changes apply the next time the manager opens. Instances and key slots stay with the desktop installer.
 
@@ -368,7 +374,8 @@ default to No. Phone requests name the requesting phone.
 
 The main menu lists the applications, then Settings; a paired phone's upload is
 reviewed from it (there is no separate Install or update entry). The manager's
-Settings end with Pair a phone, Paired phones (remove one with No focused) and
+Settings end with Language, Pair a phone, Paired phones (remove one with No
+focused) and
 Status (local only, no worker request: the capture shim, the MOST controller
 input, the gamepad and the last error; Test the gamepad shows its buttons,
 sticks and triggers and leaves on the iDrive controller's BACK only).
@@ -376,6 +383,22 @@ Pair a phone opens a session for the car's Wi-Fi details, then a 60-second
 window, and shows only the Wi-Fi QR. A signed pairing request replaces that code
 with the phone name and the six digits, drawn large on a highlighted panel, with
 No focused. Opening the manager from the phone is off.
+
+The screen shows English, French, German, Italian, Spanish, Simplified Chinese
+or Japanese (`src/gui/text/<code>.txt`, `nbt/model/language.hpp`). Language
+lists Automatic, then each language by its own name; choosing one sends `SET
+manager language <code>` and, on `OK`, shows it at once. Automatic follows
+iDrive: the iDrive plugin reads car data `vehicle.language` and writes its
+number to `/dev/shmem/nbt-manager.language` (`NBTLANG1\nvalue=<n>\n`, a private
+record as the wake records); the GUI reads the setting when it starts and the
+record once a second. iDrive's numbers are mapped as 1 German, 2 and 3 English,
+4 and 16 Spanish, 5 Italian, 6 and 15 French, 10 and 11 Chinese (the manager
+has Simplified Chinese only), 13 Japanese; any other language (Dutch, Korean,
+...) or no record shows English. The worker keeps speaking English: the GUI
+translates its known STATUS messages (the `w_` texts of `src/gui/text/en.txt`)
+and shows others as sent. Application names, their declared setting labels and
+status labels are shown as the application gives them. The debug log is in
+English, but for the message logged with a screen change, which is as shown.
 
 A signed upload is reviewed regardless of whether the driver selected the
 waiting screen. Review defaults to Reject; Install requires a second Yes with

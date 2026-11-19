@@ -8,9 +8,13 @@
 #include "nbt/crypto/ec_public_key.hpp"
 #include "nbt/gamepad/input.hpp"
 #include "nbt/gamepad/reports.hpp"
+#include "nbt/gui/car_language.hpp"
 #include "nbt/gui/phone_wake.hpp"
+#include "nbt/gui/text.hpp"
+#include "nbt/gui/worker_text.hpp"
 #include "nbt/lifecycle/transactions.hpp"
 #include "nbt/model/installed_record.hpp"
+#include "nbt/model/language.hpp"
 #include "nbt/most.h"
 #include "nbt/most_policy.h"
 #include "nbt/package/package_verifier.hpp"
@@ -65,7 +69,8 @@ enum Target {
     WfdMost,
     CaptureControl,
     CaptureStream,
-    StarterConfigTarget
+    StarterConfigTarget,
+    LanguageTarget
 };
 
 struct TargetName {
@@ -98,7 +103,8 @@ const TargetName kTargets[] = {{"gamepad-wire", GamepadWire},
                                {"wfd-most", WfdMost},
                                {"capture-control", CaptureControl},
                                {"capture-stream", CaptureStream},
-                               {"starter-config", StarterConfigTarget}};
+                               {"starter-config", StarterConfigTarget},
+                               {"language", LanguageTarget}};
 
 class Mutator {
 public:
@@ -387,6 +393,11 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
                 "<EnvName>LD_PRELOAD</EnvName>\r\n<Value>libEGL_X.gpp.so:"
                 "libGLESv2_X_FORWARD.gpp.so:libKD_X.gpp.so</Value>\r\n<Overwrite>1</Overwrite>");
         break;
+    case LanguageTarget:
+        addSeed(&out, "{\"language\":13}");
+        addSeed(&out, "Package rejected: signature \xe4\xb8\xad\xe6\x96\x87");
+        addSeed(&out, "NBT Manager v3 starts when App Manager opens again");
+        break;
     }
     return out;
 }
@@ -638,6 +649,30 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
             (void)nbt::storage::StarterConfig::buildModified(data, input.size(), false, &out[0],
                                                              out.size(), &outLen);
         }
+        break;
+    }
+    case LanguageTarget: {
+        // iDrive's value, the setting, and texts cut into buffers of every size.
+        copyText(input, text);
+        unsigned value = 0;
+        int choice = 0;
+        (void)nbt::gui::carLanguageParse(text, value);
+        (void)nbt::model::languageSettingParse(text, choice);
+        const size_t size = input.empty() ? 1u : 1u + static_cast<size_t>(input[0]) % 160u;
+        char out[160];
+        const nbt::model::Language language =
+            static_cast<nbt::model::Language>(input.size() % nbt::model::kLanguageCount);
+        nbt::gui::setCurrentLanguage(language);
+        nbt::gui::workerText(out, size, text);
+        if (strlen(out) >= size) {
+            abort();
+        }
+        nbt::gui::textf(out, size,
+                        static_cast<nbt::gui::TextId>(input.size() % nbt::gui::kTextCount), text,
+                        text + strlen(text) / 2);
+        (void)nbt::gui::utf8Fit(out, sizeof(out), size);
+        nbt::gui::utf8TrimEnd(text);
+        nbt::gui::setCurrentLanguage(nbt::model::LangEn);
         break;
     }
     }

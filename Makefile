@@ -139,12 +139,19 @@ $(BUILD_DIR)/lvgl/%.o: $(LVGL_DIR)/src/%.c $(LVGL_DEPS)
 	@mkdir -p $(dir $@)
 	$(CC) $(LVGL_CPPFLAGS) -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE $(LVGL_CFLAGS) -MMD -MP -c $< -o $@
 
-$(BUILD_DIR)/liblvgl.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl/%.o,$(LVGL_SRC))
+# The GUI's fonts in its languages (tools/make_fonts.py), built as LVGL is.
+GUI_FONT_SRC = $(sort $(wildcard src/gui/fonts/*.c))
+
+$(BUILD_DIR)/gui-fonts/%.o: src/gui/fonts/%.c $(LVGL_DEPS)
+	@mkdir -p $(dir $@)
+	$(CC) $(LVGL_CPPFLAGS) -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE $(LVGL_CFLAGS) -MMD -MP -c $< -o $@
+
+$(BUILD_DIR)/liblvgl.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl/%.o,$(LVGL_SRC)) $(patsubst src/gui/fonts/%.c,$(BUILD_DIR)/gui-fonts/%.o,$(GUI_FONT_SRC))
 	rm -f $@
 	$(AR) rcs $@ $^
 
 HOST_BINS = phone-test most-monitor core-test bridge-test most-test target-test nbt-verify nbt-verify-release release-copy-probe manager-state-test manager-store-probe manager-stage-probe manager-setup-probe manager-plugin-probe manager-plugin-swap-probe manager-refresh-probe fs-probe transaction-probe frame-test ui-test hold-test controller-config-test log-test test-app-host session-test http-test process-probe manager-probe managerd-test client-probe ui-probe qr-probe most-input-probe manager-gui-host launcher-host
-HOST_BINS += app-log-test controller-feed-test gamepad-test usb-gamepad-test focus-test app-pause-test input-trace-test capture-test capture-shim-test capture-install-probe hmi-restart-test
+HOST_BINS += app-log-test controller-feed-test gamepad-test usb-gamepad-test focus-test app-pause-test input-trace-test capture-test capture-shim-test capture-install-probe hmi-restart-test language-test
 host: $(addprefix $(BUILD_DIR)/,$(HOST_BINS)) $(BUILD_DIR)/libfake_dsi.so $(BUILD_DIR)/libfake_dsi_base.so $(BUILD_DIR)/libnbt-capture-observer.so $(BUILD_DIR)/libnbt-capture-active.so
 
 define HOST_LINK
@@ -210,6 +217,8 @@ $(BUILD_DIR)/nbt-simulator: $(OBJ_DIR)/host/tools/simulator.o $(HOST_LIB) $(BUIL
 	$(HOST_LINK) -lX11 -lm
 
 $(BUILD_DIR)/ui-test: $(OBJ_DIR)/host/tests/test_ui.o $(HOST_LIB) $(BUILD_DIR)/liblvgl.a
+	$(HOST_LINK) -lm
+$(BUILD_DIR)/language-test: $(OBJ_DIR)/host/tests/test_language.o $(HOST_LIB) $(BUILD_DIR)/liblvgl.a
 	$(HOST_LINK) -lm
 
 $(BUILD_DIR)/manager-store-probe: $(OBJ_DIR)/testing/tests/manager_store_probe.o $(TESTING_LIB)
@@ -283,6 +292,7 @@ test: host check-cxx
 	$(BUILD_DIR)/manager-state-test
 	$(BUILD_DIR)/frame-test
 	$(BUILD_DIR)/ui-test
+	$(BUILD_DIR)/language-test
 	$(BUILD_DIR)/hold-test
 	$(BUILD_DIR)/focus-test
 	$(BUILD_DIR)/app-pause-test
@@ -321,7 +331,7 @@ tsan:
 
 FUZZ_BUILD_DIR ?= $(BUILD_DIR)/fuzz
 FUZZ_SECONDS ?= 1
-FUZZ_TARGETS = gamepad-wire gamepad-gip gamepad-sony http phone-signature phone-pair phone-context control package-header package-manifest release-manifest settings-schema settings-values controller-config installed-record journal most-codec most-joiner ccs most-policy bridge-requirement bridge-status wfd-most capture-control capture-stream starter-config
+FUZZ_TARGETS = gamepad-wire gamepad-gip gamepad-sony http phone-signature phone-pair phone-context control package-header package-manifest release-manifest settings-schema settings-values controller-config installed-record journal most-codec most-joiner ccs most-policy bridge-requirement bridge-status wfd-most capture-control capture-stream starter-config language
 fuzz:
 	$(MAKE) BUILD_DIR=$(FUZZ_BUILD_DIR) \
 		CFLAGS='-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie' \
@@ -380,7 +390,11 @@ $(BUILD_DIR)/lvgl-qnx/%.o: $(LVGL_DIR)/src/%.c $(LVGL_DEPS)
 	@mkdir -p $(dir $@)
 	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -fstack-protector-all -w $(QNX_LVGL_CPPFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/liblvgl-qnx.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl-qnx/%.o,$(LVGL_SRC))
+$(BUILD_DIR)/gui-fonts-qnx/%.o: src/gui/fonts/%.c $(LVGL_DEPS)
+	@mkdir -p $(dir $@)
+	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -fstack-protector-all -w $(QNX_LVGL_CPPFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/liblvgl-qnx.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl-qnx/%.o,$(LVGL_SRC)) $(patsubst src/gui/fonts/%.c,$(BUILD_DIR)/gui-fonts-qnx/%.o,$(GUI_FONT_SRC))
 	rm -f $@
 	$(QNX_AR) rcs $@ $^
 
@@ -441,9 +455,10 @@ qnx-plugin: plugin-resources
 	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Iinclude -c src/gui/focus_sender.cpp -o $(BUILD_DIR)/focus-sender-plugin.o
 	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Iinclude -c src/log/log.cpp -o $(BUILD_DIR)/log-plugin.o
 	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/gui/phone_wake.cpp -o $(BUILD_DIR)/phone-wake-plugin.o
+	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/gui/car_language.cpp -o $(BUILD_DIR)/car-language-plugin.o
 	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/capture/control.c -o $(BUILD_DIR)/capture-control-plugin.o
 	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/capture/diag.c -o $(BUILD_DIR)/capture-diag-plugin.o
-	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -fno-exceptions -fno-rtti -shared -Iinclude -Wl,-soname,libNbtManager.so -o $(QNX_UNSTRIPPED)/libNbtManager.so plugin/plugin.cpp plugin/launcher_spawn.cpp plugin/phone_runtime.cpp plugin/phone_display.cpp plugin/focus_events.cpp plugin/hmi_threads.cpp $(BUILD_DIR)/phone-wake-plugin.o $(BUILD_DIR)/hmi-hold-plugin.o $(BUILD_DIR)/focus-sender-plugin.o $(BUILD_DIR)/log-plugin.o $(BUILD_DIR)/capture-control-plugin.o $(BUILD_DIR)/capture-diag-plugin.o $(RHMI_LIBDIR)/libAppFramework.A.so $(RHMI_LIBDIR)/libCoreFramework.A.so -Wl,--allow-shlib-undefined -Wl,-z,defs -Wl,--exclude-libs,ALL -lang-c++
+	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -fno-exceptions -fno-rtti -shared -Iinclude -Wl,-soname,libNbtManager.so -o $(QNX_UNSTRIPPED)/libNbtManager.so plugin/plugin.cpp plugin/launcher_spawn.cpp plugin/phone_runtime.cpp plugin/phone_display.cpp plugin/focus_events.cpp plugin/hmi_threads.cpp plugin/car_language.cpp $(BUILD_DIR)/phone-wake-plugin.o $(BUILD_DIR)/car-language-plugin.o $(BUILD_DIR)/hmi-hold-plugin.o $(BUILD_DIR)/focus-sender-plugin.o $(BUILD_DIR)/log-plugin.o $(BUILD_DIR)/capture-control-plugin.o $(BUILD_DIR)/capture-diag-plugin.o $(RHMI_LIBDIR)/libAppFramework.A.so $(RHMI_LIBDIR)/libCoreFramework.A.so -Wl,--allow-shlib-undefined -Wl,-z,defs -Wl,--exclude-libs,ALL -lang-c++
 	$(QNX_STRIP) -o $(BUILD_DIR)/NbtManager/libNbtManager.so $(QNX_UNSTRIPPED)/libNbtManager.so
 
 DEPS = $(shell find $(OBJ_DIR) -name '*.d' 2>/dev/null)

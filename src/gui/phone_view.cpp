@@ -1,46 +1,60 @@
 #include "nbt/gui/phone_ui.hpp"
 #include "nbt/gui/setup_ui.hpp"
+#include "nbt/gui/view_builder.hpp"
 #include <stdio.h>
 namespace nbt {
 namespace gui {
+namespace {
+void title(UiView &v, TextId id, const char *a = NULL) {
+    textf(v.title, sizeof(v.title), id, a);
+}
+void line(UiView &v, TextId id, const char *a = NULL) {
+    textf(v.lines[v.lineCount++], sizeof(v.lines[0]), id, a);
+}
+void item(UiView &v, TextId id) {
+    textf(v.items[v.itemCount++], sizeof(v.items[0]), id);
+}
+} // namespace
 void phoneView(const UiController &ui, UiView &v) {
     if (ui.screen == RestartIdrive) {
         setupView(v);
     } else if (ui.screen == Pairing) {
-        snprintf(v.title, sizeof(v.title), "Pair a phone");
-        snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]), "Scan this Wi-Fi code in NBT Manager");
-        snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]), "Confirm the matching digits here");
-        snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]), "Closes in %u s", ui.pairingLeftS);
-        snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "Cancel");
+        char seconds[12];
+        snprintf(seconds, sizeof(seconds), "%u", ui.pairingLeftS);
+        title(v, T_PAIR_PHONE);
+        line(v, T_SCAN_CODE);
+        line(v, T_CONFIRM_DIGITS);
+        line(v, T_CLOSES_IN, seconds);
+        item(v, T_CANCEL);
     } else if (ui.screen == Waiting) {
-        snprintf(v.title, sizeof(v.title), "Install or update");
-        snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]), "Waiting for a paired phone");
+        title(v, T_INSTALL_OR_UPDATE);
+        line(v, T_WAITING_PHONE);
         if (ui.message[0]) {
-            snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]), "%s", ui.message);
+            ViewBuilder::formatText(v.lines[v.lineCount++], sizeof(v.lines[0]), "%s", ui.message);
         }
-        snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "Pair a phone");
-        snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "Cancel");
+        item(v, T_PAIR_PHONE);
+        item(v, T_CANCEL);
     } else if (ui.screen == PhoneConfirm) {
-        snprintf(v.title, sizeof(v.title), "Pair %s?", ui.phoneName);
-        snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]),
-                 "Confirm only if the phone shows this code:");
+        title(v, T_PAIR_QUESTION, ui.phoneName);
+        line(v, T_CONFIRM_CODE);
         snprintf(v.code, sizeof(v.code), "%.3s %.3s", ui.phoneCode, ui.phoneCode + 3);
-        snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "No");
-        snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "Yes, pair");
+        item(v, T_NO);
+        item(v, T_YES_PAIR);
     } else if (ui.screen == Phones) {
-        snprintf(v.title, sizeof(v.title), "Paired phones");
+        title(v, T_PAIRED_PHONES);
         if (!ui.phoneCount) {
-            snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]), "No paired phones");
+            line(v, T_NO_PHONES);
         }
         for (size_t i = 0; i < ui.phoneCount; ++i) {
-            snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "%s", ui.phoneNames[i]);
+            ViewBuilder::formatText(v.items[v.itemCount++], sizeof(v.items[0]), "%s",
+                                    ui.phoneNames[i]);
         }
-        snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "Back");
+        item(v, T_BACK);
     } else if (ui.screen == PhoneForget && ui.phoneSelected < ui.phoneCount) {
-        snprintf(v.title, sizeof(v.title), "Remove %s?", ui.phoneNames[ui.phoneSelected]);
-        snprintf(v.lines[v.lineCount++], sizeof(v.lines[0]), "This phone will need to pair again");
-        snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "No");
-        snprintf(v.items[v.itemCount++], sizeof(v.items[0]), "Yes, remove phone");
+        title(v, T_REMOVE_QUESTION, ui.phoneNames[ui.phoneSelected]);
+        line(v, T_PAIR_AGAIN);
+        item(v, T_NO);
+        item(v, T_YES_REMOVE_PHONE);
     }
 }
 } // namespace gui

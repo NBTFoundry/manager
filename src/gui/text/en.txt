@@ -1,0 +1,208 @@
+# The manager GUI's English texts; they define the keys (tools/gui_text.py).
+# {1} and {2} are filled in at run time: an application, a phone, a version.
+# Keep texts short: the panel shows about 40 characters in a title and 70 in
+# a line, and cuts the rest.
+
+# Main menu
+running = running
+settings = Settings
+no_apps = No applications installed
+menu_hint = Push to start; hold for settings
+app_settings = {1} settings
+keep_holding = Keep holding to open them
+loading_apps = Loading applications
+starting = Starting
+recovered = recovered from a fault
+controller_config_invalid = Controller config invalid; defaults used
+
+# Settings
+apply_manager_next = Changes apply when the manager next opens
+apply_now = Changes apply at once
+apply_app_next = Changes apply when {1} next starts
+no_settings = {1} has no settings
+setting_row = {1}: {2}
+current_choice = {1}  (current)
+stop_app = Stop {1}
+unblock_app = Unblock {1}
+uninstall_app = Uninstall {1}
+pair_phone = Pair a phone
+paired_phones = Paired phones
+status = Status
+back = Back
+setting_debug_log = Debug log
+setting_invert = Invert knob
+setting_release = Hand back controller
+value_on = on
+value_off = off
+
+# Language
+language = Language
+language_auto_named = Automatic ({1})
+language_hint = Automatic follows the iDrive language
+
+# Review and install
+review_update = Review update
+review_new = Review new application
+confirm_older = Confirm older version
+confirm_install = Confirm install
+versions = Installed: {1}, new: {2}
+version = Version {1}
+reject = Reject
+install = Install
+install_older = Install, even if older
+older_warning = It may replace it with an older version
+no = No
+yes_install = Yes, install
+installing_title = Installing
+installing_app = Installing {1} {2}
+install_or_update = Install or update
+error = Error
+ok = OK
+close = Close
+retry = Retry
+install_failed = Installation failed
+update_installed = Update installed
+update_ready = Update ready
+update_failed = Update failed
+update_not_installed = Update not installed
+update_rejected = Update rejected
+upload_rejected = Upload rejected
+session_ended = Session ended
+
+# Uninstall
+uninstall_question = Uninstall {1}?
+requested_by = Requested by {1}
+uninstall_deletes = {1} and all its data are deleted
+cannot_undo = This cannot be undone
+yes_uninstall = Yes, uninstall
+uninstalling_app = Uninstalling {1}
+app_uninstalled_named = {1} uninstalled
+stop_first = Stop {1} first
+busy_uninstall_later = Busy; uninstall {1} later
+cannot_uninstall = Cannot uninstall {1}
+
+# Starting and stopping
+starting_app = Starting {1}
+stopping_app = Stopping {1}
+app_stopped = {1} stopped
+cannot_stop = Cannot stop {1}
+already_running = {1} is already running
+screen_taken = {1}: another app has the screen
+blocked_faults = {1} blocked after faults
+cannot_start = Cannot start {1}
+app_not_shown = {1} did not appear
+app_unblocked = {1} unblocked
+cannot_unblock = Cannot unblock {1}
+
+# Errors
+cannot_list = Cannot list applications
+cannot_read_settings = Cannot read settings
+cannot_read_app_settings = Cannot read {1} settings
+cannot_save_setting = Cannot save the setting
+worker_protocol_error = Worker protocol error
+worker_unavailable = Worker unavailable
+
+# Pairing and phones
+opening_pairing = Opening pairing
+pairing_closed = Pairing closed
+pairing_timeout = Timed out; no package received
+session_closed = Session closed
+cannot_open_session = Cannot open session
+wifi_unavailable = Wi-Fi network unavailable
+cannot_pair = Cannot pair a phone
+car_wifi_unavailable = The car's Wi-Fi details are unavailable
+wifi_details_unavailable = Wi-Fi details unavailable
+scan_code = Scan this Wi-Fi code in NBT Manager
+confirm_digits = Confirm the matching digits here
+closes_in = Closes in {1} s
+cancel = Cancel
+waiting_phone = Waiting for a paired phone
+pair_question = Pair {1}?
+confirm_code = Confirm only if the phone shows this code:
+yes_pair = Yes, pair
+no_phones = No paired phones
+remove_question = Remove {1}?
+pair_again = This phone will need to pair again
+yes_remove_phone = Yes, remove phone
+phone_request_ended = Phone request ended
+retry_from_phone = Try again from the phone
+cannot_read_phones = Cannot read paired phones
+request_rejected = Request rejected
+phone_paired = Phone paired
+app_uninstalled = Application uninstalled
+phone_action_failed = Phone action failed
+phone_action_unavailable = Phone action unavailable
+
+# Restarting the head unit
+restarting = Restarting the head unit
+whole_system_restarts = The whole system restarts
+cannot_restart = Cannot restart
+switch_off_on = Switch the car off and on instead
+restart_question = Restart head unit?
+entry_updated = NBT Manager's iDrive entry was updated
+loads_on_restart = It loads when the head unit restarts
+restart_like_off_on = The whole system restarts, as car off/on
+later = Later
+restart_head_unit = Restart head unit
+
+# Settings > Status and the gamepad test
+gamepad_test = Gamepad test
+plug_pad = Plug a pad into the car's USB port
+pressed = Pressed: {1}
+left_stick = Left stick: x {1}, y {2}
+right_stick = Right stick: x {1}, y {2}
+triggers = Triggers: left {1}, right {2}
+back_leaves = BACK on the iDrive controller leaves
+nothing = nothing
+keys = Keys: {1}
+controller = iDrive controller: {1}
+controller_most = read over MOST
+controller_none = not read (no MOST input)
+last_error = Last error: {1}
+no_error = none since the manager opened
+test_gamepad = Test the gamepad
+pad_unavailable = Gamepad: not available
+pad_found = Gamepad: {1} ({2})
+pad_held = Gamepad: USB held by another process
+pad_no_usb = Gamepad: no USB stack (usbd_connect {1})
+pad_not_connected = Gamepad: USB not connected yet
+pad_open_failed = Gamepad: {1} could not be opened
+pad_retrying = {1}; retrying
+pad_none = Gamepad: none found
+pad_generic = pad
+keys_too_escape = iDrive gets the keys too (BACK held 5 s)
+keys_too_observer = iDrive gets the keys too (shim not blocking)
+keys_too_no_shim = iDrive gets the keys too (shim not loaded)
+keys_kept = kept from iDrive
+keys_escaped = escaped (BACK held 5 s): iDrive gets them
+keys_observer = observer shim: iDrive gets them
+keys_no_shim = no shim in iDrive: iDrive gets them
+unknown = unknown
+
+# The worker's own messages, recognised by this English text ({1}: any text)
+# and shown translated (src/gui/worker_text.cpp). Others are shown as sent.
+w_installing_update = Installing update
+w_checking_health = Checking application health
+w_restoring = Restoring previous application
+w_restarting_app = Restarting application
+w_app_stopped = Application stopped
+w_stopping_app = Stopping application
+w_update_installed = Update installed
+w_settings_not_updated = Update installed; settings not updated
+w_manager_starts = NBT Manager {1} starts when App Manager opens again
+w_screen_taken = Another application has the screen
+w_already_running = Application already running
+w_blocked = Application blocked after faults
+w_app_installed = Application installed
+w_app_started = Application started
+w_installing_app = Installing application
+w_checking_package = Checking the package
+w_package_rejected = Package rejected: {1}
+w_package_verified = Package verified; approve in iDrive
+w_ready_upload = Ready for upload
+w_session_closed = Session closed
+w_session_expired = Session expired
+w_recovered = Application recovered after commit
+w_update_failed_restored = Update failed; previous application restored
+w_stopped_unexpectedly = application stopped unexpectedly
+w_manager_busy = NBT Manager is busy

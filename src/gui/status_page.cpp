@@ -11,42 +11,48 @@ namespace nbt {
 namespace gui {
 namespace {
 
-void line(UiView &v, const char *text) {
+void line(UiView &v, const char *content) {
     if (v.lineCount < kLines) {
-        ViewBuilder::formatText(v.lines[v.lineCount++], sizeof(v.lines[0]), "%s", text);
+        ViewBuilder::formatText(v.lines[v.lineCount++], sizeof(v.lines[0]), "%s", content);
     }
 }
 
-int percent(long value, long full) {
-    const long p = value * 100 / full;
-    return static_cast<int>(p > 100 ? 100 : p < -100 ? -100 : p);
+/* `id` with two percentages for {1} and {2}. */
+void percents(UiView &v, TextId id, long a, long aFull, long b, long bFull) {
+    const long pa = a * 100 / aFull, pb = b * 100 / bFull;
+    char first[8], second[8];
+    ViewBuilder::formatText(first, sizeof(first), "%d",
+                            static_cast<int>(pa > 100    ? 100
+                                             : pa < -100 ? -100
+                                                         : pa));
+    ViewBuilder::formatText(second, sizeof(second), "%d",
+                            static_cast<int>(pb > 100    ? 100
+                                             : pb < -100 ? -100
+                                                         : pb));
+    if (v.lineCount < kLines) {
+        textf(v.lines[v.lineCount++], sizeof(v.lines[0]), id, first, second);
+    }
 }
 
 void gamepadTest(const StatusFacts &f, UiView &v) {
     const nbt_gamepad_wire_state &s = f.padState;
-    ViewBuilder::formatText(v.title, sizeof(v.title), "Gamepad test");
+    textf(v.title, sizeof(v.title), T_GAMEPAD_TEST);
     line(v, f.pad);
     if (!s.connected) {
         if (f.padDetail[0]) {
             line(v, f.padDetail);
         }
-        line(v, "Plug a pad into the car's USB port");
+        line(v, text(T_PLUG_PAD));
     } else {
-        char pressed[kTextMax + 1], text[kTextMax + 1];
+        char pressed[kTextMax + 1], shown[kTextMax + 1];
         buttonNames(f.padFamily, s.buttons, pressed, sizeof(pressed));
-        ViewBuilder::formatText(text, sizeof(text), "Pressed: %s", pressed);
-        line(v, text);
-        ViewBuilder::formatText(text, sizeof(text), "Left stick: x %d, y %d", percent(s.lx, 32767),
-                                percent(s.ly, 32767));
-        line(v, text);
-        ViewBuilder::formatText(text, sizeof(text), "Right stick: x %d, y %d", percent(s.rx, 32767),
-                                percent(s.ry, 32767));
-        line(v, text);
-        ViewBuilder::formatText(text, sizeof(text), "Triggers: left %d, right %d",
-                                percent(s.lt, 65535), percent(s.rt, 65535));
-        line(v, text);
+        textf(shown, sizeof(shown), T_PRESSED, pressed);
+        line(v, shown);
+        percents(v, T_LEFT_STICK, s.lx, 32767, s.ly, 32767);
+        percents(v, T_RIGHT_STICK, s.rx, 32767, s.ry, 32767);
+        percents(v, T_TRIGGERS, s.lt, 65535, s.rt, 65535);
     }
-    line(v, "BACK on the iDrive controller leaves");
+    line(v, text(T_BACK_LEAVES));
 }
 
 } // namespace
@@ -77,7 +83,7 @@ void buttonNames(gamepad::Family family, uint32_t buttons, char *out, size_t siz
         used += n;
     }
     if (!used) {
-        ViewBuilder::formatText(out, size, "nothing");
+        textf(out, size, T_NOTHING);
     }
 }
 
@@ -85,9 +91,9 @@ void gatherStatus(UiController &ui, const CaptureWatch &capture, const GamepadIn
                   bool controllerInput) {
     StatusFacts &f = ui.facts;
     ViewBuilder::formatText(ui.captureNote, sizeof(ui.captureNote), "%s", capture.note());
-    ViewBuilder::formatText(f.keys, sizeof(f.keys), "Keys: %s", capture.describe());
-    ViewBuilder::formatText(f.controller, sizeof(f.controller), "iDrive controller: %s",
-                            controllerInput ? "read over MOST" : "not read (no MOST input)");
+    textf(f.keys, sizeof(f.keys), T_KEYS, capture.describe());
+    textf(f.controller, sizeof(f.controller), T_CONTROLLER,
+          text(controllerInput ? T_CONTROLLER_MOST : T_CONTROLLER_NONE));
     const gamepad::Service::Report report = gamepad.report();
     GamepadInput::describe(report, f.pad, f.padDetail, sizeof(f.pad));
     f.padFamily = report.family;
@@ -98,7 +104,7 @@ void gatherStatus(UiController &ui, const CaptureWatch &capture, const GamepadIn
 }
 
 bool statusPress(UiController &ui, Key key) {
-    const size_t entry = ui.settings.count + 2; // after Pair a phone and Paired phones
+    const size_t entry = ui.managerEntry(EntryStatus);
     switch (ui.screen) {
     case Settings:
         if (!ui.managerSettings() || key != KeySelect || ui.focus != entry) {
@@ -131,18 +137,17 @@ void statusView(const UiController &ui, UiView &v) {
         gamepadTest(f, v);
         return;
     }
-    ViewBuilder::formatText(v.title, sizeof(v.title), "Status");
+    textf(v.title, sizeof(v.title), T_STATUS);
     line(v, f.keys);
     line(v, f.controller);
     line(v, f.pad);
     if (f.padDetail[0]) {
         line(v, f.padDetail);
     }
-    char text[kTextMax + 1];
-    ViewBuilder::formatText(text, sizeof(text), "Last error: %s",
-                            f.lastError[0] ? f.lastError : "none since the manager opened");
-    line(v, text);
-    ViewBuilder::formatText(v.items[v.itemCount++], sizeof(v.items[0]), "Test the gamepad");
+    char shown[kTextMax + 1];
+    textf(shown, sizeof(shown), T_LAST_ERROR, f.lastError[0] ? f.lastError : text(T_NO_ERROR));
+    line(v, shown);
+    textf(v.items[v.itemCount++], sizeof(v.items[0]), T_TEST_GAMEPAD);
 }
 
 } // namespace gui

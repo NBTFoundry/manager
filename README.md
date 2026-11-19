@@ -54,6 +54,11 @@ BMW AG.
   not act on the controller ([docs/input-capture.md](docs/input-capture.md)).
 - **Diagnostics.** A per-application log and a debug log, readable from the
   phone, and a Settings → Status page with a live gamepad test.
+- **Languages.** English, French, German, Italian, Spanish, Chinese
+  (Simplified) and Japanese. Automatic follows iDrive's language, English
+  for any other; Settings → Language chooses one. Texts are in
+  `src/gui/text/` and the fonts in `src/gui/fonts/` (PROTOCOL.md, "Manager
+  GUI controller").
 
 ## On the car
 
@@ -145,7 +150,16 @@ of the manager's GUI: the real GUI controller and LVGL renderer against a
 simulated worker with two applications. Up/Down to move, Enter to select (hold it
 on an application for its settings), Backspace or Escape to go back, M for MENU,
 U to simulate a phone's pairing request or upload, Q to quit. It installs nothing
-and opens no network session.
+and opens no network session. `NBT_LANGUAGE=fr` (or `auto`, `en`, `de`, `it`,
+`es`, `zh`, `ja`) sets the language and `NBT_SIM_CAR_LANGUAGE=13` iDrive's;
+`python3 tools/capture_ui.py --languages --out <dir>` renders the main screens
+in every language.
+
+**Texts and fonts.** The GUI's texts are `src/gui/text/<code>.txt`, English
+defining the keys; `python3 tools/gui_text.py` turns them into
+`src/gui/text_tables.cpp`, and the fonts hold only the Chinese and Japanese
+characters they use (`src/gui/fonts/README.md`, `tools/make_fonts.py`).
+`tests/test_gui_text.py` fails when either is out of date.
 
 **Head unit.** Source the QNX 6.5 SDP environment and point at local copies of
 the head unit's Screen and framework libraries:

@@ -4,3 +4,7 @@ build/**
 config/**
 dist/**
 third_party/**
+# Generated: tools/gui_text.py and tools/make_fonts.py
+include/nbt/gui/text_id.hpp
+src/gui/text_tables.cpp
+src/gui/fonts/**

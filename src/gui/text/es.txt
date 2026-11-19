@@ -1,0 +1,204 @@
+# Español. Keys and placeholders: en.txt (tools/gui_text.py).
+
+# Main menu
+running = en ejecución
+settings = Ajustes
+no_apps = No hay aplicaciones instaladas
+menu_hint = Pulsa para iniciar; mantén pulsado para los ajustes
+app_settings = Ajustes de {1}
+keep_holding = Mantén pulsado para abrirlos
+loading_apps = Cargando aplicaciones
+starting = Iniciando
+recovered = recuperado tras un fallo
+controller_config_invalid = Configuración del controlador no válida; valores predeterminados
+
+# Settings
+apply_manager_next = Se aplica al volver a abrir el gestor
+apply_now = Se aplica al instante
+apply_app_next = Se aplica la próxima vez que se inicie {1}
+no_settings = {1} no tiene ajustes
+setting_row = {1}: {2}
+current_choice = {1}  (actual)
+stop_app = Detener {1}
+unblock_app = Desbloquear {1}
+uninstall_app = Desinstalar {1}
+pair_phone = Vincular un teléfono
+paired_phones = Teléfonos vinculados
+status = Estado
+back = Atrás
+setting_debug_log = Registro de depuración
+setting_invert = Invertir la rueda
+setting_release = Devolver el controlador
+value_on = activado
+value_off = desactivado
+
+# Language
+language = Idioma
+language_auto_named = Automático ({1})
+language_hint = Automático sigue el idioma del iDrive
+
+# Review and install
+review_update = Revisar actualización
+review_new = Revisar nueva aplicación
+confirm_older = Confirmar versión anterior
+confirm_install = Confirmar instalación
+versions = Instalada: {1}, nueva: {2}
+version = Versión {1}
+reject = Rechazar
+install = Instalar
+install_older = Instalar, aunque sea anterior
+older_warning = Puede sustituirse por una versión anterior
+no = No
+yes_install = Sí, instalar
+installing_title = Instalando
+installing_app = Instalando {1} {2}
+install_or_update = Instalar o actualizar
+error = Error
+ok = Aceptar
+close = Cerrar
+retry = Reintentar
+install_failed = Error en la instalación
+update_installed = Actualización instalada
+update_ready = Actualización lista
+update_failed = Error en la actualización
+update_not_installed = Actualización no instalada
+update_rejected = Actualización rechazada
+upload_rejected = Envío rechazado
+session_ended = Sesión finalizada
+
+# Uninstall
+uninstall_question = ¿Desinstalar {1}?
+requested_by = Solicitado por {1}
+uninstall_deletes = Se eliminarán {1} y todos sus datos
+cannot_undo = Esta acción no se puede deshacer
+yes_uninstall = Sí, desinstalar
+uninstalling_app = Desinstalando {1}
+app_uninstalled_named = {1} desinstalada
+stop_first = Detén {1} primero
+busy_uninstall_later = Ocupado; desinstala {1} más tarde
+cannot_uninstall = No se puede desinstalar {1}
+
+# Starting and stopping
+starting_app = Iniciando {1}
+stopping_app = Deteniendo {1}
+app_stopped = {1} detenida
+cannot_stop = No se puede detener {1}
+already_running = {1} ya está en ejecución
+screen_taken = {1}: otra aplicación tiene la pantalla
+blocked_faults = {1} bloqueada tras fallos
+cannot_start = No se puede iniciar {1}
+app_not_shown = {1} no apareció
+app_unblocked = {1} desbloqueada
+cannot_unblock = No se puede desbloquear {1}
+
+# Errors
+cannot_list = No se pueden listar las aplicaciones
+cannot_read_settings = No se pueden leer los ajustes
+cannot_read_app_settings = No se pueden leer los ajustes de {1}
+cannot_save_setting = No se puede guardar el ajuste
+worker_protocol_error = Error de protocolo del servicio
+worker_unavailable = Servicio no disponible
+
+# Pairing and phones
+opening_pairing = Abriendo la vinculación
+pairing_closed = Vinculación cerrada
+pairing_timeout = Tiempo agotado; no se recibió ningún paquete
+session_closed = Sesión cerrada
+cannot_open_session = No se puede abrir la sesión
+wifi_unavailable = Red Wi-Fi no disponible
+cannot_pair = No se puede vincular un teléfono
+car_wifi_unavailable = Los datos Wi-Fi del coche no están disponibles
+wifi_details_unavailable = Datos Wi-Fi no disponibles
+scan_code = Escanea este código Wi-Fi en NBT Manager
+confirm_digits = Confirma aquí que los dígitos coinciden
+closes_in = Se cierra en {1} s
+cancel = Cancelar
+waiting_phone = Esperando un teléfono vinculado
+pair_question = ¿Vincular {1}?
+confirm_code = Confirma solo si el teléfono muestra este código:
+yes_pair = Sí, vincular
+no_phones = No hay teléfonos vinculados
+remove_question = ¿Quitar {1}?
+pair_again = Este teléfono tendrá que vincularse de nuevo
+yes_remove_phone = Sí, quitar el teléfono
+phone_request_ended = Solicitud del teléfono finalizada
+retry_from_phone = Inténtalo de nuevo desde el teléfono
+cannot_read_phones = No se pueden leer los teléfonos vinculados
+request_rejected = Solicitud rechazada
+phone_paired = Teléfono vinculado
+app_uninstalled = Aplicación desinstalada
+phone_action_failed = Error en la acción del teléfono
+phone_action_unavailable = Acción del teléfono no disponible
+
+# Restarting the head unit
+restarting = Reiniciando la unidad principal
+whole_system_restarts = Se reinicia todo el sistema
+cannot_restart = No se puede reiniciar
+switch_off_on = Apaga y vuelve a encender el coche
+restart_question = ¿Reiniciar la unidad principal?
+entry_updated = Se actualizó la entrada iDrive de NBT Manager
+loads_on_restart = Se carga al reiniciar la unidad principal
+restart_like_off_on = Se reinicia todo el sistema, como al apagar y encender el coche
+later = Más tarde
+restart_head_unit = Reiniciar la unidad principal
+
+# Settings > Status and the gamepad test
+gamepad_test = Prueba del mando
+plug_pad = Conecta un mando al puerto USB del coche
+pressed = Pulsado: {1}
+left_stick = Stick izquierdo: x {1}, y {2}
+right_stick = Stick derecho: x {1}, y {2}
+triggers = Gatillos: izquierdo {1}, derecho {2}
+back_leaves = BACK en el controlador iDrive para salir
+nothing = nada
+keys = Teclas: {1}
+controller = Controlador iDrive: {1}
+controller_most = leído por MOST
+controller_none = no leído (sin entrada MOST)
+last_error = Último error: {1}
+no_error = ninguno desde que se abrió el gestor
+test_gamepad = Probar el mando
+pad_unavailable = Mando: no disponible
+pad_found = Mando: {1} ({2})
+pad_held = Mando: USB ocupado por otro proceso
+pad_no_usb = Mando: sin pila USB (usbd_connect {1})
+pad_not_connected = Mando: USB aún no conectado
+pad_open_failed = Mando: no se pudo abrir {1}
+pad_retrying = {1}; reintentando
+pad_none = Mando: no se encontró ninguno
+pad_generic = mando
+keys_too_escape = El iDrive también recibe las teclas (BACK 5 s)
+keys_too_observer = El iDrive también recibe las teclas (shim no bloquea)
+keys_too_no_shim = El iDrive también recibe las teclas (shim no cargado)
+keys_kept = apartadas del iDrive
+keys_escaped = liberadas (BACK 5 s): las recibe el iDrive
+keys_observer = shim observador: las recibe el iDrive
+keys_no_shim = sin shim en el iDrive: las recibe el iDrive
+unknown = desconocido
+
+# The worker's own messages
+w_installing_update = Instalando la actualización
+w_checking_health = Comprobando el funcionamiento de la aplicación
+w_restoring = Restaurando la aplicación anterior
+w_restarting_app = Reiniciando la aplicación
+w_app_stopped = Aplicación detenida
+w_stopping_app = Deteniendo la aplicación
+w_update_installed = Actualización instalada
+w_settings_not_updated = Actualización instalada; ajustes no actualizados
+w_manager_starts = NBT Manager {1} se inicia al volver a abrir App Manager
+w_screen_taken = Otra aplicación tiene la pantalla
+w_already_running = La aplicación ya está en ejecución
+w_blocked = Aplicación bloqueada tras fallos
+w_app_installed = Aplicación instalada
+w_app_started = Aplicación iniciada
+w_installing_app = Instalando la aplicación
+w_checking_package = Comprobando el paquete
+w_package_rejected = Paquete rechazado: {1}
+w_package_verified = Paquete verificado; apruébalo en el iDrive
+w_ready_upload = Listo para el envío
+w_session_closed = Sesión cerrada
+w_session_expired = Sesión caducada
+w_recovered = Aplicación recuperada tras confirmar
+w_update_failed_restored = Error en la actualización; aplicación anterior restaurada
+w_stopped_unexpectedly = la aplicación se detuvo inesperadamente
+w_manager_busy = NBT Manager está ocupado
