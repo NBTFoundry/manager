@@ -1,0 +1,251 @@
+#include "nbt/lifecycle/manager_settings.hpp"
+
+#include "nbt/controller_config.h"
+#include "nbt/manager_settings.h"
+#include "nbt/storage/phone_store.hpp"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
+#include <utility>
+
+namespace nbt {
+namespace lifecycle {
+namespace {
+
+/* "Open from phone" is not shown from dev48: the plugin opening the manager froze
+ * iDrive until its watchdog restarted it (dev47). SET still takes phone_open for
+ * the door's tests; the plugin refuses to open either way (plugin/phone_runtime). */
+const char *const kDeclarations[] = {
+    "debug_log|Debug log|off|off,on",
+    "invert|Invert knob|off|off,on",
+    "release|Hand back controller|off|off,on",
+};
+
+int barrier(nbt_fs *fs) {
+    int fd = nbt_fs_open(fs, NBT_FS_SYNC, "manager", NULL, NBT_FS_OPEN_LOCK);
+    if (fd < 0) {
+        return -1;
+    }
+    if (fsync(fd)) {
+        const int saved = errno;
+        close(fd);
+        errno = saved;
+        return -1;
+    }
+    if (close(fd)) {
+        return -1;
+    }
+#ifndef __QNX__
+    {
+        char path[NBT_PATH_MAX];
+        if (nbt_fs_path(fs, NBT_FS_SETUP_MANAGER_DIR, "manager", NULL, path, sizeof(path))) {
+            return -1;
+        }
+        fd = open(path, O_RDONLY);
+        if (fd < 0) {
+            return -1;
+        }
+        if (fsync(fd)) {
+            const int saved = errno;
+            close(fd);
+            errno = saved;
+            return -1;
+        }
+        if (close(fd)) {
+            return -1;
+        }
+    }
+#endif
+    return 0;
+}
+
+int declare(nbt_settings *settings) {
+    memset(settings, 0, sizeof(*settings));
+    for (size_t i = 0; i < sizeof(kDeclarations) / sizeof(kDeclarations[0]); ++i) {
+        if (nbt_settings_add(settings, kDeclarations[i])) {
+            errno = EINVAL;
+            return -1;
+        }
+    }
+    return 0;
+}
+
+void setValue(nbt_settings *settings, const char *key, int on) {
+    const int index = nbt_settings_find(settings, key);
+    if (index >= 0) {
+        strcpy(settings->items[index].value, on ? "on" : "off");
+    }
+}
+
+int debugLog(nbt_fs *fs, int on) {
+    if (on) {
+        const int fd = nbt_fs_open(fs, NBT_FS_MANAGER_LOG, "manager", NULL, NBT_FS_CREATE);
+        if (fd < 0) {
+            if (errno != EEXIST || nbt_fs_exists(fs, NBT_FS_MANAGER_LOG, "manager", NULL) != 1) {
+                return -1;
+            }
+        } else if (fsync(fd)) {
+            const int saved = errno;
+            close(fd);
+            errno = saved;
+            return -1;
+        } else if (close(fd)) {
+            return -1;
+        }
+    } else if (nbt_fs_rename(fs, NBT_FS_MANAGER_LOG, NBT_FS_MANAGER_LOG_OLD, "manager", NULL) &&
+               errno != ENOENT) {
+        return -1;
+    }
+    return barrier(fs);
+}
+
+int controller(nbt_fs *fs, const char *key, int on) {
+    char text[NBT_CONTROLLER_CONFIG_MAX + 1];
+    nbt_ccs_config config;
+    size_t done = 0;
+    int result = 0;
+    (void)nbt_controller_config_load(fs, &config);
+    if (!strcmp(key, "invert")) {
+        config.invert = on;
+    } else {
+        config.release = (uint8_t)on;
+    }
+    const int n = nbt_controller_config_format(&config, text, sizeof(text));
+    if (n < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (nbt_fs_unlink(fs, NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT, "manager", NULL) &&
+        errno != ENOENT) {
+        return -1;
+    }
+    const int fd =
+        nbt_fs_open(fs, NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT, "manager", NULL, NBT_FS_CREATE);
+    if (fd < 0) {
+        return -1;
+    }
+    while (done < (size_t)n && !result) {
+        const ssize_t w = write(fd, text + done, (size_t)n - done);
+        if (w < 0 && errno == EINTR) {
+            continue;
+        }
+        if (w <= 0) {
+            result = -1;
+        } else {
+            done += (size_t)w;
+        }
+    }
+    if (!result && fsync(fd)) {
+        result = -1;
+    }
+    if (close(fd)) {
+        result = -1;
+    }
+    if (result ||
+        nbt_fs_rename(fs, NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT, NBT_FS_MANAGER_CONTROLLER_CONFIG,
+                      "manager", NULL) ||
+        barrier(fs)) {
+        const int saved = errno;
+        (void)nbt_fs_unlink(fs, NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT, "manager", NULL);
+        errno = saved;
+        return -1;
+    }
+    return 0;
+}
+
+int loadLegacy(nbt_fs *fs, nbt_settings *settings) {
+    nbt_ccs_config config;
+    if (!fs || !settings) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (declare(settings)) {
+        return -1;
+    }
+    const int log = nbt_fs_exists(fs, NBT_FS_MANAGER_LOG, "manager", NULL);
+    if (log < 0) {
+        return -1;
+    }
+    (void)nbt_controller_config_load(fs, &config);
+    setValue(settings, "debug_log", log);
+    setValue(settings, "invert", config.invert);
+    setValue(settings, "release", config.release);
+    return 0;
+}
+
+int setLegacy(nbt_fs *fs, const char *key, const char *value) {
+    nbt_settings settings;
+    if (!fs || !key || !value) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (!strcmp(key, "phone_open") && (!strcmp(value, "on") || !strcmp(value, "off"))) {
+        storage::ManagedRoot root(*fs);
+        storage::PhoneStore phones(root);
+        return phones.initialize() && phones.setOpenEnabled(!strcmp(value, "on")) ? 0 : -1;
+    }
+    if (declare(&settings)) {
+        return -1;
+    }
+    const int index = nbt_settings_find(&settings, key);
+    if (index < 0 || !nbt_setting_allows(&settings.items[index], value)) {
+        errno = EINVAL;
+        return -1;
+    }
+    const int on = !strcmp(value, "on");
+    if (!strcmp(key, "debug_log")) {
+        return debugLog(fs, on);
+    }
+    return controller(fs, key, on);
+}
+
+} // namespace
+
+core::Result<sdk::SettingsList> ManagerSettings::load(const storage::ManagedRoot &root) {
+    sdk::SettingsList settings;
+    if (!root.valid() || loadLegacy(const_cast<nbt_fs *>(root.legacy()), &settings.legacy())) {
+        return core::Result<sdk::SettingsList>::failure(
+            core::Status::error(errno ? errno : EIO, "manager settings load failed"));
+    }
+    return core::Result<sdk::SettingsList>::success(std::move(settings));
+}
+
+core::Status ManagerSettings::set(const storage::ManagedRoot &root, const char *key,
+                                  const char *value) {
+    if (!root.valid() || setLegacy(const_cast<nbt_fs *>(root.legacy()), key, value)) {
+        return core::Status::error(errno ? errno : EIO, "manager setting save failed");
+    }
+    return core::Status();
+}
+
+} // namespace lifecycle
+} // namespace nbt
+
+extern "C" {
+
+int nbt_manager_settings_load(nbt_fs *fs, nbt_settings *settings) {
+    if (!fs || !settings) {
+        errno = EINVAL;
+        return -1;
+    }
+    const nbt::storage::ManagedRoot root(*fs);
+    nbt::core::Result<nbt::sdk::SettingsList> loaded = nbt::lifecycle::ManagerSettings::load(root);
+    if (!loaded.get()) {
+        return -1;
+    }
+    *settings = loaded.value().legacy();
+    return 0;
+}
+
+int nbt_manager_settings_set(nbt_fs *fs, const char *key, const char *value) {
+    if (!fs) {
+        errno = EINVAL;
+        return -1;
+    }
+    const nbt::storage::ManagedRoot root(*fs);
+    return nbt::lifecycle::ManagerSettings::set(root, key, value).ok() ? 0 : -1;
+}
+
+} // extern "C"

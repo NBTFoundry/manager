@@ -1,0 +1,2 @@
+# Scripts that run on the head unit's shell must keep LF line endings.
+*.sh text eol=lf

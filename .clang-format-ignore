@@ -1,0 +1,7 @@
+# Paths excluded from clang-format
+.git/**
+build/**
+config/**
+desktop/**
+dist/**
+third_party/**

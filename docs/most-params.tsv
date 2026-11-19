@@ -1,0 +1,8 @@
+fblock	function	op	instance	fields	source	evidence	car_confirmed
+*	001	Set	*	u8 control;u16be address;u16be[] functions	B2	HmiMain3D:CPxyBase::CNotification vtable=0x03822768 builder=0x0203caa8;control=0/1/2/3;max_functions=4	no
+*	002	Status	*	u16be field0;bytes remaining_max200	B2	HmiMain3D:CPxyBase::CNotificationCheck vtable=0x03822720 parser=0x0203c0e4;field0 meaning unknown	no
+05	228	Status	*	u8 gear	B2	HmiMain3D:CPxyVehicle::CGearBox vtable=0x03851fc8 parser=0x02321ae0;range=0..15;enum meanings unknown	no
+05	621	Status	*	u16be speed_raw	B2	HmiMain3D:CPxyVehicle::CCarSpeed2 vtable=0x03851a28 parser=0x02320e8c;units/scaling unknown	no
+05	CB5	Status	*	u8 parking_brake	B2	HmiMain3D:CPxyVehicle::CHandBrake vtable=0x03850240 parser=0x0231e670;range=0..3;enum meanings unknown	no
+CD	203	Status	*	u8 field0;u16be field1;u16be field2;u16be field3	B2	HmiMain3D:CPxyNavigationInfo::CGPSPositionExtension vtable=0x038446b0 parser=0x022725c4;field2<=4095;units/scaling unknown	no
+E5	C10	Status	01	u8 cluster;u8 group;u8 counter;u16be position;u8 sensor;u8 overflow	B2	HmiMain3D:CPxyCentralControlSystem::CccsRotaryEncoder vtable=0x03830168 parser=0x02135a40;cluster/group<=31;sensor<=63;overflow<=3;instance01 omits extra sensor-type byte	no

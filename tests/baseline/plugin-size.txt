@@ -1,0 +1,2 @@
+   text	   data	    bss	    dec	    hex	filename
+  11340	    528	   1316	  13184	   3380	build/NbtManager/libNbtManager.so

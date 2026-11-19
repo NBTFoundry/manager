@@ -1,0 +1,53 @@
+#ifndef NBT_PROCESS_APP_OUTPUT_HPP
+#define NBT_PROCESS_APP_OUTPUT_HPP
+
+/* An application's standard output and error, drained into its log
+ * (nbt/log/app_log.hpp) with notes on how it started and ended: from a pipe
+ * whose write end becomes its host's descriptors 1 and 2 (start), or is given
+ * to the worker's install health check as the candidate's (open). */
+
+#include "nbt/fs.h"
+#include "nbt/log/app_log.hpp"
+#include "nbt/process.h"
+
+namespace nbt {
+namespace process {
+
+class AppOutput {
+public:
+    AppOutput(nbt_fs *fs, const char *app) : log_(fs, app), fd_(-1) {
+    }
+    ~AppOutput();
+    AppOutput(const AppOutput &) = delete;
+    AppOutput &operator=(const AppOutput &) = delete;
+
+    /* Redirects descriptors 1 and 2 into the pipe; false leaves them as they
+     * were (the debug log while it is on, else /dev/null). */
+    bool start();
+    /* Creates the pipe and returns its write end (close-on-exec, the caller's
+     * to close once the application has it), or -1. */
+    int open();
+    /* The pipe's read end to poll, or -1. */
+    int fd() const {
+        return fd_;
+    }
+    /* Copies what the application wrote so far into its log. */
+    void drain();
+    log::AppLog &log() {
+        return log_;
+    }
+    /* Notes how `child` ended: its exit status or signal, or the contract it
+     * broke (`child.fault`), after draining what it wrote last. */
+    void ended(const nbt_process &child);
+    /* Closes the pipe; the log becomes `app`'s (AppLog::retarget). */
+    void retarget(nbt_fs *fs, const char *app);
+
+private:
+    log::AppLog log_;
+    int fd_;
+};
+
+} // namespace process
+} // namespace nbt
+
+#endif

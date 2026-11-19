@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin>
+  <name>NbtManager</name>
+  <type>App</type>
+  <file>{pluginDir}/NbtManager</file>
+  <config>
+    <autoStart>yes</autoStart>
+    <dependencies>
+      <pluginAppConnector>
+        <type>Etch</type>
+        <id>220</id>
+        <asyncCallbacks>yes</asyncCallbacks>
+      </pluginAppConnector>
+    </dependencies>
+    <parameters>
+      <DescFile>{pluginDir}/NbtManager.xml</DescFile>
+      <TextDBFile>{pluginDir}/NbtManager_ALL_Texts.zip</TextDBFile>
+      <ImageDBFile>{pluginDir}/NbtManager_ALL_Images.zip</ImageDBFile>
+    </parameters>
+  </config>
+</plugin>

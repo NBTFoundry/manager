@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pluginApps>
+  <pluginApp applicationType="Custom" applicationWeight="198" entryButtonFocusID="32754" insertAfterFocusID="2270" insertStateID="20" text="App Manager">
+    <comment/>
+    <entryButton action="2" id="1" model="3" imageModel="4" previewModel="13">
+      <properties>
+        <property id="55" value="dc34102a-5f22-47f7-a511-b60e0d9f3a35"/>
+      </properties>
+    </entryButton>
+    <actions><raAction id="2"/></actions>
+    <models>
+      <textIdModel id="3" textId="1"><synonyms/></textIdModel>
+      <imageIdModel id="4" imageId="55001"/>
+      <imageIdModel id="12" imageId="55002"/>
+      <raPreviewModel id="13" modelType="StatePreview" previewState="10"/>
+      <!-- The list holding the entry (insertStateID), where iDrive returns when the manager closes. -->
+      <raIntModel id="40" modelType="NativeStateID" value="20"/>
+    </models>
+    <!-- 52 opens the top-level state 15 (iDrive takes it from the list, as NBT-AAD's event 53 opens its menu);
+         from there 50 holds iDrive on its child, the blank state 14, while the manager window is shown (iDrive
+         ignored 50 fired from the list); 51 returns to the list. -->
+    <events>
+      <focusEvent id="50" target="14"/>
+      <focusEvent id="51" targetModel="40"/>
+      <focusEvent id="52" target="15"/>
+    </events>
+    <hmiStates>
+      <hmiState id="10" text="App Manager" textModel="3">
+        <components>
+          <image id="11" model="12">
+            <properties>
+              <property id="3" value="true"/>
+              <property id="9" value="549"/>
+              <property id="10" value="484"/>
+              <property id="20" value="0"/>
+              <property id="21" value="0"/>
+            </properties>
+          </image>
+        </components>
+      </hmiState>
+      <!-- Focus hold (include/nbt/hmi_hold.h): nothing in 14 or 15 is selectable, so knob input reaches neither
+           iDrive's menus nor an action while the manager window covers the screen. BACK pops 14 to its parent 15;
+           the plugin then returns iDrive to 14. States are numbered by XML order: append new ones after these. -->
+      <hmiState id="15" text="App Manager" textModel="3">
+        <components>
+          <image id="16" model="12">
+            <properties>
+              <property id="2" value="false"/>
+              <property id="3" value="true"/>
+              <property id="9" value="549"/>
+              <property id="10" value="484"/>
+              <property id="20" value="0"/>
+              <property id="21" value="0"/>
+            </properties>
+          </image>
+        </components>
+      </hmiState>
+      <hmiState id="14" parentId="15" text="App Manager" textModel="3">
+        <components>
+          <image id="17" model="12">
+            <properties>
+              <property id="2" value="false"/>
+              <property id="3" value="true"/>
+              <property id="9" value="549"/>
+              <property id="10" value="484"/>
+              <property id="20" value="0"/>
+              <property id="21" value="0"/>
+            </properties>
+          </image>
+        </components>
+      </hmiState>
+    </hmiStates>
+  </pluginApp>
+</pluginApps>

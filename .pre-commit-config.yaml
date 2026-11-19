@@ -1,0 +1,31 @@
+repos:
+  - repo: local
+    hooks:
+      - id: clang-format
+        name: clang-format
+        entry: clang-format --dry-run --Werror
+        language: system
+        files: ^(include|src|apps|plugin|tests|tools)/.*\.(c|cpp|h|hpp)$
+      - id: check-line-limits
+        name: check-line-limits (warn above 300, fail above 330 lines for production .cpp)
+        entry: python3 tools/check_line_limits.py
+        language: system
+        files: ^(src|apps|plugin)/.*\.cpp$
+        exclude: ^src/gui/qr_code\.cpp$
+      - id: check-cxx
+        name: check-cxx (C++11 / ABI / memory safety rules)
+        entry: python3 tools/check_cxx.py
+        language: system
+        pass_filenames: false
+        files: ^(include|src|apps|plugin|tests|tools)/.*\.(cpp|hpp)$
+      - id: check-static-init
+        name: check-static-init (no static constructors)
+        entry: python3 tools/check_static_init.py
+        language: system
+        pass_filenames: false
+        files: ^(include|src|apps|plugin)/.*\.(cpp|hpp)$
+      - id: check-python
+        name: check-python (syntax check)
+        entry: python3 -m py_compile
+        language: system
+        files: ^(tools|tests)/.*\.py$

@@ -1,0 +1,23 @@
+NBTCTL1
+# iDrive controller settings for the NBT Manager GUI. Copy to
+# /var/opt/nbt-manager/manager/controller.conf (owned by the manager root's
+# owner, not group- or world-writable) and change only what your car needs.
+# Values shown are the defaults; omitted keys keep them. Unix line endings.
+# An invalid file is ignored as a whole and the application list says so.
+#
+# CCS35up controller (rotary 0xC46, hard keys 0xC47/0xC4F): FBlock 0xE5 instance.
+knob_instance=03
+# Older CCS controller (rotary 0xC10, buttons 0xC20): FBlock 0xE5 instance.
+ccs_instance=01
+# Instances registered for (1 to 8, two hex digits each); must include both above.
+instances=01,02,03,05,10,12,14
+# 1 reverses the rotary direction.
+invert=0
+# Hard key slots 0-6: byte index in 0xC47/0xC4F, sensor bit in 0xC20.
+knob_menu_slot=0
+knob_back_slot=1
+ccs_menu_slot=0
+ccs_back_slot=1
+# 1 hands the controllers back to the head unit when the manager closes
+# (MOST request 0x5). Off until validated on a bench: its payload is assumed.
+release=0
