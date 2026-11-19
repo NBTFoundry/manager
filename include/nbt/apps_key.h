@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_APPS_KEY_H
 #define NBT_APPS_KEY_H
 

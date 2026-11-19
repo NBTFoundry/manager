@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Signed requests against the real host worker and door, without a car."""
 import os
 from pathlib import Path

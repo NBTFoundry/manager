@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_TESTS_SUPPORT_CHECK_HPP
 #define NBT_TESTS_SUPPORT_CHECK_HPP
 

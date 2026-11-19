@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // Minimal PluginApp ABI bridge for the NBT EVO framework. The ABI declarations
 // are reconstructed from the target libraries and require firmware validation.
 //

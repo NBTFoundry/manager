@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_TEST_PHONE_VECTORS_HPP
 #define NBT_TEST_PHONE_VECTORS_HPP
 #include "nbt/crypto/ec_public_key.hpp"

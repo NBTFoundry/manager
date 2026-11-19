@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The stable launcher and the iDrive plugin follow the confirmed manager
  * release. First setup (bootstrap.cpp) writes both once and never overwrites
  * them; a slot update replaces only the GUI and the worker. Without this, a car

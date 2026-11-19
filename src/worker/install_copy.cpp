@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/worker.hpp"
 
 #include "nbt/lifecycle/app_settings.hpp"

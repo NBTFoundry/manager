@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Renders the GUI view model with LVGL into a Frame. */
 #include "nbt/gui/ui_renderer.hpp"
 

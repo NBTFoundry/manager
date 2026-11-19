@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Synthetic ARM factory; no firmware bytes or dumps are checked in."""
 import importlib.util
 from pathlib import Path

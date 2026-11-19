@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/capture_watch.hpp"
 #include "nbt/gui/gamepad_input.hpp"
 #include "nbt/gui/setup_ui.hpp"

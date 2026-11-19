@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """nbt-managerd --app-exec: the car's limits wrapper (sandbox_limits.hpp).
 
 It sets the application's resource limits, reports them on standard error,

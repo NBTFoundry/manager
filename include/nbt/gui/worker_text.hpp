@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The worker's STATUS messages, shown in the current language. The worker
  * speaks English (PROTOCOL.md); a message it sends as one of the w_ texts of
  * src/gui/text/en.txt, where {1} stands for any text, is shown translated,

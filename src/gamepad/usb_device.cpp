@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gamepad/usb_device.hpp"
 #include "nbt/gamepad/usb_configuration.hpp"
 #include "nbt/gamepad/usb_discovery.hpp"

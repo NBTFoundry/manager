@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_PROCESS_MAPPED_CHANNELS_HPP
 #define NBT_PROCESS_MAPPED_CHANNELS_HPP
 #include "nbt/core/unique_fd.hpp"

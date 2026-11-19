@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """The car's Wi-Fi Direct group in the SESSION reply, read as NBT-AAD documents
 it: WFDPass.conf XORed with "NBTEvo0715", the name "DIRECT-03-" + the device
 name from the CarPlay configs or Connectivity's WLAN persistency."""

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """A manager release sent by a paired phone (src/worker/manager_upload.cpp):
 reviewed and approved on the car, staged by the launcher at the next opening
 (src/launcher/stage_request.cpp)."""

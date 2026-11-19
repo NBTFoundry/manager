@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Transactional capture shim installation, starter.cfg splicing, fault recovery, and removal."""
 import hashlib
 import os

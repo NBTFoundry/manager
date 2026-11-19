@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The capture shim's file, next to iDrive's environment file in the manager's
  * state folder (docs/hmi-restart.md), and the folder dev91-dev103 used on
  * /fs/sda0 (`<hmi root>/NbtCapture`). */

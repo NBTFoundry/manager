@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_MOST_SERVICE_HPP
 #define NBT_MOST_SERVICE_HPP
 

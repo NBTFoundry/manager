@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* manager-refresh-probe <root> <hmi-root> [rw|ro]: runs the SETUP refresh with
  * a remount that prints each call and fails the named one. Prints "trial",
  * or "changed=<bits>"; exit 1 with the error on stderr. */

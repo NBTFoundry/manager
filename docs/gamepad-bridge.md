@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Wired USB gamepad bridge
 
 Bridge capability `gamepad` (bridge 1.3 and later) gives the application on screen

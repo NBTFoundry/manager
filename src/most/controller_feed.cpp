@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/most/controller_feed.hpp"
 
 #include "nbt/capture/protocol.h"

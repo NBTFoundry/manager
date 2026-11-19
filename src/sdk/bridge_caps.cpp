@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/bridge.h"
 #include <string.h>
 void nbt_bridge_caps_without(const char *caps, const char *name,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Strictly validates and splices the two starter.cfg entries the capture shim
  * install may change: HmiMain3D's <EnvFile> (docs/hmi-restart.md) and, from
  * older installs, Environment 6 (System_HMI_PRELOAD). */

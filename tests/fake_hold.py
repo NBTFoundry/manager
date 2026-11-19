@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """The plugin's side of the focus hold in host tests: once a manager GUI
 reports itself alive, iDrive is "held" on the blank state and the GUI is told
 to show (include/nbt/gui/hmi_hold.hpp). The GUI stays hidden until then."""

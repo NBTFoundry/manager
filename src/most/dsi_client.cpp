@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/most/dsi_client.hpp"
 
 #include "nbt/log.h"

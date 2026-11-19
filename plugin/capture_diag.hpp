@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Non-blocking diagnostic ring drain called on the plugin's slow poll timer. */
 #ifndef NBT_PLUGIN_CAPTURE_DIAG_HPP
 #define NBT_PLUGIN_CAPTURE_DIAG_HPP

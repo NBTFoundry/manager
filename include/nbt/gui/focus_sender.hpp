@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_GUI_FOCUS_SENDER_HPP
 #define NBT_GUI_FOCUS_SENDER_HPP
 

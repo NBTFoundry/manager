@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_PLATFORM_DSI_ABI_HPP
 #define NBT_PLATFORM_DSI_ABI_HPP
 

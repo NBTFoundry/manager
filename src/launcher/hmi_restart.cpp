@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Restarts iDrive's program alone through the process manager's package
  * request, so the installer stays connected (docs/hmi-restart.md). */
 #include "nbt/launcher/hmi_restart.hpp"

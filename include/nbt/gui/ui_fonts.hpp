@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The renderer's fonts in a language: the GUI's own (src/gui/fonts/,
  * tools/make_fonts.py). Chinese and Japanese draw their characters from
  * their own faces and fall back to the Latin font of the same size, whose

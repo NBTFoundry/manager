@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/manager_stage.h"
 #include <openssl/sha.h>
 #include <stdio.h>

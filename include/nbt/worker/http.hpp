@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_WORKER_HTTP_HPP
 #define NBT_WORKER_HTTP_HPP
 #include "nbt/core/span.hpp"

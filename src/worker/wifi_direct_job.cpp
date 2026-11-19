@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/wifi_direct_job.hpp"
 
 #include <errno.h>

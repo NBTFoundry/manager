@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gamepad/shared_state.hpp"
 #include "nbt/capture/control.h"
 #include <errno.h>

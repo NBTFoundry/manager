@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/sdk/most_wire.hpp"
 
 #include <errno.h>

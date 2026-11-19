@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/ui_fonts.hpp"
 
 /* Defined in C (src/gui/fonts/). */

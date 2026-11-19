@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_WORKER_PHONE_API_HPP
 #define NBT_WORKER_PHONE_API_HPP
 #include "nbt/storage/phone_store.hpp"

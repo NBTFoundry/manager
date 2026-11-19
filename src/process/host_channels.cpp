@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/host_channels.hpp"
 #include "nbt/gamepad/service.hpp"
 #include "nbt/log.h"

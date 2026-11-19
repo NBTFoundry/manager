@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The languages of the manager's own screen, its Language setting and what
  * iDrive reports as the car's language.
  *

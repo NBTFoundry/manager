@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The head unit's own tools, run with fixed arguments and no shell, as the
  * installer runs them over SSH: `mount -uw|-ur /fs/sda0` around a plugin
  * replacement (NBT-AAD's pf_aa remounts it the same way from an iDrive-started

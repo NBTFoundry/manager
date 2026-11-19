@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/session.hpp"
 #include <errno.h>
 namespace nbt {

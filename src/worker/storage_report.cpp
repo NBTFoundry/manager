@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Where the manager's root really is, once per worker start in the debug log.
  * The car's `mount` output (nbt-inventory-5) shows no /var, only /var/pps, so
  * which filesystem holds /var/opt/nbt-manager, and how much room it has, is

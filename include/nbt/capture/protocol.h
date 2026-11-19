@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Wire/shared-memory constants and types for preloaded input capture. */
 #ifndef NBT_CAPTURE_PROTOCOL_H
 #define NBT_CAPTURE_PROTOCOL_H

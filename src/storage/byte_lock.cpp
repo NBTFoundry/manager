@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/storage/byte_lock.hpp"
 #include <errno.h>
 #include <fcntl.h>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* SETUP and IDRIVE RESTART: the GUI's two requests about the manager's own
  * installation (PROTOCOL.md). SETUP brings the stable launcher and the iDrive
  * plugin to the confirmed release; IDRIVE RESTART, sent only after the driver

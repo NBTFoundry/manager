@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The capture shim's diagnostic ring writer: zero heap, lock held by the caller. */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

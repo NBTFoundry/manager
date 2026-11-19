@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* iDrive's environment file and the shim trial record (docs/hmi-restart.md).
  *
  * starter.cfg names state/manager/hmi.env as HmiMain3D's <EnvFile> once the

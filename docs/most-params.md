@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Reviewed parameter layouts
 
 [most-params.tsv](most-params.tsv) records the manually traced paths in

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Host stand-in for libsys_dsi_colibry: exports the mangled C++ symbols used
  * by src/most_input.c as C functions, records calls to NBT_FAKE_DSI_LOG and
  * replays the DSI payloads (hex, one per line) in NBT_FAKE_DSI_SCRIPT. */

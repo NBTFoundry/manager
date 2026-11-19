@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/target.h"
 #include <assert.h>
 #include <stddef.h>

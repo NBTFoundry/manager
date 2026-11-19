@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Starting the manager launcher from iDrive, and the plugin's small helpers
  * around it (clock, error log, whether the manager window runs). */
 #ifndef NBT_PLUGIN_LAUNCHER_SPAWN_HPP

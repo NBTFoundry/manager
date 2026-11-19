@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/status_page.hpp"
 
 #include "nbt/gui/capture_watch.hpp"

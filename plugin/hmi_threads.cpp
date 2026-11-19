@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // Thread snapshot of the HMI process for the debug log (hmi_threads.hpp).
 // QNX 6.5: DCMD_PROC_TIDSTATUS on /proc/<pid>/as returns the next thread's
 // debug_thread_t; the HMI's own threads are readable from inside it. dladdr and

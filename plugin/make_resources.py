@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Build small, reproducible resource databases for the PluginApp."""
 import argparse
 import zipfile

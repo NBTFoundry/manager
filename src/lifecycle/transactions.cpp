@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/lifecycle/transactions.hpp"
 
 #include "nbt/apps_key.h"

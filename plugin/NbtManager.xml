@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 <pluginApps>
   <pluginApp applicationType="Custom" applicationWeight="198" entryButtonFocusID="32754" insertAfterFocusID="2270" insertStateID="20" text="App Manager">
     <comment/>

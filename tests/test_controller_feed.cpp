@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // Capability `controller`: the host's decoder (MOST messages to one state),
 // the wire format and the SDK reader, end to end over a datagram socket pair.
 // Messages follow NBT-AAD's car recordings (controls_2026-10-22_e5.txt and

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/view_builder.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/phone_ui.hpp"

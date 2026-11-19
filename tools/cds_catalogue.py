@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Extract CDS property registrations and JSON formats from libhmiremoting.so.
 
 Reads an ARM ELF only; never runs vendor code. Requires the same tools as

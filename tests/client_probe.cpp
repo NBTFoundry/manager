@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/core/system.hpp"
 #include "nbt/gui/worker_channel.hpp"
 #include "nbt/gui/worker_client.hpp"

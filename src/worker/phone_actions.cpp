@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/phone_actions.hpp"
 #include "nbt/app_remove.h"
 #include "nbt/crypto/ec_public_key.hpp"

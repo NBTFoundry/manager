@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/launcher/supervisor.hpp"
 
 #include "nbt/display/layer_manager.hpp"

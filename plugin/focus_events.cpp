@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // Focus events from the plugin's sender thread (focus_events.hpp).
 #include "focus_events.hpp"
 

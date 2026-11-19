@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* iDrive's environment file and the shim trial record (hmi_env.hpp). */
 #include "nbt/storage/hmi_env.hpp"
 

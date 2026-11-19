@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Captures the manager's GUI for the documentation: the X11 simulator
 (`make simulator`) under Xvfb, driven with XTest key presses, saved as stills
 (PNG) and short animations (GIF), framed like the head unit's 1440x540 panel.

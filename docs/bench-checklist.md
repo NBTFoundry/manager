@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Bench checklist
 
 The order in which to validate NBT Manager on a bench unit: each step relies

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Internal shared I/O and verification helpers for capture install/removal. */
 #ifndef NBT_STORAGE_CAPTURE_IO_HPP
 #define NBT_STORAGE_CAPTURE_IO_HPP

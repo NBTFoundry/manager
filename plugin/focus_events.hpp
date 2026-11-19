@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_PLUGIN_FOCUS_EVENTS_HPP
 #define NBT_PLUGIN_FOCUS_EVENTS_HPP
 

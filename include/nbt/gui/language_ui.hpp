@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Settings > Language: Automatic (iDrive's language) or one of the manager's
  * languages, each listed by its own name, saved with SET manager language
  * (nbt/model/language.hpp) and shown at once. Also the manager's own

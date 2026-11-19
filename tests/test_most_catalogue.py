@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Register tracking of tools/most_catalogue.py on hand-encoded ARM code.
 
 The instruction shapes are those of the generated MOST classes in HmiMain3D

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gamepad/usb_discovery.hpp"
 #ifdef __QNX__
 #include "nbt/core/check.hpp"

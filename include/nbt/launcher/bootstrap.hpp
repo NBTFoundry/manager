@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_LAUNCHER_BOOTSTRAP_HPP
 #define NBT_LAUNCHER_BOOTSTRAP_HPP
 

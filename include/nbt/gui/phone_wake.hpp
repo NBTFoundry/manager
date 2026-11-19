@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_GUI_PHONE_WAKE_HPP
 #define NBT_GUI_PHONE_WAKE_HPP
 #include <stddef.h>

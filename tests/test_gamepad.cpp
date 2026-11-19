@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/bridge.h"
 #include "nbt/gamepad/input.hpp"
 #include "nbt/gamepad/relay.hpp"

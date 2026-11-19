@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/core/checked.hpp"
 #include "nbt/core/fault.hpp"
 #include "nbt/core/mutex.hpp"

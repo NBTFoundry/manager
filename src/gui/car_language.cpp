@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/car_language.hpp"
 
 #include "nbt/gui/phone_wake.hpp"

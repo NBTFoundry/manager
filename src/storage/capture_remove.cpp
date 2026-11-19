@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Safe capture removal (starter.cfg before shim) and operational status check. */
 #include "nbt/storage/capture_install.hpp"
 

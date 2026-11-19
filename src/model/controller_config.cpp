@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/model/controller_config.hpp"
 
 #include "nbt/core/unique_fd.hpp"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gamepad/service.hpp"
 #include "nbt/log.h"
 #include "nbt/storage/byte_lock.hpp"

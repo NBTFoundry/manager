@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Non-destructive DSI/MOST stream inspection and 5-second escape tracking. */
 #include "nbt/capture/classifier.h"
 

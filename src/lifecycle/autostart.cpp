@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/lifecycle/autostart.hpp"
 
 #include "nbt/autostart.h"

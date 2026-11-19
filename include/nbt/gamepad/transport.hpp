@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_GAMEPAD_TRANSPORT_HPP
 #define NBT_GAMEPAD_TRANSPORT_HPP
 #include "nbt/gamepad/reports.hpp"

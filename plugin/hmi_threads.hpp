@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_PLUGIN_HMI_THREADS_HPP
 #define NBT_PLUGIN_HMI_THREADS_HPP
 

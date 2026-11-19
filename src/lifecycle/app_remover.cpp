@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/app_remove.h"
 
 #include "nbt/core/unique_fd.hpp"

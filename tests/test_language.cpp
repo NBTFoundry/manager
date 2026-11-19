@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The manager GUI's languages: texts and their placeholders, UTF-8 cuts,
  * the worker's messages translated, iDrive's language record, the Language
  * screen and Chinese and Japanese drawn by the renderer. */

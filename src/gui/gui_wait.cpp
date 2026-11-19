@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The GUI session's heartbeats and its wait between loop turns. */
 #include "nbt/gui/gui_session.hpp"
 

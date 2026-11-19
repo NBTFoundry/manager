@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Passive bridge recorder for the bench procedure. Captures can contain
  * location/VIN data; keep stdout outside the source tree. */
 #include "nbt/core/unique_fd.hpp"

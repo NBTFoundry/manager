@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Starts the MOST input client with a given library and prints received inputs
  * as letters (U, D, S, B, H) until `argv[2]` milliseconds pass without input.
  * With NBT_PROBE_LOG set to an existing file, the debug log goes there. */

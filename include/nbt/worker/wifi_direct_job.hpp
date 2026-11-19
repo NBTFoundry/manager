@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_WORKER_WIFI_DIRECT_JOB_HPP
 #define NBT_WORKER_WIFI_DIRECT_JOB_HPP
 

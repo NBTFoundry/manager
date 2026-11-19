@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* LVGL configuration for the NBT Manager GUI. Options not set here keep the
  * defaults from third_party/lvgl/include/lvgl/config/lv_conf_internal.h. */
 #ifndef LV_CONF_H

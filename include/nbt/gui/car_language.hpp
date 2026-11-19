@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* iDrive's language, from the plugin to the manager GUI. The plugin reads car
  * data vehicle.language ({"language":N}, docs/car-data-properties.tsv) and
  * writes N to a shared-memory record, "NBTLANG1\nvalue=N\n"; the GUI reads

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Head unit diagnostics
 
 What the head unit records when something goes wrong, how to read it, the tools

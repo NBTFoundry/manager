@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/language_watch.hpp"
 
 #include "nbt/gui/car_language.hpp"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_MANAGER_PLUGIN_H
 #define NBT_MANAGER_PLUGIN_H
 #include "nbt/fs.h"

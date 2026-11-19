@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Input capture
 
 While the manager or one of its applications is on the panel, iDrive

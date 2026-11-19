@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/storage/path_open.hpp"
 
 #include "nbt/package.h"

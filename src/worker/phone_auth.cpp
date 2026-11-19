@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/phone_auth.hpp"
 #include "nbt/core/system.hpp"
 #include "nbt/core/text.hpp"

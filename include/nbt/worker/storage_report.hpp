@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_WORKER_STORAGE_REPORT_HPP
 #define NBT_WORKER_STORAGE_REPORT_HPP
 

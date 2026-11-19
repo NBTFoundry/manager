@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """List the MOST functions an iDrive HmiMain3D uses, with FBlock and function ids.
 
     python3 -I tools/most_catalogue.py /path/to/HmiMain3D > most-functions.tsv

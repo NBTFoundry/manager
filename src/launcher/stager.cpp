@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/launcher/stager.hpp"
 
 #include "nbt/launcher/slot_fs.hpp"

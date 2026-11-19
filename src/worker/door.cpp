@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/core/system.hpp"
 #include "nbt/gui/phone_wake.hpp"
 #include "nbt/storage/path_open.hpp"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Checked shared-storage primitives for capture install/removal transactions. */
 #include "capture_io.hpp"
 

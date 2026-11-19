@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/storage/durable_text.hpp"
 
 #include "nbt/settings.h"

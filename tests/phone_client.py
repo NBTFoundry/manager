@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Software test phone for the real host worker. Private keys are temporary."""
 import hashlib
 import http.client

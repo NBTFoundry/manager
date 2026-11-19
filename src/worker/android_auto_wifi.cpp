@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/android_auto_wifi.hpp"
 
 #include "nbt/worker/wifi_direct.hpp"

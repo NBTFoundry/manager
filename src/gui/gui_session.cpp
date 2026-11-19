@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Interactive manager GUI session and event loop; a client of the worker. */
 #include "nbt/gui/gui_session.hpp"
 

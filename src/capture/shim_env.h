@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Internal to the capture shim (hidden symbols in libnbt-capture.so). */
 #ifndef NBT_CAPTURE_SHIM_ENV_H
 #define NBT_CAPTURE_SHIM_ENV_H

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_PROCESS_BRIDGE_ENVIRONMENT_HPP
 #define NBT_PROCESS_BRIDGE_ENVIRONMENT_HPP
 #include "nbt/app_settings.h"

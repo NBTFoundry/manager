@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Unit tests for input-capture control record, classifier, 5s escape, and diag ring. */
 #include "nbt/capture/classifier.h"
 #include "nbt/capture/control.h"

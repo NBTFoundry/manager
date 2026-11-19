@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Bridge extensions: designs
 
 Designs for capabilities beyond bridge 1.4 ([app-bridge.md](app-bridge.md)):

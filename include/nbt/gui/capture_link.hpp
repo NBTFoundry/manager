@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* GUI-side capture control writer (/dev/shmem/nbt-manager-capture). */
 #ifndef NBT_GUI_CAPTURE_LINK_HPP
 #define NBT_GUI_CAPTURE_LINK_HPP

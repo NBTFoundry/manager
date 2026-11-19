@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/app_output.hpp"
 
 #include <errno.h>

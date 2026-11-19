@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The manager GUI's view model: what one frame shows, built from the
  * controller (view_builder.hpp) and drawn by the renderer. */
 #ifndef NBT_GUI_UI_VIEW_HPP

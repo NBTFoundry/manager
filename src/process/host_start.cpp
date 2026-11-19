@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/host_start.hpp"
 
 #include "nbt/bridge.h"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/lifecycle/transaction_journal.hpp"
 
 #include "nbt/core/fault.hpp"

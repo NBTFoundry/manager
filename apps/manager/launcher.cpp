@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/app_provision.h"
 #include "nbt/fs.h"
 #include "nbt/launcher/capture_selftest.hpp"

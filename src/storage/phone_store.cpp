@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/storage/phone_store.hpp"
 #include "nbt/crypto/ec_public_key.hpp"
 #include "nbt/storage/path_open.hpp"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The view model (nbt/gui/ui_view.hpp): what one frame shows. */
 #include "nbt/gui/ui_view.hpp"
 

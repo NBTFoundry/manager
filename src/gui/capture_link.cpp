@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* GUI-side capture control state & synchronous escape stop helper. */
 #include "nbt/gui/capture_link.hpp"
 

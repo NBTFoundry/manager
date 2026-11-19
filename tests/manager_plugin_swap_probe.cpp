@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/launcher/plugin_installer.hpp"
 #include "nbt/manager_plugin.h"
 

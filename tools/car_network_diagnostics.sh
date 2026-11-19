@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: MPL-2.0
 # Read-only Wi-Fi Direct and manager state, printed to stdout. Run on the HU.
 # Deliberately omit passphrases, WPS PINs, leases and binary profile contents.
 

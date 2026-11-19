@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/model/most_policy.hpp"
 
 #include <errno.h>

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # The car's Wi-Fi beside Android Auto
 
 How NBT Manager shares the car's Wi-Fi with wireless Android Auto (NBT-AAD),

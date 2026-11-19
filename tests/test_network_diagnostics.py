@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """The read-only car probe reports configuration without exposing stored keys."""
 import os
 from pathlib import Path

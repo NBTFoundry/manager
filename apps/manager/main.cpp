@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Manager GUI executable entrypoint, single-instance lock and process setup. */
 #include "nbt/capture/protocol.h"
 #include "nbt/controller_config.h"

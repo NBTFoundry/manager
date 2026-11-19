@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_WORKER_PHONE_ROUTES_HPP
 #define NBT_WORKER_PHONE_ROUTES_HPP
 #include "nbt/core/span.hpp"

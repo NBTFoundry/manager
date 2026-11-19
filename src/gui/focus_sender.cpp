@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/focus_sender.hpp"
 
 #include <time.h>

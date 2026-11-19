@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/manager_store.h"
 #include <stdio.h>
 #include <stdlib.h>

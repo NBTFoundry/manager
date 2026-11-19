@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "launcher_spawn.hpp"
 
 #include "nbt/gui/hmi_hold.hpp"

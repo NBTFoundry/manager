@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Car inventory: copying head unit files to a USB stick
 
 Step 1 of "Discovering more car data and interfaces" in

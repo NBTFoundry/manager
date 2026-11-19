@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_CRYPTO_RSA_PUBLIC_KEY_HPP
 #define NBT_CRYPTO_RSA_PUBLIC_KEY_HPP
 

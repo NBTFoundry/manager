@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # MOST bridge (capability `most`)
 
 Applications reach the car's MOST bus through their host instead of opening

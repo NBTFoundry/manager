@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* A manager release sent by a paired phone (PROTOCOL.md, "Manager updates
  * from a phone"). The worker cannot stage it: staging needs the GUI and the
  * operation locks that the launcher holds while the manager runs, and an

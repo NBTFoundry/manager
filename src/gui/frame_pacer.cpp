@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/frame_pacer.hpp"
 
 #include "nbt/log.h"

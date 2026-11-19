@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/core/unique_fd.hpp"
 #include "nbt/package.h"
 #include "nbt/util.h"

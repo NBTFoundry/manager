@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The capture shim's environment: its file paths, clock and process check,
  * and the install self-test's redirection of them (src/launcher/
  * capture_selftest.cpp). Inside HmiMain3D the self-test is refused, so these

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # In-car test procedure (Windows)
 
 This procedure checks a test kit (its `VERSION.txt` names it) with the NBT

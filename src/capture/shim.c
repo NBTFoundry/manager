@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Preloaded DSIClientDataResponse shim: zero heap/static init. The car build is
  * active (-DNBT_CAPTURE_OBSERVER=0); the observer default only forwards. */
 #ifndef _GNU_SOURCE

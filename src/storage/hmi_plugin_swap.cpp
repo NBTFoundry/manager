@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Replacing the live iDrive plugin. iDrive maps libNbtManager.so while it
  * runs, so no live file is ever rewritten: the new set is written and checked
  * in `.NbtManager.setup`, then `NbtManager` becomes `.NbtManager.old` and the

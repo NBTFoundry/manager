@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/phone_logs.hpp"
 
 #include "nbt/log.h"

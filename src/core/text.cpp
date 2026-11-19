@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/core/text.hpp"
 #include "nbt/core/check.hpp"
 #include "nbt/core/checked.hpp"

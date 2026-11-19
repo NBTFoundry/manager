@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/most/most_session.hpp"
 
 #include "nbt/log.h"

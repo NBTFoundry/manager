@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Prints a QR symbol for stdin data: "version mask size" then one row of 0/1
  * per line. argv[1] is the mask (-1 selects automatically). */
 #include "nbt/gui/qr_code.hpp"

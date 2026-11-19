@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # The QNX environment puts ARM compiler wrappers first on PATH.
 ifeq ($(origin CC),default)
 CC := gcc

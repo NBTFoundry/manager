@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """The GUI's text catalogs and fonts agree: the generated tables are up to date
 (tools/gui_text.py) and the fonts have every character the catalogs use
 (tools/make_fonts.py), read from the fonts' own character maps."""

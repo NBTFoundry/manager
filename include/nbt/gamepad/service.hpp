@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_GAMEPAD_SERVICE_HPP
 #define NBT_GAMEPAD_SERVICE_HPP
 #include "nbt/core/mutex.hpp"

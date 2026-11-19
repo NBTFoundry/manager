@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_APP_FAULTS_H
 #define NBT_APP_FAULTS_H
 

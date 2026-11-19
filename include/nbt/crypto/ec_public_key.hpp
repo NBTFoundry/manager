@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_CRYPTO_EC_PUBLIC_KEY_HPP
 #define NBT_CRYPTO_EC_PUBLIC_KEY_HPP
 #include "nbt/core/span.hpp"

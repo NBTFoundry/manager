@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_STORAGE_MANAGED_ROOT_HPP
 #define NBT_STORAGE_MANAGED_ROOT_HPP
 

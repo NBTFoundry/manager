@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/daemon.hpp"
 
 #include "nbt/app_host.h"

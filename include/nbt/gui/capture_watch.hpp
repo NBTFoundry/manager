@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Whether the capture shim keeps the controller's keys from iDrive for this
  * GUI's capture, from the shim's diagnostic ring: a note for the manager's
  * list when it does not, logged when it changes. */

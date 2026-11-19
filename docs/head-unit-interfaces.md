@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Head unit interfaces
 
 Facts about the interfaces the manager uses on the head unit (MOST through

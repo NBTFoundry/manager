@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/crypto/threads.hpp"
 
 #include <openssl/crypto.h>

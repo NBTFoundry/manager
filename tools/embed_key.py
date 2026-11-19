@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Writes the include that bundles the apps public key with the manager
 (src/package/apps_key.cpp): the one RSA public key every application package
 is signed with. Only a public key is accepted. The include is rewritten only

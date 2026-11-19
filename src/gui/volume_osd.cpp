@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/volume_osd.hpp"
 
 #include "nbt/display/layer_manager.hpp"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_PLUGIN_PHONE_DISPLAY_HPP
 #define NBT_PLUGIN_PHONE_DISPLAY_HPP
 #include <stddef.h>

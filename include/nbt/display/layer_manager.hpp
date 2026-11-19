@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_DISPLAY_LAYER_MANAGER_HPP
 #define NBT_DISPLAY_LAYER_MANAGER_HPP
 

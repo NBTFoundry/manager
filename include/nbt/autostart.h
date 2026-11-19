@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_AUTOSTART_H
 #define NBT_AUTOSTART_H
 #include "nbt/fs.h"

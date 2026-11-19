@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """`make kit`: the whole kit procedure in one command.
 
 1. Refuses a working tree with uncommitted changes (a kit comes from a commit).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/wfd_health.hpp"
 
 #include "nbt/core/secure.hpp"

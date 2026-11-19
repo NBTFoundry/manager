@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/most/codec.hpp"
 
 #include <string.h>

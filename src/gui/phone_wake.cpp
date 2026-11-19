@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/phone_wake.hpp"
 #include <errno.h>
 #include <fcntl.h>

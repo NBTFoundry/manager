@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Mock libsys_dsi_base.gpp.so.4 exporting C DSIClientDataResponse for LD_PRELOAD tests. */
 #include <pthread.h>
 #include <stdint.h>

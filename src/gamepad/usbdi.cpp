@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Chooses the libusbdi the gamepad talks to io-usb through. */
 #include "nbt/gamepad/usbdi.hpp"
 #ifdef __QNX__

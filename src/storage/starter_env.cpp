@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* HmiMain3D's environment as starter.cfg gives it: the Environment entries its
  * Process block requires (on the car: MALLOC_ARENA_SIZE, GRAPHICS_ROOT,
  * LD_LIBRARY_PATH, LD_PRELOAD). Read-only and strict: anything ambiguous

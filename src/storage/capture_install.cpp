@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Transactional capture shim + starter.cfg install and recovery. */
 #include "nbt/storage/capture_install.hpp"
 

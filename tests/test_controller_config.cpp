@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/ccs.h"
 #include "nbt/controller_config.h"
 

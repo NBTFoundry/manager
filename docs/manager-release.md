@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Manager release format
 
 Manager releases use a key reserved for the manager, separate from managed

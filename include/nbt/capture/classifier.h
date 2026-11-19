@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Pure C99 DSI/MOST candidate classifier and 5-second escape evaluator. */
 #ifndef NBT_CAPTURE_CLASSIFIER_H
 #define NBT_CAPTURE_CLASSIFIER_H

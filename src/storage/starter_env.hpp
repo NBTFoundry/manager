@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_STORAGE_STARTER_ENV_HPP
 #define NBT_STORAGE_STARTER_ENV_HPP
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Prepare a new offline managed-tree bundle from a verified initial release.
 
 The output is a workstation artifact, not an on-device installer. It must be

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # The bridge: car interface for applications
 
 The bridge is the documented interface between managed applications and the

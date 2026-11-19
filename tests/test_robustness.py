@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 import http.client
 import os
 from pathlib import Path

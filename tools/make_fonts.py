@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Generates the manager GUI's fonts, src/gui/fonts/nbt_font_*.c, and their
 manifest, src/gui/fonts/glyphs.json, in LVGL's own font format (fmt_txt, as
 lv_font_conv writes it): glyphs drawn by FreeType (Pillow), advances, metrics

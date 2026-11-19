@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/crypto/sha256.hpp"
 
 #include <errno.h>

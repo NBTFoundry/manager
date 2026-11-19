@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/bridge_environment.hpp"
 #include <stdio.h>
 #include <string.h>

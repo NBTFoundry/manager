@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Create a signed manager release; the private key stays on this machine."""
 
 import argparse

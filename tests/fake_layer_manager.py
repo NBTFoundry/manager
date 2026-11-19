@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# SPDX-License-Identifier: MPL-2.0
 """A stand-in for /opt/sys/bin/LayerManagerControl in host tests.
 
 State (JSON at NBT_FAKE_LM_STATE): the render order of layer 0x80000000,

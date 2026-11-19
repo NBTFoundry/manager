@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Install flow
 
 How NBT Manager gets onto the head unit and what each side checks. The installer

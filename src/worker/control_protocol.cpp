@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/control_protocol.hpp"
 
 #include "nbt/app_faults.h"

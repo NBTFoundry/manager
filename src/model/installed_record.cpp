@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/model/installed_record.hpp"
 
 #include "nbt/core/text.hpp"

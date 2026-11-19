@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/phone_routes.hpp"
 #include "nbt/app_settings.h"
 #include "nbt/transaction.h"

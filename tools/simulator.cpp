@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Desktop preview of the manager GUI (X11). It runs the real GUI controller
  * and renderer against a simulated worker with canned replies, to check the
  * look and navigation. It installs nothing and opens no network session.

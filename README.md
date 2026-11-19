@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
@@ -6,6 +7,8 @@
 </p>
 
 <h1 align="center">NBT Manager</h1>
+
+> **Warning: installing or modifying this software can brick your head unit. Recovery may require professional service or replacement, at your expense. Provided AS IS; use at your own risk, subject to applicable law.** [Read the risk and liability disclaimer](DISCLAIMER.md).
 
 <p align="center">
   <b>Your own applications on the iDrive screen.</b><br>
@@ -273,3 +276,11 @@ link.
 | [docs/bench-checklist.md](docs/bench-checklist.md) | Ordered validation on a bench unit |
 | [docs/in-car-procedure.md](docs/in-car-procedure.md) | The in-car test procedure for a test kit |
 | [plugin/README.md](plugin/README.md) | The iDrive plugin: launch contract and ABI |
+
+## License
+
+Copyright (c) 2026 Fabien Poussin. Original code, tests, build scripts and documentation are licensed under **MPL-2.0**; see [LICENSE](LICENSE).
+
+Original NBTFoundry logos, artwork and screenshots are under **MPL-2.0**, including copies in other NBTFoundry repositories. Third-party code, fonts, game data and their notices retain their own terms. Copyright permission for artwork does not grant trademark rights or imply endorsement by BMW AG or id Software.
+
+See [legal/README.md](legal/README.md) for third-party license notices.

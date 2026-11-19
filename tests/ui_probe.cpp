@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/core/secure.hpp"
 #include "nbt/core/system.hpp"
 #include "nbt/gui/qr_code.hpp"

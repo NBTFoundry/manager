@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* At an opening, before anything runs: a manager release a paired phone sent
  * and the driver approved (src/worker/manager_upload.cpp) is staged as an
  * installer Update would stage it, then supervised on trial as usual. The

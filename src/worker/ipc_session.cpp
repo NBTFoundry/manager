@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* SESSION's reply. On wfd0 the Wi-Fi Direct group is prepared first on its own
  * thread (WifiDirectJob, up to 10 s); the worker's loop keeps serving meanwhile
  * and the GUI's later commands wait (ControlHandler::replyPending). */

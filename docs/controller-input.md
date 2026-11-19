@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # iDrive controller input
 
 The manager GUI reads the iDrive controller directly from the MOST bus. An

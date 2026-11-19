@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: MPL-2.0
 # NBT Manager car inventory: see docs/car-inventory.md.
 #
 # Run on the head unit from a USB stick: sh /mnt/umass<...>/car_inventory.sh

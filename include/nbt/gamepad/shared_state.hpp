@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_GAMEPAD_SHARED_STATE_HPP
 #define NBT_GAMEPAD_SHARED_STATE_HPP
 #include "nbt/core/unique_fd.hpp"

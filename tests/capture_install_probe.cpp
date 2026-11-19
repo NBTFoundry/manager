@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Host probe for starter.cfg parsing and transactional capture install/remove. */
 #include "../src/storage/capture_probe.hpp"
 #include "nbt/capture/diag.h"

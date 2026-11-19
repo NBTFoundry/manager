@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_GUI_STATUS_UPDATE_HPP
 #define NBT_GUI_STATUS_UPDATE_HPP
 #include "nbt/gui/ui_controller.hpp"

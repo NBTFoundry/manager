@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/storage/phone_store.hpp"
 #include "nbt/worker/ipc_dispatcher.hpp"
 #include <stdio.h>

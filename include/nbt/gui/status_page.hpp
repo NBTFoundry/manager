@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Settings > Status: what the manager knows about its input, to check a car
  * run on the panel itself, and its gamepad test (live buttons, sticks and
  * triggers). The GUI session refreshes the facts every loop (gatherStatus);

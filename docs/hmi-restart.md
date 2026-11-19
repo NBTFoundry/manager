@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # iDrive's start and the capture shim
 
 The input-capture shim ([input-capture.md](input-capture.md)) is loaded into

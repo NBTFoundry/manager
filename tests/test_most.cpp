@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* MOST bridge building blocks: policy, wire records, segment joining and the
  * requestProcessMessage payload. */
 #include "nbt/most.h"

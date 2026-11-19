@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/fs.h"
 #include "nbt/process.h"
 #include "nbt/storage/managed_root.hpp"

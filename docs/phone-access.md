@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Phone access
 
 A phone is accepted once: the car and the phone show the same six digits and the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The manager GUI's texts in its languages (src/gui/text/<code>.txt, generated
  * into text_id.hpp and text_tables.cpp by tools/gui_text.py), and UTF-8
  * helpers for the fixed-size buffers they are written into.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_PROCESS_CHILD_PROCESS_HPP
 #define NBT_PROCESS_CHILD_PROCESS_HPP
 

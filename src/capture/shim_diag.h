@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The capture shim's diagnostic ring writer (/dev/shmem/nbt-manager-capture-diag),
  * read by the plugin and the GUI (include/nbt/capture/diag.h). */
 #ifndef NBT_CAPTURE_SHIM_DIAG_H

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/status_update.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/view_builder.hpp"

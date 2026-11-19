@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Lock-free shared-memory diagnostic ring reader (zero heap, plugin safe). */
 #include "nbt/capture/diag.h"
 

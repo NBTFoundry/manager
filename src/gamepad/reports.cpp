@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gamepad/reports.hpp"
 #include <string.h>
 namespace nbt {

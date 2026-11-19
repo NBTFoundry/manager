@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Serialization, validation, and checked shared-memory I/O for capture state. */
 #include "nbt/capture/control.h"
 

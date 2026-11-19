@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Compile the production QNX backend against this deterministic USB API shim. */
 #include "nbt/gamepad/transport.hpp"
 #include <assert.h>

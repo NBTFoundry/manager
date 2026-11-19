@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The capture shim kept automatically: the 60 s check the plugin starts inside
  * iDrive, turning it on or off by hand, and the trial's car operations
  * (docs/hmi-restart.md). */

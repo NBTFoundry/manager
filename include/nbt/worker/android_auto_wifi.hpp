@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_WORKER_ANDROID_AUTO_WIFI_HPP
 #define NBT_WORKER_ANDROID_AUTO_WIFI_HPP
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_STORAGE_BYTE_LOCK_HPP
 #define NBT_STORAGE_BYTE_LOCK_HPP
 #include <sys/types.h>

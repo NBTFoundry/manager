@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The manager's own installation. Once the list shows, the GUI asks the worker
  * to bring the launcher and the iDrive plugin to the confirmed release (SETUP);
  * while an update is on trial it asks again after the health check. When the

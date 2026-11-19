@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Signing-tool policy validation must agree with the native policy contract."""
 from pathlib import Path
 import sys

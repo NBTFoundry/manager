@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/worker_text.hpp"
 
 #include "nbt/gui/text.hpp"

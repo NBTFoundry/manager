@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The worker's slow steps on the WorkerJob thread (worker_job.hpp): each
  * starts here with its TaskContext filled, and ends in finishTask() on the
  * loop, which logs how long it took and continues the step it belongs to.

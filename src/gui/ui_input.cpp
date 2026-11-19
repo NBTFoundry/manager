@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/ui_controller.hpp"
 
 #include "nbt/gui/language_ui.hpp"

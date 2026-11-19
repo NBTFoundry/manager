@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Bridge wire validation shared by signing tools; no signing keys here."""
 import re
 

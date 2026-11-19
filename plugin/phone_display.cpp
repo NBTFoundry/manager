@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "phone_display.hpp"
 #include "nbt/process/hmi_environment.hpp"
 #include <errno.h>

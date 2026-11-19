@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """The manager GUI on the panel: LayerManager surface 1290 in place of the
 iDrive HMI (surface 256), an application's surface 1291 handed the panel by
 the GUI, and the HMI put back only when the layer is ours."""

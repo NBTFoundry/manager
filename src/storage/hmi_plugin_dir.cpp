@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/storage/hmi_plugin_dir.hpp"
 
 #include "nbt/core/fault.hpp"

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Build and embed a signed manager release using workstation-only signing keys."""
 
 import argparse

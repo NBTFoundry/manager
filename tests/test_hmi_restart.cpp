@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The iDrive-only restart and the shim trial against a fake process manager. */
 #include "nbt/launcher/hmi_restart.hpp"
 #include "nbt/launcher/shim_trial.hpp"

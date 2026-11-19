@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_GUI_SCREEN_WINDOW_HPP
 #define NBT_GUI_SCREEN_WINDOW_HPP
 

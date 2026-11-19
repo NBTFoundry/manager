@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Drives the capture shim the way the GUI and iDrive will, before the install
  * names it in starter.cfg: the GUI's own writers for the control and heartbeat
  * files, controller messages as the MOST client sends them, and a counting

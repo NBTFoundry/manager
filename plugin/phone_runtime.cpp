@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "phone_runtime.hpp"
 #include "nbt/log.h"
 #include <fcntl.h>

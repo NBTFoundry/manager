@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/mapped_channels.hpp"
 #include <fcntl.h>
 namespace nbt {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/process_group.hpp"
 
 #include "nbt/process/child_spawn.hpp"

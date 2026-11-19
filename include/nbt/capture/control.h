@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Bounded control and liveness record helpers for input capture. */
 #ifndef NBT_CAPTURE_CONTROL_H
 #define NBT_CAPTURE_CONTROL_H

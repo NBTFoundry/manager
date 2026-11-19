@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Host LD_PRELOAD harness exercising real preload interposition, caching,
  * clock expiry, reconnect reuse, concurrent initialization, and active suppression. */
 #include "nbt/capture/control.h"

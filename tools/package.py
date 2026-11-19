@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Create an NBT Manager v1 single-executable signed package."""
 
 import argparse

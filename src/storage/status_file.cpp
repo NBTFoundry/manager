@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/storage/status_file.hpp"
 
 #include "nbt/bridge.h"

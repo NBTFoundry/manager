@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_GUI_PLUGIN_LINK_HPP
 #define NBT_GUI_PLUGIN_LINK_HPP
 

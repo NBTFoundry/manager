@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 from phone_client import SoftwarePhone
 import fcntl
 import hashlib

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The application on the panel when iDrive takes the screen (NAV, MENU,
  * OPTION, a call): the GUI asks its host to pause it (SIGUSR2). The host
  * stops it, continues it on the next show and stops it after 2 minutes

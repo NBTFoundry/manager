@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Local control and application contract
 
 The worker receives a connected private stream descriptor from the launcher, which starts it before the GUI and gives the GUI the other end (`--worker-fd 5`). The manager GUI must ensure that a local user action is the only source of approval; the GUI controller produces approval only from controller input (see docs/controller-input.md). HTTP clients have no access to this descriptor. Lines are ASCII and terminated by a newline. Responses are one line, with fields separated by tabs. A connection must first send `HELLO 1`; it receives `HELLO\t1`. Unknown protocol versions cannot issue commands. The GUI's client performs this handshake when it takes over the channel.

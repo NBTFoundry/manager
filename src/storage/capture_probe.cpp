@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Loads the capture shim into a short-lived process before iDrive's start
  * depends on it: QNX's loader stops a program before main for a preload that
  * is malformed, lacks a library or leaves a symbol unresolved (x86 VM cases

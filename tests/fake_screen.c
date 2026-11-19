@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/qnx_screen.h"
 #include <stddef.h>
 #include <stdint.h>

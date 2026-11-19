@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gamepad/transport.hpp"
 #include <new>
 #ifdef __QNX__

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Read a QNX 6.5 ARM core file from the head unit's dumper (docs/car-diagnostics.md).
 
 Prints the process id, the loaded objects with their load addresses, and for

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/plugin_link.hpp"
 
 #include <unistd.h>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* One start of iDrive with the capture shim while the installer is connected
  * (docs/hmi-restart.md); the automatic check is in shim_control.cpp. */
 #include "nbt/launcher/shim_trial.hpp"

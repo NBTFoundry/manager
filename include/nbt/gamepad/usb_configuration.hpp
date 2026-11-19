@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_GAMEPAD_USB_CONFIGURATION_HPP
 #define NBT_GAMEPAD_USB_CONFIGURATION_HPP
 #ifdef __QNX__

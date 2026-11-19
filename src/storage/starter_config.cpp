@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Byte-preserving parser and mutator for the capture entries of starter.cfg. */
 #include "nbt/storage/starter_config.hpp"
 

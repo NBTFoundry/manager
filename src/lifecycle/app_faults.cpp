@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/app_faults.h"
 #include "nbt/lifecycle/digit_record.hpp"
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Transactional installation, recovery, and safe removal of the capture shim. */
 #ifndef NBT_STORAGE_CAPTURE_INSTALL_HPP
 #define NBT_STORAGE_CAPTURE_INSTALL_HPP

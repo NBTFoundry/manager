@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """SETUP: the stable launcher and the iDrive plugin follow the confirmed manager
 release (src/launcher/setup_refresh.cpp, src/storage/hmi_plugin_swap.cpp)."""
 import os

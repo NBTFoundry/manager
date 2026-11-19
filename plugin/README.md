@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # iDrive bridge
 
 This PluginApp registers one `App Manager` menu entry. It is the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "nbt/launcher/manager_worker.hpp"
 
 #include "nbt/fs.h"

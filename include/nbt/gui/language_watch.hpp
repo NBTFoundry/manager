@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* The language the manager's screen shows (nbt/model/language.hpp): the
  * setting, loaded when the GUI starts and changed by its Language screen, and
  * iDrive's language from the plugin's record (car_language.hpp), checked

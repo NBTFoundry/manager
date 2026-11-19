@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #ifndef NBT_WORKER_INSTALL_CHECK_LOG_HPP
 #define NBT_WORKER_INSTALL_CHECK_LOG_HPP
 

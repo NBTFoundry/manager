@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /* Lockless shared-memory diagnostic ring reader (plugin & tools safe). */
 #ifndef NBT_CAPTURE_DIAG_H
 #define NBT_CAPTURE_DIAG_H
