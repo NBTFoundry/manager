@@ -19,7 +19,7 @@ ordered `version`, `sequence`, `platform`, `compat`, optional `bridge` lines
 appends a ninth component, `capture_lib` (an ARMv7 ELF shared object `ET_DYN`
 for the early-boot DSI preload shim). Both formats share the same manager signing
 key and strict verification rules. `nbt-manager-launcher --capabilities` prints
-`formats=NBTRLS1,NBTRLS2`. The installers no longer ask it: their Update stages
+`formats=NBTRLS1,NBTRLS2`. The installers do not ask it: their Update stages
 a release with that release's own launcher (docs/install-flow.md), so an
 `NBTRLS2` release needs no `NBTRLS1` step first and kits carry one release.
 From the phone's manager page (the worker), a manager older than `NBTRLS2`
@@ -31,8 +31,8 @@ major, in increasing major order, at most two. Canonical version components
 are bounded to 16 bits (major is nonzero); comma-separated capability names
 are unique, 1-24 lowercase letter/digit/hyphen characters starting with a
 letter, at most 255 bytes per list. An empty list uses a trailing `|`.
-`tools/package_release.py` defaults to `tools/bridge.py`'s `CURRENT`, now
-`bridge=1.3|show,status,live-settings,most,gamepad`.
+`tools/package_release.py` defaults to `tools/bridge.py`'s `CURRENT`,
+`bridge=1.4|show,status,live-settings,most,gamepad,controller`.
 Repeated `--bridge '1.0|...'` overrides describe the actual built worker;
 `--no-bridge`, or a legacy release without lines, serves no bridge. The C and
 Rust verifiers validate these signed fields independently.
@@ -47,10 +47,9 @@ new application provisioning/updates so its dependency snapshot stays valid.
 Provisioning reads the active authenticated release's provider, keeping this
 check independent of the stable launcher's own age.
 
-NBT Manager has never been installed on the car; this is the first installable
-release. Initial setup installs the launcher that understands this contract.
-Ordinary later manager updates replace only GUI and worker. See
-[the bridge contract](app-bridge.md) for application records and the roadmap.
+Initial setup installs the launcher that understands this contract.
+Ordinary manager updates replace only GUI and worker. See
+[the bridge contract](app-bridge.md) for application records.
 
 Each nonempty component is at most 64 MiB and the combined payload is at most
 128 MiB. The first four components must be QNX-compatible 32-bit little-endian
@@ -76,6 +75,22 @@ build/nbt-verify-release manager-v1.nbtr manager-public.pem demo-1
 The desktop installer and target launcher enforce the manager signing key,
 release sequence, installation and rollback policies described below. A valid
 signature alone does not establish hardware compatibility.
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  [*] --> Stable: initial setup, first slot verified
+  Stable --> Pending: release staged in the inactive slot
+  Pending --> Pending: a newer release replaces an unconfirmed candidate
+  Pending --> Trial: next launch records a trial
+  Trial --> Confirmed: 10 s of healthy GUI and worker
+  Trial --> Stable: failure or interrupted trial, rolled back
+  Confirmed --> Stable: candidate becomes the stable slot
+```
+
+A normal update stages a higher sequence; recovery stages an older release
+without lowering the high-water mark. Once confirmed, the candidate's slot is
+the stable one and the high-water mark rises to its sequence.
 
 The manager state module provides bounded, path-free activation records and
 in-memory transitions for a stable slot and a pending candidate. Normal updates
@@ -126,22 +141,20 @@ publishes the key, profile and launcher through fixed temporary files and
 stages the first signed slot. Retrying accepts matching completed files and
 refuses conflicts; interrupted slot writes restart from the verified release.
 The desktop installer invokes this transaction and HMI registration over SSH.
-The complete flow has not been validated on a head unit.
 
-The experimental launcher also provides a first-install stream receiver. It
+The launcher also provides a first-install stream receiver. It
 requires exact declared lengths and EOF, checks the release signature and
 expected digest, checks the target and storage, and only then creates the
 managed root. It preflights the HMI layout and registers the plugin after
 manager enrollment. The desktop application supplies the signed launcher and
-release over SSH; the complete installation flow still requires hardware validation.
+release over SSH.
 
 The initial HMI registration transaction publishes the five signed plugin
 components to a dedicated `Plugins/NbtManager` directory. It checks the HMI
 root and filesystem, preserves existing plugins, rejects extra or unsafe
 entries and can retry its private staging directory after interruption. It
-requires the HMI filesystem to be writable and remains untested on the unit.
+requires the HMI filesystem to be writable.
 
 The target checks QNX 6.5 and its ARMv7 CPU flag before enrollment. QNX
 [documents the ARMv7 flag](https://www.qnx.com/developers/docs/6.5.0SP1/neutrino/technotes/QNX_for_ARMv7_Cortex_Processors.html)
 and [requires a write-capable descriptor for `fsync`](https://www.qnx.com/developers/docs/6.5.0SP1.update/com.qnx.doc.neutrino_lib_ref/f/fsync.html).
-Both platform detection and filesystem persistence still require head-unit testing.

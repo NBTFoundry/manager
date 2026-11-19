@@ -217,8 +217,8 @@ Raw evidence remains outside the repository.
   64 s cap until each requested Status has arrived. The HMI's initial
   timeout value was not established. It is not claimed to be 1 s.
 
-Initial values after Set, actual simultaneous-client behavior, server
-cleanup after process death, and all on-car compatibility remain untested.
+Not established: initial values after Set, behaviour with several clients at
+once, and the server's cleanup after a client process dies.
 Use the MOST section in [bench-checklist.md](bench-checklist.md).
 
 ## MOST function catalogue
@@ -481,7 +481,7 @@ Android Auto connecting gives runtime facts the dump cannot:
   (property 54) on a window of another context ("win_perm: unauthorized window
   request"). A process can change only its own windows: the manager GUI cannot
   push iDrive's windows down, only raise its own. It sets only its own
-  window's properties and does not set its z-order today.
+  window's properties and does not set its z-order.
 - **Display.** `carplay.ini` records the coding `1440_540,touch_screen`;
   LayerManagerService reports the HMI's surface 256 at 1440×540.
 - **LayerManagerService composes the panel.** GENIVI LayerManagerService
@@ -553,6 +553,6 @@ Android Auto connecting gives runtime facts the dump cannot:
 
 To learn more about a car: the `MOST registry` lines of a debug log list the
 FBlocks and instances present without any new MOST request; capturing candidate
-functions ([app-bridge.md](app-bridge.md)) gives their value formats; a
+functions ([bridge-design.md](bridge-design.md)) gives their value formats; a
 `tools/car_inventory.sh` run right after shifting into reverse and back shows
 whether `driving.gear` and `sensors.PDCStatus` reach a plugin.

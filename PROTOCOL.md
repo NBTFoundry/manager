@@ -117,8 +117,7 @@ PID before sending that host `SIGUSR1`. The host forwards only to its own
 unreaped child and only with the grant; it withdraws the marker before stopping
 the child and does not forward while stopping.
 Locks disappear on exit, so no persisted PID/capability file can become stale.
-A whole-file writer is not a show marker. POSIX byte-range lock behavior on the
-target still needs validation.
+A whole-file writer is not a show marker.
 
 `START <app>` replies `OK` once a start or show request is accepted. Display
 success is asynchronous and needs hardware validation.
@@ -178,7 +177,6 @@ byte-1 show marker. The worker checks the matching lifetime owner before and
 after its bounded read. Missing, malformed, symlinked, multiply linked,
 non-private and special files are ignored. The marker is withdrawn before
 child shutdown, and new hosts reset the old status bytes before launching.
-QNX shared-memory I/O and byte-range locks still require target validation.
 Host tests use a fixed root-local equivalent rather than `/dev/shmem`.
 
 ## Application bridge requirements
@@ -241,7 +239,7 @@ change (`include/nbt/controller_wire.h`; reader `nbt::controller::Input`,
 `src/sdk/controller_input.cpp`). States reach only an application with a
 surface that is not paused; going quiet sends a released, disconnected state
 first. No signed policy is needed and no raw MOST is exposed. See
-[the bridge contract](docs/app-bridge.md), section 8.
+[the bridge contract](docs/app-bridge.md), section 4.
 
 ## Application settings
 
@@ -308,10 +306,10 @@ resets the guard before attempting start/show; even an unsuccessful manual
 attempt re-arms it. A late persistence error can already have saved the record;
 retry and read it back. Settings and application data are untouched.
 
-The GUI's **Start with the car** choice, blocked reason, stable-launcher
-`--autostart` slot selection and delayed plugin invocation are **not wired yet**.
-Do not treat direct worker dispatch as completed boot integration: the launcher
-must verify and select the signed known-good worker under its operation lock,
+The GUI's **Start with the car** choice, the blocked reason, the stable
+launcher's `--autostart` slot selection and the plugin's delayed invocation are
+designed in [docs/bridge-design.md](docs/bridge-design.md#start-automatically):
+direct worker dispatch is not boot integration, because the launcher must verify and select the signed known-good worker under its operation lock,
 without opening a GUI or implicitly confirming a pending manager release.
 
 ### Managed application isolation and fault quarantine
@@ -406,8 +404,7 @@ seconds, and clears after 60 seconds of ready stable operation or candidate
 confirmation. `NBTMSTATE1` remains readable and gains zeroed restart fields when
 rewritten. Fatal GUI signals append a bounded record to `manager/crash.gui` and,
 when enabled, the debug log; the launcher reports the marker before restarting,
-and the next GUI removes it and displays a recovery notice. These host-tested
-safeguards still require target validation.
+and the next GUI removes it and displays a recovery notice.
 
 A profile at `trust/apps/<id>.conf` contains exactly:
 
@@ -625,8 +622,7 @@ The initial safe context is the car-observed ID6 home pair `visibleContext=3`,
 `widgetType=LT_Table_ID6L_Pad_Title`. Other contexts, including navigation, ask
 the driver to open App Manager manually until car evidence establishes them.
 CDS subscriptions are change-driven, so the plugin also calls
-`cdsGetPropertyAsync` once a second with the same delegates. Actual value-source
-freshness and firmware behavior still require car validation. Speed changes
+`cdsGetPropertyAsync` once a second with the same delegates. Speed changes
 are included in the optional debug log; no on-road wake test is required.
 
 Shared signing examples are `tests/phone-signing-vectors.tsv`, checked by the

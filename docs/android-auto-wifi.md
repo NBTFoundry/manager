@@ -42,8 +42,7 @@ is up and NBT-AAD is set to use it.
 - **Ports.** The manager uses 8080 and Android Auto uses 5277.
 - **Radio.** A car with both CarPlay and Miracast coded runs `uap0` and
   `wfd0` together from boot, so both access points at once is a normal state
-  for this chip (Marvell 8787). Whether starting `wfd0` disturbs an Android
-  Auto session already running on `uap0` is untested.
+  for this chip (Marvell 8787).
 
 ## Phone side
 

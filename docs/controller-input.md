@@ -22,6 +22,16 @@ since been checked against the vendor libraries of firmware NBTevo_Y21432J; see
 [head-unit-interfaces.md](head-unit-interfaces.md). The controller message
 formats remain NBT-AAD's observations.
 
+```mermaid
+flowchart LR
+  CTRL["iDrive controller<br/>and favourite keys"] -->|"MOST: FBlock 0xE5, 0x15.0C"| SRV["DSYSMOSTServer"]
+  SRV --> HMI["iDrive (HmiMain3D)"]
+  SHIM["Capture shim in iDrive"] -.->|"keeps the keys from iDrive while<br/>the manager or an application is shown"| HMI
+  SRV -->|"DSI client NBTMGR_INPUT"| GUI["Manager GUI<br/>menu navigation"]
+  SRV -->|"the host's MOST client"| HOST["Application host<br/>decodes once"]
+  HOST -->|"NBT_CONTROLLER_FD=8<br/>16-byte states"| APP["Application<br/>nbt::controller::Input"]
+```
+
 ## Components
 
 | File | Role | Host tests |
@@ -224,7 +234,7 @@ Camera views can open from the camera button with neither reverse nor a PDC
 change, and as a `GFXIDENTIFIER_INVALID` screen. Re-holding can cover the
 camera, which is why the plugin never re-holds after iDrive takes the screen.
 Contexts 1023 (F-series NBTevo_Y24073J) and 692 (Supra Top View) are camera
-contexts too; see [app-bridge.md](app-bridge.md). The bench checks include the
+contexts too; see [bridge-design.md](bridge-design.md). The bench checks include the
 camera button and returning from it.
 
 ## Limits

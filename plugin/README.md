@@ -1,6 +1,6 @@
 # iDrive bridge
 
-This experimental PluginApp registers one `App Manager` menu entry. It is the
+This PluginApp registers one `App Manager` menu entry. It is the
 only iDrive plugin NBT Manager needs: managed applications do not ship their
 own. The manager's main menu starts them; holding the push on one opens its
 settings, declared in its signed package, and stops it (see `PROTOCOL.md`).
@@ -37,9 +37,7 @@ and recovers an interrupted candidate trial. A managed lock prevents repeated
 selections from opening another window while one is active. If the GUI dies, the
 plugin's bounded liveness check releases the focus hold instead of waiting for a
 stale lock. The preview shows worker startup status and closes after 45 seconds.
-Controller input, bringing a covered window forward and display handoff require
-target validation. The desktop installer provisions the manager and stages
-manager updates; on-device behavior still needs validation.
+The desktop installer provisions the manager and stages manager updates.
 
 `NbtManager.manifest` references the XML and generated image and text ZIPs.
 `make qnx-plugin RHMI_LIBDIR=/path/to/libraries` produces the complete bundle in

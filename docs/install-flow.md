@@ -10,7 +10,7 @@ sequenceDiagram
   participant I as Installer (desktop or phone)
   participant H as Head unit (SSH, QNX)
   participant L as Release launcher
-  I->>H: connect (enable SSH through the gateway if needed); uname -s = QNX
+  I->>H: connect (enable SSH through the gateway if needed), check uname -s = QNX
   I->>H: mount -uw /net/hu-omap/fs/sda0
   I->>H: upload launcher to /tmp/nbt-manager-<random>
   I->>L: --bootstrap-manager <key bytes> <release bytes> <compat> <sha256> (stdin)
@@ -18,7 +18,7 @@ sequenceDiagram
   L->>L: check plugin folder and manager storage
   L->>H: install manager (slot 0), iDrive plugin, capture shim
   L-->>I: INSTALLED
-  I->>H: rm -rf staging; mount -ur /net/hu-omap/fs/sda0
+  I->>H: rm -rf staging, then mount -ur /net/hu-omap/fs/sda0
   I->>H: restart the head unit (OnOffDSICommander appreset), when the user agrees
 ```
 

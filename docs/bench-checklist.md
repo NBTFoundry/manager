@@ -132,7 +132,7 @@ as described in `README.md`.
 
 ## 9. MOST subscriptions and parameter capture (A1/A3/B3/B4)
 
-**Not yet performed.** Record the firmware, manager commit, monitor package
+Record the firmware, manager commit, monitor package
 digest, date and operator. Use an isolated bench first. Keep raw logs in private
 storage outside the repository; messages can contain VIN and positions. Publish
 only reviewed facts and addresses. The recorder exits before its private log

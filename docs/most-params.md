@@ -69,7 +69,7 @@ Public cross-check (B5, partial): OASIS's
 agrees on Notification's control values, word-sized addresses/IDs and four-ID
 limit. Its NotificationCheck takes a device address and returns that address
 plus function IDs. That suggests the meaning of the HMI Check parser's leading
-word, but its request builder and firmware revision still need tracing.
+word; its request builder is not identified.
 The same manual assigns NetBlock Notification/Check to 401/402, while target
 HmiMain3D exports `CPxyNetBlock::CDeviceInfo` (vtable `0x03823bc8`), reinforcing
 that CPxyBase's low IDs cannot be applied indiscriminately.

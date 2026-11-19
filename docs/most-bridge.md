@@ -6,13 +6,24 @@ MOST functions it may receive, send to and control. Its host runs one MOST
 client for it, enforces that declaration and relays messages over a datagram
 socket. This document is the contract. It is part of bridge **1.2**.
 
-**Status:** host-tested against a stand-in DSI library
-(`tests/fake_dsi.c`) and cross-compiled for QNX 6.5. It has **not run in a
-car**. The DSI ABI and the MOST server's behaviour are reconstructed (see
+Host tests run it against a stand-in DSI library (`tests/fake_dsi.c`). The
+DSI ABI and the MOST server's behaviour are reconstructed (see
 [controller-input.md](controller-input.md) and
 [head-unit-interfaces.md](head-unit-interfaces.md)); the facts used here
 that came from NBT-AAD are noted where they are used. No NBT-AAD code is
 used.
+
+```mermaid
+flowchart LR
+  APP["Application"] <-->|"NBT_MOST_FD=6<br/>one record per datagram"| HOST
+  subgraph HOST["Application host"]
+    POLICY{"signed bridge-most rules<br/>rx · tx · sub · ctl"}
+  end
+  HOST <-->|"DSI client NBTAPP_&lt;app&gt;"| SRV["DSYSMOSTServer"]
+  SRV <--> BUS["MOST bus"]
+  POLICY -.->|"SEND outside a tx rule: NOT_ALLOWED<br/>more than 100/s: BUSY"| APP
+  POLICY -.->|"messages outside rx: not delivered"| DROP["dropped"]
+```
 
 ## Declaring it
 
@@ -108,7 +119,7 @@ HMI's own client subscribes to. It asks for the communication state once
 the registration is answered and then registers the `ctl` keys. For registration it sends the
 server requests 0xF (register client), 0x1 (device controls) and 0x2
 (process message) only. It never sends `setCommunicationCtrl` or device
-registrations. Device-control cleanup on disconnect still needs a car check.
+registrations.
 
 ### Host-managed subscriptions
 
@@ -150,9 +161,6 @@ Little-endian. Every record starts with `{u8 version = 1, u8 type, u8, u8}`.
 codec; `include/nbt/most_wire.h` and `src/sdk/most_wire_api.cpp` retain the C ABI
 for existing applications. QNX applications using the C++ SDK compile with
 `qcc -Vgcc_ntoarmv7le_gpp -lang-c++` and link the device's `libstdc++.so.6`.
-The pre-rewrite implementation is tagged `c99-final` for migration reference.
-The repository has no licence yet; settle that before copying the SDK into
-another project.
 
 **Host to application:**
 

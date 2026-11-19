@@ -1,7 +1,7 @@
 # Car inventory: copying head unit files to a USB stick
 
 Step 1 of "Discovering more car data and interfaces" in
-[app-bridge.md](app-bridge.md): copy the files that describe the head unit's
+[bridge-design.md](bridge-design.md): copy the files that describe the head unit's
 car data and interfaces to a USB stick, to study them on a computer. Nothing
 on the head unit is changed; the script only reads, and writes to the stick.
 
@@ -116,6 +116,5 @@ core/src/activation.rs`). No ssh keys are copied.
 buffer, mostly video decoder messages): run the script right after the event
 you want to see, such as opening a plugin.
 
-`tools/car_inventory.py` (planned, see [app-bridge.md](app-bridge.md)) will
-read the folder and list the car-data names, their formats and the MOST
-functions. Until then, tell the agent where the folder is on your computer.
+The folder is then studied on the computer for the car-data names, their
+formats and the MOST functions ([bridge-design.md](bridge-design.md)).

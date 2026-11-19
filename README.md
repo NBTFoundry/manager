@@ -241,7 +241,8 @@ link.
 | Document | Contents |
 | --- | --- |
 | [PROTOCOL.md](PROTOCOL.md) | Control channel, application contract, settings, paired-phone HTTP protocol |
-| [docs/app-bridge.md](docs/app-bridge.md) | The application bridge: capabilities, versioning, design |
+| [docs/app-bridge.md](docs/app-bridge.md) | The application bridge: capabilities, versioning, life of an application |
+| [docs/bridge-design.md](docs/bridge-design.md) | Designs beyond bridge 1.4: car data, focus hold, autostart, favourite entry |
 | [docs/most-bridge.md](docs/most-bridge.md) | MOST messages for applications, under a signed policy |
 | [docs/gamepad-bridge.md](docs/gamepad-bridge.md) | Wired USB gamepads |
 | [docs/controller-input.md](docs/controller-input.md) | The iDrive controller and iDrive's focus hold |
