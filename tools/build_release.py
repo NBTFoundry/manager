@@ -62,8 +62,7 @@ def configuration():
 def check():
     _, _, _, public, _ = configuration()
     private = Path(required("MANAGER_SIGNING_KEY")).resolve(strict=True)
-    for tool in ("openssl", os.environ.get("QCC", "qcc"),
-                 os.environ.get("CARGO", "cargo")):
+    for tool in ("openssl", os.environ.get("QCC", "qcc")):
         if not shutil.which(tool):
             raise ValueError(f"required build tool unavailable: {tool}")
     for variable, libraries in (("QNX_SCREEN_LIBDIR", ("libscreen.so",)),
@@ -120,7 +119,15 @@ def package():
     print(f"Signed release: {destination / 'manager.nbtr'}", flush=True)
 
 
-def desktop():
+def installer_dir():
+    """The NBTFoundry/installer checkout (NBT_INSTALLER_DIR, default ../installer)."""
+    directory = Path(os.environ.get("NBT_INSTALLER_DIR", ROOT.parent / "installer")).resolve()
+    if not (directory / "Cargo.toml").is_file():
+        raise ValueError(f"no installer workspace at {directory} (set NBT_INSTALLER_DIR)")
+    return directory
+
+
+def installer():
     _, compatibility, _, public, build = configuration()
     release = dist_dir() / "manager.nbtr"
     verify(release, public, compatibility, build)
@@ -134,24 +141,28 @@ def desktop():
         raise ValueError("cannot determine native Rust target")
     linker_variable = "CARGO_TARGET_" + host.upper().replace("-", "_") + "_LINKER"
     environment.setdefault(linker_variable, os.environ.get("CC", "gcc"))
-    target = Path(os.environ.get("DESKTOP_TARGET_DIR", str(build / "desktop"))).resolve()
-    subprocess.run([os.environ.get("CARGO", "cargo"), "build", "--release", "--locked",
-                    "--manifest-path", str(ROOT / "desktop/Cargo.toml"),
+    workspace = installer_dir()
+    cargo = os.environ.get("CARGO", "cargo")
+    if not shutil.which(cargo):
+        raise ValueError(f"required build tool unavailable: {cargo}")
+    target = Path(os.environ.get("INSTALLER_TARGET_DIR", str(build / "installer"))).resolve()
+    subprocess.run([cargo, "build", "--release", "--locked",
+                    "--manifest-path", str(workspace / "Cargo.toml"),
                     "--target-dir", str(target)], env=environment, check=True)
     executable = "nbt-manager-installer.exe" if os.name == "nt" else "nbt-manager-installer"
     shipped = dist_dir() / executable
     staged = build / f"{executable}.staged"
     shutil.copy2(target / "release" / executable, staged)
     publish(staged, shipped)
-    print(f"Desktop installer: {shipped}", flush=True)
+    print(f"Installer: {shipped}", flush=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("step", choices=("check", "package", "desktop"))
+    parser.add_argument("step", choices=("check", "package", "installer"))
     args = parser.parse_args()
     try:
-        {"check": check, "package": package, "desktop": desktop}[args.step]()
+        {"check": check, "package": package, "installer": installer}[args.step]()
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"release build failed: {error}\n")
 

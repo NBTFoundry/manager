@@ -159,9 +159,9 @@ def main():
         if b"NBT_TEST_" in capture.read_bytes():
             errors.append("libnbt-capture.so contains NBT_TEST_ strings")
 
-    old_runtime = Path(os.environ.get(
-        "QNX_OLD_LIBSTDCXX",
-        "/home/mobyfab/src/tools/qnx-6.5-tools/sdk/target/qnx6/armle-v7/lib/libstdc++.so.6.0.13"))
+    # QNX 6.5's C++ runtime, from the SDK the environment script sets up.
+    default_runtime = Path(os.environ.get("QNX_TARGET", "/nonexistent")) / "armle-v7/lib/libstdc++.so.6.0.13"
+    old_runtime = Path(os.environ.get("QNX_OLD_LIBSTDCXX", str(default_runtime)))
     if old_runtime.is_file():
         available = symbols(old_runtime, "--defined-only")
         missing = sorted(item for item in imported if item.startswith("_Z") and item not in available)

@@ -14,7 +14,8 @@ REFRESH = BUILD / "manager-refresh-probe"
 SETUP = BUILD / "manager-setup-probe"
 LAUNCHER = BUILD / "launcher-host"
 PACK = ROOT / "tools/package_release.py"
-REAL_STARTER = Path("/home/mobyfab/src/reverse/opt/sys/etc/starter.cfg")
+# A head unit's own /opt/sys/etc/starter.cfg, if one is at hand; else a stock copy.
+REAL_STARTER = Path(os.environ.get("NBT_REAL_STARTER_CFG", "/nonexistent/starter.cfg"))
 NAMES = ("libNbtManager.so", "NbtManager.manifest", "NbtManager.xml", "NbtManager_ALL_Texts.zip",
          "NbtManager_ALL_Images.zip")
 

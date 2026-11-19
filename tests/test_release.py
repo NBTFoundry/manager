@@ -151,7 +151,7 @@ class ReleaseTests(unittest.TestCase):
         result = run(COPY, source, self.root / "manager.pub", "demo-1", 0, output, "special")
         self.assertEqual(result.returncode, 1)
 
-    def test_complete_release_packaging_and_stale_desktop_rejection(self):
+    def test_complete_release_packaging_and_stale_installer_rejection(self):
         with tempfile.TemporaryDirectory(prefix="build release ") as temporary:
             build = Path(temporary) / "build"
             dist = Path(temporary) / "dist"
@@ -180,7 +180,7 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(sorted(p.name for p in dist.iterdir()), ["manager.nbtr"])
             environment["MANAGER_PUBLIC_KEY"] = str(self.root / "manager.pub")
             environment["MANAGER_SEQUENCE"] = "2"
-            result = subprocess.run(command + ["desktop"], env=environment, capture_output=True)
+            result = subprocess.run(command + ["installer"], env=environment, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b"does not match requested version and sequence", result.stderr)
 

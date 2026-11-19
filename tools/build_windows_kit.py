@@ -40,6 +40,7 @@ KEYS = Path(os.environ.get("NBT_KEYS_DIR", Path.home() / ".local/share/nbt-manag
 MANAGER_COMPAT = "nbt-evo-dev"
 TEST_COMPAT = "nbt-test-1"
 WINDOWS = "x86_64-pc-windows-gnu"
+CARGO = os.environ.get("CARGO", "cargo")
 
 
 def run(*args, env=None, **kwargs):
@@ -72,7 +73,7 @@ def next_sequence():
 
 
 def check_tools():
-    for tool in ("openssl", os.environ.get("QCC", "qcc"), "cargo", "x86_64-w64-mingw32-gcc"):
+    for tool in ("openssl", os.environ.get("QCC", "qcc"), CARGO, "x86_64-w64-mingw32-gcc"):
         if not shutil.which(tool):
             raise ValueError(f"missing tool: {tool} (source the QNX 6.5 environment first)")
     for variable in ("QNX_SCREEN_LIBDIR", "RHMI_LIBDIR"):
@@ -107,7 +108,12 @@ def package(source, version, sequence, key, output):
 def phone_options():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--without-phone-app", action="store_true", help="build the car-only milestone-1 kit")
-    parser.add_argument("--phone-app", type=Path, default=ROOT.parents[1] / "mobile/nbt-manager")
+    parser.add_argument("--phone-app", type=Path,
+                        default=Path(os.environ.get("NBT_MOBILE_DIR", ROOT.parent / "mobile-app")),
+                        help="NBTFoundry/mobile-app checkout (NBT_MOBILE_DIR)")
+    parser.add_argument("--installer", type=Path,
+                        default=Path(os.environ.get("NBT_INSTALLER_DIR", ROOT.parent / "installer")),
+                        help="NBTFoundry/installer checkout (NBT_INSTALLER_DIR)")
     return parser.parse_args()
 
 
@@ -198,7 +204,10 @@ def main():
         run(BUILD / "nbt-verify", path, app_public, "test", TEST_COMPAT, stdout=subprocess.DEVNULL)
     embedded = dict(NBT_MANAGER_RELEASE=str(RELEASE / "manager.nbtr"), NBT_MANAGER_PUBLIC_KEY=str(manager_public),
                     NBT_TEST_APP_PACKAGE=str(v1), NBT_TEST_APP_KEY=str(app_public), NBT_TEST_APP_COMPAT=TEST_COMPAT)
-    build_phone(options, kit, sequence, dict(os.environ, NBT_INSTALLER_SOURCE=str(ROOT), **embedded))
+    installer = options.installer.resolve()
+    if not (installer / "Cargo.toml").is_file():
+        raise ValueError(f"no installer workspace at {installer} (use --installer)")
+    build_phone(options, kit, sequence, dict(os.environ, NBT_INSTALLER_SOURCE=str(installer), **embedded))
 
     # Host tools (build scripts) link natively; the installer links with MinGW.
     rustc = subprocess.run(["rustc", "-vV"], check=True, capture_output=True, text=True).stdout
@@ -208,9 +217,9 @@ def main():
                      CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER="x86_64-w64-mingw32-gcc",
                      CC_x86_64_pc_windows_gnu="x86_64-w64-mingw32-gcc",
                      **{f"CARGO_TARGET_{host_var}_LINKER": "gcc", f"CC_{host.replace('-', '_')}": "gcc"})
-    target_dir = BUILD / "desktop"
-    run("cargo", "build", "--release", "--locked", "--target", WINDOWS, "--manifest-path",
-        ROOT / "desktop/Cargo.toml", "--target-dir", target_dir, env=cargo_env)
+    target_dir = BUILD / "installer"
+    run(CARGO, "build", "--release", "--locked", "--target", WINDOWS, "--manifest-path",
+        installer / "Cargo.toml", "--target-dir", target_dir, env=cargo_env)
     shutil.copy2(target_dir / WINDOWS / "release/nbt-manager-installer.exe", kit / "NBT-Manager-Installer.exe")
     # The same signed release, for the phone app: a car whose manager is this
     # version or newer updates its manager from the phone (PROTOCOL.md).

@@ -2,6 +2,5 @@
 .git/**
 build/**
 config/**
-desktop/**
 dist/**
 third_party/**

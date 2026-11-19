@@ -35,12 +35,16 @@ MANAGER_PUBLIC_KEY ?=
 # The apps public key bundled with the manager: every application package is
 # signed with its private half (tools/embed_key.py, src/package/apps_key.cpp).
 APPS_PUBLIC_KEY ?=
+# The desktop installer is the sibling NBTFoundry/installer checkout; only
+# installer-release and windows-kit use it.
 CARGO ?= cargo
-DESKTOP_TARGET_DIR ?= $(abspath $(BUILD_DIR))/desktop
+NBT_INSTALLER_DIR ?= $(abspath ../installer)
+INSTALLER_TARGET_DIR ?= $(abspath $(BUILD_DIR))/installer
 export BUILD_DIR DIST_DIR MANAGER_VERSION MANAGER_SEQUENCE MANAGER_COMPAT
-export MANAGER_SIGNING_KEY MANAGER_PUBLIC_KEY APPS_PUBLIC_KEY CARGO DESKTOP_TARGET_DIR
+export MANAGER_SIGNING_KEY MANAGER_PUBLIC_KEY APPS_PUBLIC_KEY CARGO NBT_INSTALLER_DIR
+export INSTALLER_TARGET_DIR
 
-.PHONY: all host release desktop-release test clean simulator run-simulator qnx qnx-plugin qnx-capture qnx-check plugin-resources windows-kit kit check-cxx check-static-init stack-report pre-commit format fuzz FORCE tsan
+.PHONY: all host release installer-release test clean simulator run-simulator qnx qnx-plugin qnx-capture qnx-check plugin-resources windows-kit kit check-cxx check-static-init stack-report pre-commit format fuzz FORCE tsan
 all: release
 
 # The whole kit procedure from a clean commit: QNX checks, kit, copy to the
@@ -52,10 +56,10 @@ release:
 	python3 tools/build_release.py check
 	$(MAKE) host qnx qnx-plugin qnx-capture
 	python3 tools/build_release.py package
-	$(MAKE) desktop-release
 
-desktop-release:
-	python3 tools/build_release.py desktop
+# The desktop installer with dist/manager.nbtr embedded (NBT_INSTALLER_DIR).
+installer-release:
+	python3 tools/build_release.py installer
 
 windows-kit:
 	python3 tools/build_windows_kit.py
@@ -446,4 +450,4 @@ DEPS = $(shell find $(OBJ_DIR) -name '*.d' 2>/dev/null)
 -include $(DEPS)
 
 clean:
-	rm -rf build obj
+	rm -rf $(BUILD_DIR) obj

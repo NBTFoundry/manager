@@ -1,4 +1,0 @@
-# Formatting-only commits, skipped by git blame:
-#   git config blame.ignoreRevsFile .git-blame-ignore-revs
-# desktop: format the Rust workspace with cargo fmt
-216af22d5f65c8268a2bbef79d59973ac1060d9a

@@ -89,20 +89,8 @@ def is_cxx_file(rel_path: str, patterns) -> bool:
     )
 
 
-def cargo_fmt(*args):
-    """rustfmt over the installer's Rust workspace (desktop/)."""
-    cargo = os.environ.get("CARGO", "cargo")
-    return subprocess.run([cargo, "fmt", "--all", *args], cwd=ROOT / "desktop").returncode
-
-
-def is_rust_file(rel_path: str) -> bool:
-    return rel_path.startswith("desktop/") and rel_path.endswith(".rs")
-
-
 def main():
     if "--format" in sys.argv[1:]:
-        if cargo_fmt() != 0:
-            return 1
         files = walk_repo_cxx_files()
         if not files:
             return 0
@@ -118,11 +106,6 @@ def main():
         cmd = ["clang-format", "--dry-run", "--Werror"] + cxx_files
         if subprocess.run(cmd, cwd=ROOT).returncode != 0:
             print("pre-commit: clang-format check failed (run 'make format')", file=sys.stderr)
-            return 1
-
-    if check_all or any(is_rust_file(f) for f in files):
-        if cargo_fmt("--check") != 0:
-            print("pre-commit: cargo fmt check failed (run 'make format')", file=sys.stderr)
             return 1
 
     line_args = [] if check_all else cxx_files

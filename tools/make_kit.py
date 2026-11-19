@@ -4,12 +4,13 @@
 1. Refuses a working tree with uncommitted changes (a kit comes from a commit).
 2. In the QNX 6.5 environment: `make qnx-check stack-report`, then
    tools/build_windows_kit.py with the capture shim just built.
-3. Copies the kit to the exchange folder (NBT_KIT_DIR, default the NAS's
-   /mnt/nas/public/nbt) as the zip plus the unzipped folder, refusing to
-   replace either, and checks every file there against SHA256SUMS.txt.
+3. Copies the kit to the exchange folder NBT_KIT_DIR as the zip plus the
+   unzipped folder, refusing to replace either, and checks every file there
+   against SHA256SUMS.txt. Without NBT_KIT_DIR the kit is not copied.
 4. Prints the facts for the kit's row in docs/install-flow.md.
 
-Environment: QNX_ENV (env.sh), QNX_SCREEN_LIBDIR, RHMI_LIBDIR, NBT_KIT_DIR.
+Environment: QNX_ENV (the QNX 6.5 environment script), QNX_SCREEN_LIBDIR,
+RHMI_LIBDIR, NBT_KIT_DIR (optional).
 --no-copy builds and checks without copying.
 """
 import argparse
@@ -24,17 +25,11 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-AAD = Path("/home/mobyfab/src/reverse/Supra-iDrive6-Android-Auto/milestone-7")
-DEFAULTS = {
-    "QNX_ENV": "/home/mobyfab/src/tools/qnx-6.5-tools/env.sh",
-    "QNX_SCREEN_LIBDIR": str(AAD / "lib"),
-    "RHMI_LIBDIR": str(AAD / "rhmiapp/lib"),
-    "NBT_KIT_DIR": "/mnt/nas/public/nbt",
-}
-
-
 def setting(name):
-    return os.environ.get(name) or DEFAULTS[name]
+    value = os.environ.get(name)
+    if not value:
+        raise SystemExit(f"make kit: set {name}")
+    return value
 
 
 def sha256(path):
@@ -112,12 +107,12 @@ def main():
         raise SystemExit("make_kit: commit first: the working tree has uncommitted changes")
     build()
     version, archive = built_kit()
-    if args.no_copy:
+    if args.no_copy or not os.environ.get("NBT_KIT_DIR"):
         with tempfile.TemporaryDirectory(dir=ROOT / "build") as staging:
             with zipfile.ZipFile(archive) as kit:
                 kit.extractall(staging)
             check_sums(Path(staging) / f"nbt-manager-{version}")
-        where = "not copied (--no-copy)"
+        where = "not copied (--no-copy or no NBT_KIT_DIR)"
     else:
         where = str(copy(version, archive, Path(setting("NBT_KIT_DIR"))))
     release = ROOT / "build/kit-release/manager.nbtr"
