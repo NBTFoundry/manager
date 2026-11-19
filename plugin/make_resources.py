@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Build small, reproducible resource databases for the PluginApp."""
 import argparse
-import struct
 import zipfile
-import zlib
 from pathlib import Path
+
+ASSETS = Path(__file__).resolve().parent / "assets"
 
 
 LANGUAGES = {
@@ -14,27 +14,11 @@ LANGUAGES = {
 }
 
 
-def chunk(kind, data):
-    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
-
-
-def icon(width, height):
-    # A simple, original grid of four squares on a transparent background.
-    rows = bytearray()
-    side = min(width, height)
-    left, top = (width - side) // 2, (height - side) // 2
-    for y in range(height):
-        rows.append(0)  # PNG filter: none
-        for x in range(width):
-            nx, ny = x - left, y - top
-            square = ((side * 12 // 100 <= nx < side * 45 // 100 or
-                       side * 55 // 100 <= nx < side * 88 // 100) and
-                      (side * 12 // 100 <= ny < side * 45 // 100 or
-                       side * 55 // 100 <= ny < side * 88 // 100))
-            rows.extend((232, 238, 244, 255) if square else (0, 0, 0, 0))
-    header = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
-    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) +
-            chunk(b"IDAT", zlib.compress(bytes(rows), 9)) + chunk(b"IEND", b""))
+def icon(name):
+    """The menu icon: the NBTFoundry mark in one colour on transparent, 8-bit
+    RGBA (rendered from the brand kit; plugin/assets/55001.png is 63x54,
+    55002.png 549x484)."""
+    return (ASSETS / name).read_bytes()
 
 
 def write_entry(archive, name, data):
@@ -53,8 +37,8 @@ def main():
         for lang, name in LANGUAGES.items():
             write_entry(archive, lang + ".txt", ("100000=" + name + "\n1=App Manager\n").encode())
     with zipfile.ZipFile(args.output / "NbtManager_ALL_Images.zip", "w") as archive:
-        write_entry(archive, "55001.png", icon(63, 54))
-        write_entry(archive, "55002.png", icon(549, 484))
+        write_entry(archive, "55001.png", icon("55001.png"))
+        write_entry(archive, "55002.png", icon("55002.png"))
 
 
 if __name__ == "__main__":
