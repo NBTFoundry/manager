@@ -244,6 +244,19 @@ class PackageTests(unittest.TestCase):
         self.assertIn(b"manifest exceeds 2048 bytes", result.stderr)
         self.assertFalse(output.exists())
 
+    def test_packer_reads_an_argument_file(self):
+        # Applications keep their description in one file: one argument per line,
+        # spaces kept, blank lines and comments skipped. The same package results.
+        args = self.path / "package.args"
+        args.write_text("# test application\n--app\ntest\n\n--compat\ndemo-1\n"
+                        "--setting\nbackground|Background color|blue|blue,red,green,black\n")
+        output = self.path / "from-file.nbt"
+        result = run("python3", PACK, f"@{args}", "--version", "v1", "--sequence", "1",
+                     "--key", self.path / "key.pem", "--output", output, self.path / "app")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"setting=background|Background color|blue|blue,red,green,black\n", output.read_bytes())
+        self.assertEqual(self.verify(output.read_bytes()).returncode, 0)
+
     def test_packer_refuses_existing_output(self):
         target = self.path / "existing"
         target.write_bytes(b"preserve")

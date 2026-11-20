@@ -22,8 +22,17 @@ SETTING_LABEL = re.compile(r"[ -{}~]{1,24}\Z")
 SETTING_CHOICE = re.compile(r"[a-z0-9_-]{1,12}\Z")
 
 
+def file_argument(line):
+    """One argument per line of an @file; blank lines and # comments are skipped."""
+    return [] if not line.strip() or line.lstrip().startswith("#") else [line]
+
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    # @FILE reads arguments from FILE, one per line: an application keeps its
+    # package description (app, compatibility, bridge, settings) in one file that
+    # its Makefile and its release workflow both pass.
+    parser = argparse.ArgumentParser(description=__doc__, fromfile_prefix_chars="@")
+    parser.convert_arg_line_to_args = file_argument
     parser.add_argument("--app", required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--sequence", required=True, type=int)
