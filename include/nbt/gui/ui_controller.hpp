@@ -253,8 +253,10 @@ public:
     int languageChoice = model::kLanguageAuto; // manager/language, as loaded or saved
     int carLanguage = -1;                      // iDrive's language as a model::Language; -1 unknown
     int languagePick = -1;                     // the choice being saved (R_LANGUAGE)
-    StatusFacts facts;     // Settings > Status and the gamepad test (gatherStatus)
-    FilesState files = {}; // an application's files (files_ui.hpp)
+    StatusFacts facts; // Settings > Status and the gamepad test (gatherStatus)
+    // An application's files (files_ui.hpp). Not "= {}": GCC 4.8 (QNX) flags that
+    // with missing-field-initializers.
+    FilesState files = FilesState();
 
 private:
     core::SecureString<63> wifiPass;
