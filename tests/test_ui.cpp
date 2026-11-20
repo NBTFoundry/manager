@@ -476,7 +476,7 @@ static void test_application_needing_an_update(void) {
     }
 }
 
-static void test_push_starts_and_closes(void) {
+static void test_push_starts(void) {
     UiController ui;
     loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t0");
     press(&ui, nbt::gui::KeyDown, 1);
@@ -486,8 +486,12 @@ static void test_push_starts_and_closes(void) {
     CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 1 && !ui.holding);
     CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 0);
     exchange(&ui, "START test", "OK");
-    /* The application takes the screen: the manager closes. */
-    CHECK(wantsExit(&ui));
+    /* Started without the screen (in the background): the manager stays on its
+     * list, says so and reads which applications run. */
+    CHECK(!wantsExit(&ui) && ui.screen == nbt::gui::Apps && view_contains(&ui, "Application started"));
+    CHECK(!ui.takeHandover());
+    exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
+    CHECK(!wantsExit(&ui) && !ui.takeAppEnded());
 
     loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t0");
     press(&ui, nbt::gui::KeySelect, 1);
@@ -1756,7 +1760,7 @@ int main(void) {
     test_autostart_setting();
     test_application_status();
     test_main_menu_and_banner();
-    test_push_starts_and_closes();
+    test_push_starts();
     test_application_needing_an_update();
     test_hold_opens_settings();
     test_stop_failures();

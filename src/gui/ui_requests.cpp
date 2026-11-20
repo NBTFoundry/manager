@@ -100,7 +100,11 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         return 0;
     case R_START:
         if (!strcmp(replyText, "OK")) {
-            exitRequested = 1;
+            // Started without the screen (it runs in the background): the
+            // manager stays open, its list showing the application running.
+            // A start with the car never comes here (the worker's --autostart).
+            textf(message, sizeof(message), T_W_APP_STARTED);
+            queued = R_RUNNING;
             return 0;
         }
         if (!strcmp(replyText, "OK screen")) {

@@ -323,12 +323,20 @@ class ManagerUiTests(unittest.TestCase):
         host_lock = self.root / "state/test/host.lock"
         try:
             view = self.send("select")
-            # The application starts and the manager closes.
-            self.assertEqual(view.exit, 1, view.text())
+            # The application starts without the screen (in the background):
+            # the manager stays open and lists it running.
+            self.assertEqual(view.exit, 0, view.text())
+            self.assertIn("Application started", view.lines)
             deadline = time.monotonic() + 8
             while not self.lock_holder(self.root / "state/test/lease") and time.monotonic() < deadline:
                 time.sleep(0.05)
             self.assertTrue(self.lock_holder(host_lock))
+            for _ in range(10):
+                if view.items[0] == "test  (running)":
+                    break
+                view = self.send("poll")
+            self.assertEqual(view.items[0], "test  (running)")
+            self.assertEqual(view.exit, 0, view.text())
             self.finish()
             # Opening the manager again: the application is still running.
             self.probe = subprocess.Popen([PROBE, DAEMON, self.root], stdin=subprocess.PIPE,
