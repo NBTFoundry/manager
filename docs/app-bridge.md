@@ -108,7 +108,15 @@ manager's release version. Applications depend on the bridge, never on a
 manager release.
 
 - **Minor** changes only add: a capability, a car-data field, an optional
-  line or value. An application built for 1.2 runs unchanged on 1.5.
+  line or value. An application built for 1.2 runs unchanged on a manager
+  serving 1.5, unless that manager no longer runs minors that old.
+- **The oldest minor** a manager runs is part of its worker
+  (`NBT_BRIDGE_OLDEST_MINOR` in `include/nbt/bridge.h`; 1.5 today). It is raised
+  when applications built before some minor misbehave under the current manager:
+  an application declaring an older minor is disabled until updated
+  (PROTOCOL.md, "Disabled until updated"), never started. So declare the bridge
+  version of the SDK you build with, not the lowest one that would do. An
+  application declaring no bridge is not affected.
 - **Major** changes anything else: a removed or renamed capability or
   field, a changed format or meaning, a changed signal. Each major has its
   own shared-memory names (`nbt-bridge1-...`, `nbt-bridge2-...`), so two
@@ -135,18 +143,20 @@ Checks, so a dependency is never broken silently:
 
 - **Installing.** The worker checks the declaration when it verifies the
   package, before the review screen: the major must be served, the minor
-  at most the manager's, every `bridge-uses` capability implemented. A
-  failure is refused like a bad signature, with the reason ("needs bridge
-  1.3; this manager has 1.2"), on the phone page and the GUI. The accepted
+  at most the manager's and at least the oldest it runs, every `bridge-uses`
+  capability implemented. A failure is refused like a bad signature, with the
+  reason ("needs bridge 1.3; this manager has 1.2", "declares bridge 1.4; this
+  manager runs 1.5 and later"), on the phone page and the GUI. The accepted
   declaration is stored **inside** `state/<app>/installed` (see implementation
   notes below), so confirmation and recovery keep it with its executable.
 - **Updating the manager.** A manager release lists the bridge versions and
-  capabilities it serves. Staging refuses a manager update that would drop
-  a major or a required capability that an installed application uses,
-  naming the application; uninstalling or updating that application first
-  is the way through. Recovery to an older manager release is checked the
-  same way and warns instead of refusing, since recovery must stay
-  possible.
+  capabilities it serves. An update that drops a major or a required
+  capability an installed application uses, or no longer runs the minor it
+  declares, is not refused: the application is disabled until updated, shown
+  as needing an update and never started, rather than left to crash. Staging
+  names the first one it disables; recovery to an older release warns the same
+  way. Updating the application, or going back to a manager that runs it,
+  enables it again.
 - **Running.** The host passes `NBT_BRIDGE=<major>.<minor>` (the version
   served for the application's major) and `NBT_BRIDGE_CAPS`: the declared
   capabilities that are both implemented and available on this car. A
@@ -164,7 +174,7 @@ of the bridge.
 
 ## Versioning: formats and records
 
-Application signing: `tools/package.py --bridge 1.0 --bridge-optional show`.
+Application signing: `tools/package.py --bridge 1.5 --bridge-optional show`.
 The three ordered fields appear after `sha256`, before any `setting=` lines.
 When `bridge` is present, both capability fields are mandatory and may be empty.
 Versions are canonical decimal `major.minor`, major 1-65535 and minor 0-65535
@@ -177,7 +187,7 @@ The signed manifest remains bounded at 2048 bytes, including settings.
 `src/model/bridge.cpp` provides the allocation-free parser, compatibility check
 and intersection of declared, implemented and available capabilities. The C++11
 API is in `include/nbt/model/bridge.hpp`; `src/model/bridge_api.cpp` retains the
-C ABI. The worker checks dependencies after signature verification and again at
+C ABI, and `src/model/bridge_status.cpp` the status line's. The worker checks dependencies after signature verification and again at
 installation. Reasons reach the existing GUI and phone status messages. The host
 checks them before starting the application. Both user launches and candidate
 health checks receive only `NBT_BRIDGE=<served major.minor>` and
@@ -216,18 +226,23 @@ lines after `compat`, ordered by increasing major. The packager defaults to
 actual worker, and `--no-bridge` describes a legacy provider. Absent lines mean
 no bridge. C++ and Rust verifiers enforce the same bounds and syntax.
 The publisher must keep the metadata and `nbt_bridge_current()` implementation
-in agreement; metadata does not enable capabilities in an executable.
+in agreement; metadata does not enable capabilities in an executable. The lines
+cannot state the oldest minor the worker runs (a new field would make older
+launchers, installers and phones reject the release): `nbt_bridge_current()`
+alone carries it.
 
 Staging holds the manager operation lock and each installed application's
-transaction lock until activation is durable. It refuses busy/interrupted apps,
-unreadable records and incompatible normal updates before clearing a slot,
-naming the affected app. Explicit older-manager recovery permits a dependency
-mismatch and emits a bounded warning on stderr; invalid storage/records still
-fail closed. New app provisioning/updates are blocked while manager activation
+transaction lock until activation is durable. It refuses busy/interrupted apps
+and unreadable records before clearing a slot, naming the affected app. A
+dependency mismatch is not refused: the release disables that application until
+it is updated, and staging writes a bounded `Disabled until updated: <app>:
+<reason>` on stderr (`Recovery warning: ...` for explicit older-manager
+recovery); invalid storage/records still fail closed. New app provisioning/updates are blocked while manager activation
 is pending or on trial, preserving the dependency set checked at staging.
 The stable launcher's provisioning code reads the **active signed release's**
-provider rather than assuming its own compiled capabilities match the worker. Packages and records without bridge
-lines remain valid.
+provider rather than assuming its own compiled capabilities match the worker,
+and adds the oldest minor from its own (outside a trial, the launcher is the
+active release's). Packages and records without bridge lines remain valid.
 
 
 ## Principles

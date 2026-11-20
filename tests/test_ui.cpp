@@ -441,6 +441,41 @@ static void test_status_page(void) {
     CHECK(!strcmp(text, "B Right"));
 }
 
+/* An application this manager does not run (LIST "<app>|update") is tagged in
+ * the menu; starting it says it needs an update, and its page still opens, to
+ * uninstall it. */
+static void test_application_needing_an_update(void) {
+    UiController ui;
+    loaded(&ui, "APPS\t2\tdemo|update\ttest", "RUNNING\t0");
+    UiView v = view(&ui);
+    CHECK(ui.needsUpdate[0] && !ui.needsUpdate[1] &&
+          !strcmp(v.items[0], "demo  (needs an update)") && !strcmp(v.items[1], "test"));
+    ui.queued = nbt::gui::R_RUNNING; /* running from before the update: its status shows */
+    exchange(&ui, "RUNNING status", "RUNNING\t1\tdemo|playing");
+    CHECK(!strcmp(view(&ui).items[0], "demo  (playing)"));
+    ui.queued = nbt::gui::R_RUNNING;
+    exchange(&ui, "RUNNING status", "RUNNING\t0");
+    press(&ui, nbt::gui::KeySelect, 1);
+    CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 1);
+    exchange(&ui, "START demo", "ERR incompatible");
+    CHECK(!wantsExit(&ui) && view_contains(&ui, "demo needs an update for this manager"));
+    exchange(&ui, "RUNNING status", "RUNNING\t0");
+    hold(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart+update");
+    CHECK(ui.screen == nbt::gui::Settings && ui.settingsUpdate);
+    CHECK(view_contains(&ui, "demo needs an update for this manager") &&
+          view_contains(&ui, "Uninstall demo"));
+    /* Any other mark, or an empty one, is a protocol error. */
+    const char *bad[] = {"APPS\t1\tdemo|old", "APPS\t1\tdemo|", "APPS\t1\t|update",
+                         "APPS\t2\tdemo\tdemo|update"};
+    for (unsigned i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
+        UiController other;
+        CHECK(initUi(&other, "lo", 0) == 0);
+        Request request;
+        CHECK(other.nextRequest(now, request) == 1 && !strcmp(request.command, "LIST"));
+        CHECK(other.reply(bad[i], now) == -1);
+    }
+}
+
 static void test_push_starts_and_closes(void) {
     UiController ui;
     loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t0");
@@ -1722,6 +1757,7 @@ int main(void) {
     test_application_status();
     test_main_menu_and_banner();
     test_push_starts_and_closes();
+    test_application_needing_an_update();
     test_hold_opens_settings();
     test_stop_failures();
     test_uninstall();

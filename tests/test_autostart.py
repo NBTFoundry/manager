@@ -135,6 +135,15 @@ class AutostartTests(unittest.TestCase):
         self.private("autostart-guard", "NBTAUTOGUARD1\nfailures=3\n")
         self.assertEqual(self.automatic().returncode, 0)
 
+    def test_dispatch_skips_an_application_disabled_until_updated(self):
+        self.private("autostart", "NBTAUTO1\nenabled=1\n")
+        record = self.root / "state/test/installed"
+        record.write_text(record.read_text().replace("NBTSTATE1\n", "NBTSTATE2\n") +
+                          "bridge=1.4\nbridge-uses=\nbridge-optional=\n")
+        self.assertEqual(self.dispatch().returncode, 0)
+        self.assertFalse(self.host_lock.exists())
+        self.assertEqual(self.failures(), 0)  # not a failed start: autostart is not paused
+
     def test_host_killed_before_health_leaves_attempt_for_next_start(self):
         self.private("autostart", "NBTAUTO1\nenabled=1\n")
         self.assertEqual(self.dispatch().returncode, 0)

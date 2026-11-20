@@ -135,16 +135,12 @@ int SlotVerifier::checkBridgeDependencies(nbt_fs *fs, const nbt_bridge_provider 
             }
             return -1;
         }
-        if (nbt_bridge_check(&record.bridge, provider, NULL, NULL, reason, sizeof(reason))) {
-            if (!recovery) {
-                if (error && errorSize) {
-                    snprintf(error, errorSize, "%s: %s", apps[i], reason);
-                }
-                return -1;
-            }
-            if (warning && warningSize && !*warning) {
-                snprintf(warning, warningSize, "Recovery warning: %.48s: %.90s", apps[i], reason);
-            }
+        // Not a refusal: the new release disables the application until it is
+        // updated (app_compat.h), and staging names the first one.
+        if (nbt_bridge_check(&record.bridge, provider, NULL, NULL, reason, sizeof(reason)) &&
+            warning && warningSize && !*warning) {
+            snprintf(warning, warningSize, "%s: %.40s: %.80s",
+                     recovery ? "Recovery warning" : "Disabled until updated", apps[i], reason);
         }
     }
     return 0;

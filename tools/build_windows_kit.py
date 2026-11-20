@@ -103,7 +103,7 @@ TEST_SETTINGS = ("background|Background color|blue|blue,red,green,black",
 def package(source, version, sequence, key, output):
     settings = [argument for setting in TEST_SETTINGS for argument in ("--setting", setting)]
     run(sys.executable, ROOT / "tools/package.py", "--app", "test", "--version", version, "--sequence", sequence,
-        "--compat", TEST_COMPAT, "--key", key, "--output", output, "--bridge", "1.0", "--bridge-uses", "show,status,live-settings", *settings, source)
+        "--compat", TEST_COMPAT, "--key", key, "--output", output, "--bridge", "1.5", "--bridge-uses", "show,status,live-settings", *settings, source)
 
 
 def phone_options():

@@ -186,7 +186,7 @@ event("exit")
                   f"version=v1\nsha256={hashlib.sha256(active.read_bytes()).hexdigest()}\n")
         if uses is not None:
             record = record.replace("NBTSTATE1\n", "NBTSTATE2\n")
-            record += f"bridge=1.0\nbridge-uses={uses}\nbridge-optional={optional}\n"
+            record += f"bridge=1.5\nbridge-uses={uses}\nbridge-optional={optional}\n"
         (self.root / "state/test/installed").write_text(record)
 
     def events(self):
@@ -284,7 +284,7 @@ event("exit")
     def test_status_test_app_publishes_and_shorter_writes_truncate(self):
         record = self.root / "state/test/installed"
         record.write_text(record.read_text().replace("NBTSTATE1\n", "NBTSTATE2\n") +
-                          "bridge=1.0\nbridge-uses=show,status\nbridge-optional=\n")
+                          "bridge=1.5\nbridge-uses=show,status\nbridge-optional=\n")
         daemon, command = self.worker()
         self.assertEqual(command("START test"), "OK screen")
         self.wait_for(lambda: command("RUNNING status") == "RUNNING\t1\ttest|Hello v1")
@@ -512,15 +512,27 @@ event("exit")
             os.kill(application, 0)
         self.assertEqual(command("QUIT"), "OK")
 
-    def test_incompatible_bridge_application_is_not_started(self):
+    def test_an_incompatible_application_is_disabled_until_updated(self):
         record = self.root / "state/test/installed"
-        text = record.read_text().replace("NBTSTATE1\n", "NBTSTATE2\n")
-        text += "bridge=1.0\nbridge-uses=future\nbridge-optional=\n"
-        record.write_text(text)
+        declared = record.read_text().replace("NBTSTATE1\n", "NBTSTATE2\n")
         _, command = self.worker()
-        self.assertEqual(command("START test"), "ERR start")
-        self.assertIn("needs future", command("STATUS").split("\t")[7])
-        self.assertFalse(lock_holder(self.host_lock) or lock_holder(self.lease))
+        # A capability this manager does not implement; a version older than it runs.
+        for bridge in ("bridge=1.5\nbridge-uses=future\nbridge-optional=\n",
+                       "bridge=1.4\nbridge-uses=\nbridge-optional=show\n"):
+            with self.subTest(bridge=bridge):
+                record.write_text(declared + bridge)
+                self.assertEqual(command("LIST"), "APPS\t1\ttest|update")
+                self.assertEqual(command("START test"), "ERR incompatible")
+                self.assertEqual(command("STATUS").split("\t")[7], "Application needs an update")
+                # Its page still opens, to uninstall it; it offers no live settings or files.
+                self.assertEqual(command("SETTINGS test live"), "SETTINGS\t0\trestart+update")
+                self.assertFalse(lock_holder(self.host_lock) or lock_holder(self.lease))
+        # An update declaring what this manager runs enables it again.
+        record.write_text(declared + "bridge=1.5\nbridge-uses=\nbridge-optional=\n")
+        self.assertEqual(command("LIST"), "APPS\t1\ttest")
+        self.assertEqual(command("SETTINGS test live"), "SETTINGS\t0\trestart")
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: lock_holder(self.lease))
         self.assertEqual(command("QUIT"), "OK")
 
     def test_application_ends_with_its_host(self):
@@ -619,7 +631,7 @@ event("exit")
         (self.root / "state/test/installed").write_text(
             "NBTSTATE3\nsequence=00000000000000000001\nhighwater=00000000000000000001\n"
             f"version=v1\nsha256={hashlib.sha256(active.read_bytes()).hexdigest()}\n"
-            f"bridge=1.2\nbridge-uses={uses}\nbridge-optional={optional}\nbridge-most={policy}\n")
+            f"bridge=1.5\nbridge-uses={uses}\nbridge-optional={optional}\nbridge-most={policy}\n")
 
     def most_environment(self, script_lines, refuse=False):
         os.environ["NBT_TEST_DSI_LIBRARY"] = str(BUILD / "libfake_dsi.so")
@@ -846,7 +858,7 @@ event("exit")
         (self.root / "state/test/installed").write_text(
             "NBTSTATE2\nsequence=00000000000000000001\nhighwater=00000000000000000001\n"
             f"version=v1\nsha256={hashlib.sha256(active.read_bytes()).hexdigest()}\n"
-            f"bridge=1.4\nbridge-uses={uses}\nbridge-optional=\n")
+            f"bridge=1.5\nbridge-uses={uses}\nbridge-optional=\n")
 
     def test_controller_states_reach_a_shown_application(self):
         knob = lambda pos, push=0: self.most_message(

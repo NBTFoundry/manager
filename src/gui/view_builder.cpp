@@ -64,13 +64,13 @@ void buildMainMenu(const UiController &ui, UiView *v) {
     ViewBuilder::formatText(v->title, sizeof(v->title), "NBT App Manager %s", ui.version);
     for (size_t i = 0; i < ui.appCount; ++i) {
         char label[kItemTextMax + 1];
-        if (ui.running[i]) {
-            ViewBuilder::formatText(label, sizeof(label), "%s  (%s)", ui.apps[i],
-                                    ui.appStatus[i][0] ? ui.appStatus[i] : text(T_RUNNING));
-        } else {
-            ViewBuilder::formatText(label, sizeof(label), "%s", ui.apps[i]);
+        const char *note = ui.running[i] ? (ui.appStatus[i][0] ? ui.appStatus[i] : text(T_RUNNING))
+                           : ui.needsUpdate[i] ? text(T_NEEDS_UPDATE)
+                                               : NULL;
+        if (note) {
+            ViewBuilder::formatText(label, sizeof(label), "%s  (%s)", ui.apps[i], note);
         }
-        addItem(v, label);
+        addItem(v, note ? label : ui.apps[i]);
     }
     addAction(v, text(T_SETTINGS)); // a paired phone sends packages while this menu shows
     if (ui.message[0]) {

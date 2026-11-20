@@ -115,18 +115,20 @@ int parseNames(const char *reply, const char *tag, char *copy, char **f, uint64_
         number[i] = tab[1 + i];
     }
     number[i] = 0;
-    if (!digits(number, 1, 2) || nbt_parse_u64(number, count, 0) || *count > kAppsMax ||
-        split(copy, reply, f, static_cast<size_t>(*count) + 2)) {
-        return -1;
+    return !digits(number, 1, 2) || nbt_parse_u64(number, count, 0) || *count > kAppsMax ||
+                   split(copy, reply, f, static_cast<size_t>(*count) + 2)
+               ? -1
+               : 0;
+}
+
+// "<application>" or "<application>|<value>": the value ("" without), NULL if malformed.
+const char *entry(char *field, size_t valueMax) {
+    char *value = strchr(field, '|');
+    if (value) {
+        *value++ = 0;
     }
-    if (strcmp(tag, "RUNNING")) {
-        for (i = 0; i < *count; ++i) {
-            if (!nbt_token_valid(f[i + 2], kIdMax, 0)) {
-                return -1;
-            }
-        }
-    }
-    return 0;
+    const bool ok = !value || (*value && strlen(value) <= valueMax);
+    return ok && nbt_token_valid(field, kIdMax, 0) ? (value ? value : "") : NULL;
 }
 
 } // namespace
@@ -186,15 +188,16 @@ int ReplyParser::parseApps(UiController &ui, const char *reply) {
     if (parseNames(reply, "APPS", copy, f, &count)) {
         return -1;
     }
+    ui.appCount = 0; // a malformed list is a protocol error: the GUI stops
     for (size_t i = 0; i < count; ++i) {
-        for (size_t j = 0; j < i; ++j) {
-            if (!strcmp(ui.apps[j], f[i + 2])) {
-                return -1;
-            }
+        const char *value = entry(f[i + 2], 6); // "update": disabled until updated
+        if (!value || (value[0] && strcmp(value, "update")) ||
+            ui.appIndex(f[i + 2]) != ui.appCount) { // or listed twice
+            return -1;
         }
-        strcpy(ui.apps[i], f[i + 2]);
+        ui.needsUpdate[i] = value[0] != 0;
+        strcpy(ui.apps[ui.appCount++], f[i + 2]);
     }
-    ui.appCount = static_cast<size_t>(count);
     memset(ui.running, 0, sizeof(ui.running));
     memset(ui.appStatus, 0, sizeof(ui.appStatus));
     return 0;
@@ -211,24 +214,13 @@ int ReplyParser::parseRunning(UiController &ui, const char *reply) {
     memset(running, 0, sizeof(running));
     memset(status, 0, sizeof(status));
     for (size_t i = 0; i < count; ++i) {
-        char *value = strchr(f[i + 2], '|');
-        if (value) {
-            *value++ = 0;
-            if (!*value || strlen(value) > kAppStatusMax) {
-                return -1;
-            }
-        }
-        if (!nbt_token_valid(f[i + 2], kIdMax, 0)) {
-            return -1;
-        }
-        const size_t j = ui.appIndex(f[i + 2]);
+        const char *value = entry(f[i + 2], kAppStatusMax);
+        const size_t j = value ? ui.appIndex(f[i + 2]) : ui.appCount;
         if (j == ui.appCount || running[j]) {
             return -1;
         }
         running[j] = 1;
-        if (value) {
-            strcpy(status[j], value);
-        }
+        strcpy(status[j], value);
     }
     memcpy(ui.running, running, sizeof(running));
     memcpy(ui.appStatus, status, sizeof(status));
@@ -253,10 +245,10 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
         count > NBT_SETTINGS_MAX || split(copy, reply, f, static_cast<size_t>(count) + 3)) {
         return -1;
     }
-    // "live" or "restart", then any of "+files", "+autostart", "+autostart-paused".
+    // "live" or "restart", then any of "+files", "+autostart", "+autostart-paused", "+update".
     char *rest = NULL, *token = strtok_r(f[2], "+", &rest);
     const bool live = token && !strcmp(token, "live");
-    bool files = false, autostart = false, paused = false;
+    bool files = false, autostart = false, paused = false, update = false;
     if (!live && (!token || strcmp(token, "restart"))) {
         return -1;
     }
@@ -264,8 +256,9 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
         paused = paused || !strcmp(token, "autostart-paused");
         autostart = autostart || paused || !strcmp(token, "autostart");
         files = files || !strcmp(token, "files");
+        update = update || !strcmp(token, "update");
         if (strcmp(token, "files") && strcmp(token, "autostart") &&
-            strcmp(token, "autostart-paused")) {
+            strcmp(token, "autostart-paused") && strcmp(token, "update")) {
             return -1;
         }
     }
@@ -280,6 +273,7 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
     ui.files.offered = files;
     ui.autostart = autostart;
     ui.autostartPaused = paused;
+    ui.settingsUpdate = update;
     return 0;
 }
 

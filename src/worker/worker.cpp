@@ -180,9 +180,10 @@ core::Result<StartResult> Worker::start(const char *app, uint64_t nowMs) {
     nbt_bridge_current(&provider);
     if (nbt_bridge_check(&record.bridge, &provider, provider.versions[0].caps, &grant, error,
                          sizeof(error))) {
-        fail(error);
-        return core::Result<StartResult>::failure(
-            core::Status::error(EINVAL, "bridge requirement not satisfied"));
+        // Disabled until an update makes it compatible (app_compat.h): never started.
+        nbt_logf("start %s: needs an update: %s", app, error);
+        snprintf(state_.message, sizeof(state_.message), "Application needs an update");
+        return core::Result<StartResult>::success(StartResult::Incompatible);
     }
     // One application at a time has the surface the GUI can put on the panel.
     const bool screen = nbt_bridge_cap_has(grant.caps, "show");

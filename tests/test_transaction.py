@@ -123,7 +123,9 @@ class TransactionTests(unittest.TestCase):
     def test_bridge_dependency_rejection_precedes_executable_changes(self):
         for args, reason in ((["--bridge", "1.6"], b"needs bridge 1.6"),
                              (["--bridge", "2.0"], b"does not serve"),
-                             (["--bridge", "1.0", "--bridge-uses", "future"], b"not implemented")):
+                             (["--bridge", "1.5", "--bridge-uses", "future"], b"not implemented"),
+                             # older than this manager runs: an update must declare 1.5
+                             (["--bridge", "1.4"], b"declares bridge 1.4; this manager runs 1.5 and later")):
             with self.subTest(args=args):
                 self.make_upload(self.new, 2, *args)
                 result = self.command("begin")
@@ -134,7 +136,7 @@ class TransactionTests(unittest.TestCase):
                 self.assertFalse(list(self.state.glob("tx-*")))
 
     def test_optional_gamepad_health_check_has_no_device_descriptor(self):
-        self.make_upload(self.new, 2, "--bridge", "1.2", "--bridge-optional", "gamepad")
+        self.make_upload(self.new, 2, "--bridge", "1.5", "--bridge-optional", "gamepad")
         self.assertEqual(self.command("begin").returncode, 0)
         environment = self.command("candidate-env")
         self.assertEqual(environment.returncode, 0, environment.stderr)
@@ -142,7 +144,7 @@ class TransactionTests(unittest.TestCase):
         self.assertNotIn(b"NBT_GAMEPAD_FD=", environment.stdout)
 
     def test_bridge_grants_and_records_follow_transaction_recovery(self):
-        self.make_upload(self.new, 2, "--bridge", "1.0", "--bridge-optional", "show,status")
+        self.make_upload(self.new, 2, "--bridge", "1.5", "--bridge-optional", "show,status")
         self.assertEqual(self.command("begin").returncode, 0)
         env = self.command("candidate-env")
         self.assertEqual(env.returncode, 0, env.stderr)
@@ -183,7 +185,7 @@ class TransactionTests(unittest.TestCase):
                              "demo-1", "--key", self.key, "--output", Path(self.tmp.name) / "refused", *args, source)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse((Path(self.tmp.name) / "refused").exists())
-        self.make_upload(self.new, 2, "--bridge", "1.2", "--bridge-optional", "most", "--bridge-most", policy)
+        self.make_upload(self.new, 2, "--bridge", "1.5", "--bridge-optional", "most", "--bridge-most", policy)
         self.assertEqual(self.command("begin").returncode, 0)
         self.assertTrue((self.state / "journal").read_bytes().startswith(b"NBTJ3\n"))
         self.assertIn(f"new_bridge-most={policy}\n".encode(), (self.state / "journal").read_bytes())

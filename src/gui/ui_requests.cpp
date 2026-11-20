@@ -114,10 +114,11 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
             strcpy(quarantinedApp, target);
         }
         textf(message, sizeof(message),
-              !strcmp(replyText, "ERR running")       ? T_ALREADY_RUNNING
-              : !strcmp(replyText, "ERR screen")      ? T_SCREEN_TAKEN
-              : !strcmp(replyText, "ERR quarantined") ? T_BLOCKED_FAULTS
-                                                      : T_CANNOT_START,
+              !strcmp(replyText, "ERR running")        ? T_ALREADY_RUNNING
+              : !strcmp(replyText, "ERR screen")       ? T_SCREEN_TAKEN
+              : !strcmp(replyText, "ERR quarantined")  ? T_BLOCKED_FAULTS
+              : !strcmp(replyText, "ERR incompatible") ? T_APP_NEEDS_UPDATE
+                                                       : T_CANNOT_START,
               target);
         queued = R_RUNNING;
         return 0;
@@ -184,6 +185,9 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         }
         if (screen == Apps) {
             go(Settings);
+        }
+        if (settingsUpdate && !message[0]) { // its page opens, to uninstall it
+            textf(message, sizeof(message), T_APP_NEEDS_UPDATE, settingsApp);
         }
         if (focus >= itemCount()) {
             focus = 0;

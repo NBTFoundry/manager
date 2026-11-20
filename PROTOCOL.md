@@ -7,13 +7,13 @@ Commands in protocol 1:
 
 | Command | Purpose |
 | --- | --- |
-| `LIST` | List provisioned application IDs. |
+| `LIST` | List provisioned application IDs: `APPS`, a count, then the names. A name followed by `\|update` is an application this manager does not run until it is updated ("Disabled until updated"). |
 | `SESSION <app> <interface> <port>` | Open a local install waiting session. Production uses `wfd0:8080`, coordinating MOST `0xA0.03` (`WLANState3` / `SelectWLANState3` / `WLANConfiguration`) and verifying `wfd0` link/IP readiness before replying (`ERR network-unavailable` on failure, leaving CarPlay `0xA0.01` / `uap0` untouched and restoring `0xA0.03` on `CANCEL`, expiry or exit only when this session enabled it); tests also permit `lo` and an ephemeral port. Reply: `SESSION\t<IPv4:port>`, then `\t<ssid>\t<passphrase>` when available. No HTTP credential is issued. Clear the response after use; show the passphrase only inside the Wi-Fi QR. |
 | `SESSION <interface> <port>` | Generic waiting session: the verified package names the application. A paired phone can also upload while the manager is on its main menu. |
 | `STATUS` | Return manager state, selected app, installed and proposed versions, proposed sequence, package digest and status text. |
 | `AUTOSTART <app>` | Manager-owned boot preference and guard: `AUTOSTART\t<off|on>\t<ready|blocked>`. Missing records default to off/ready; malformed or unsafe records return `ERR settings`. |
 | `AUTOSTART <app> <off|on>` | Persist the boot preference; replies `OK` or `ERR settings`. Toggling does not reset the guard. Separate from signed app settings and their keys. |
-| `START <app>` | Explicitly re-arm the boot guard, then start a provisioned application in its own detached host; it keeps running after the worker and the GUI exit. Returns `ERR quarantined` if `state/<app>/fault-guard` has reached 3 faults (or is malformed/unreadable). A ready running app granted `show` receives a bring-to-front request; otherwise `ERR running` keeps the GUI open. `OK screen` when the app is granted `show` and its host has the application surface (the GUI hands it the panel), `ERR screen` when another app's host has that surface, else `OK`. |
+| `START <app>` | Explicitly re-arm the boot guard, then start a provisioned application in its own detached host; it keeps running after the worker and the GUI exit. Returns `ERR quarantined` if `state/<app>/fault-guard` has reached 3 faults (or is malformed/unreadable), `ERR incompatible` if this manager does not run it ("Disabled until updated"). A ready running app granted `show` receives a bring-to-front request; otherwise `ERR running` keeps the GUI open. `OK screen` when the app is granted `show` and its host has the application surface (the GUI hands it the panel), `ERR screen` when another app's host has that surface, else `OK`. |
 | `STOP [<app>] [fault]` | Ask the application's host to stop it (without an argument: the last selected application); replies `OK` before it has exited. Passing `fault` increments `state/<app>/fault-guard` under the application's transaction lock (used when the GUI aborts a hung or non-appearing surface). |
 | `UNBLOCK <app>` | Clear `state/<app>/fault-guard` after three consecutive application faults; replies `OK` or `ERR unblock`. |
 | `REMOVE <app>` | Uninstall a stopped application, as confirmed in the GUI: its profile (it leaves `LIST` at once), keys, executable, state and data, all within the managed root (`src/lifecycle/app_remover.cpp`, `src/storage/app_removal.cpp`). Replies `OK`; `ERR running` while its host, lease or lock shows it running; `ERR busy` during a session, an installation, a stop or a manager update; `ERR missing` when nothing of it is left; `ERR remove` when a removal fails part-way (run it again: it completes). Never `manager`. Links in its data are removed, never followed. |
@@ -185,7 +185,7 @@ Host tests use a fixed root-local equivalent rather than `/dev/shmem`.
 Packages can declare three ordered fields after `sha256`, before settings:
 
 ```text
-bridge=1.0
+bridge=1.5
 bridge-uses=
 bridge-optional=show
 ```
@@ -193,6 +193,8 @@ bridge-optional=show
 `bridge` names the required major and minimum minor. Required capabilities must
 be implemented; optional capabilities are granted only when available. The
 current bridge is **1.5 with `show,status,live-settings,most,gamepad,controller,files`**, so the example grants `show`.
+This manager runs bridge 1.5 and later only (`NBT_BRIDGE_OLDEST_MINOR`): an
+application declaring an older minor is disabled until updated (below).
 An application declaring `most` adds a fourth field, `bridge-most=<policy>`, the
 MOST functions it may use ([MOST bridge](docs/most-bridge.md)). One declaring
 `files` (bridge 1.5 or later) adds `bridge-files=<policy>` after it, the files it
@@ -216,16 +218,39 @@ The host refuses incompatible starts; user launches and candidate health checks
 receive `NBT_BRIDGE=<served major.minor>` and `NBT_BRIDGE_CAPS=<granted names>`.
 Absent optional capabilities are omitted. Legacy apps get neither variable.
 
-Normal manager staging refuses to drop an installed app's required bridge
-version or capability. Explicit manager recovery warns about mismatches. New
-app provisioning or updates wait until pending manager activation is confirmed
-or rolled back. This is the manager's first installable release; initial setup
-installs the current launcher and ordinary later updates replace GUI/worker.
+### Disabled until updated
+
+An installed application whose declaration this manager does not meet (a major
+it does not serve, a minor newer than it serves or older than the oldest it
+runs, a required capability it does not implement) is disabled, never started,
+so a manager update cannot leave behind an application that crashes
+(`include/nbt/app_compat.h`). Nothing is stored: each check reads the installed
+record, so updating the application, or going back to a manager that runs it,
+enables it again. An application declaring no bridge still runs.
+- `LIST` marks it `<app>|update`; the GUI's menu shows "<app>  (needs an update)".
+- `START <app>` replies `ERR incompatible`; the GUI says "<app> needs an update
+  for this manager"; the worker's log has the reason.
+- `SETTINGS <app> live` adds `+update` (and grants neither `live` nor `+files`):
+  its page still opens, so it can be uninstalled.
+- Automatic starts skip it without counting a failure.
+- A package with such a declaration is refused at installation, with the reason
+  ("declares bridge 1.4; this manager runs 1.5 and later").
+
+Manager staging does not refuse an update that drops an installed app's required
+bridge version or capability: it stages it and names the first application it
+disables (`Disabled until updated: <app>: <reason>` on standard error); explicit
+recovery writes `Recovery warning: ...` the same way. Release lines cannot state
+the oldest minor the worker runs, so staging cannot see that one; the launcher's
+provisioning adds it to the active release's lines. New app provisioning or
+updates wait until pending manager activation is confirmed or rolled back. This
+is the manager's first installable release; initial setup installs the current
+launcher and ordinary later updates replace GUI/worker.
 
 ## USB gamepad bridge
 
-Bridge **1.3** adds gamepad. Applications can keep minimum bridge 1.2 and
-declare gamepad optional; older managers omit it. User launches granted the
+Bridge **1.3** adds gamepad. Declared optional, it keeps an application
+compatible with managers that lack it (they omit it); this manager runs bridge
+1.5 and later, so applications declare 1.5. User launches granted the
 capability receive NBT_GAMEPAD_FD=7, a nonblocking Unix datagram input channel.
 Health checks never receive that descriptor or open USB. The channel remains
 available without a controller; its state is disconnected while it has no
@@ -288,7 +313,8 @@ The worker stores the declaration of the installed package in `state/<app>/setti
 `SETTINGS <app> live` is the optional annotated query: its reply is
 `SETTINGS\t<count>\t<live|restart>` followed by the same setting fields. It
 reports `live` only when the installed signed declaration grants `live-settings`
-with the current provider; the manager's own settings return `restart`. Plain
+with the current provider; the manager's own settings return `restart`. An
+application disabled until updated gets `restart`, with `+update` ("Disabled until updated"). Plain
 `SETTINGS <app>` is unchanged. GUI settings counts use canonical decimal 0-12.
 
 Provisioning creates private `data/<app>`; **`NBT_DATA_DIR`** is its validated

@@ -35,7 +35,7 @@ bridge-optional=
 bridge-most=rx:05.00.621,rx:E5.*.*,tx:82.00.*,ctl:E5.03
 ```
 
-With `tools/package.py`: `--bridge 1.2 --bridge-uses most --bridge-most '<policy>'`.
+With `tools/package.py`: `--bridge 1.5 --bridge-uses most --bridge-most '<policy>'`.
 `most` may be optional instead (`--bridge-optional most`); the application then
 starts without it when the host cannot open a MOST client.
 
@@ -67,8 +67,8 @@ declared, required or optional. It is one line of comma-separated rules:
 The worker validates the policy when it verifies the package. A package with
 a policy installs only on a manager that serves `most`. This holds even when
 `most` is optional: only such a manager can store and enforce the policy.
-For the same reason manager staging refuses a release without `most` while
-such an application is installed.
+For the same reason a manager release without `most` disables such an
+application until it is updated (PROTOCOL.md, "Disabled until updated").
 
 The installed record keeps the policy with the executable: `NBTSTATE3`
 records and `NBTJ3` journals add `bridge-most=` after `bridge-optional=` (see

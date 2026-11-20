@@ -192,7 +192,7 @@ nice make -j $(nproc) qnx qnx-check stack-report \
   QNX_SCREEN_LIBDIR=/path/to/screen RHMI_LIBDIR=/path/to/framework
 python3 tools/package.py --app most-monitor --version passive --sequence 1 \
   --compat your-target-id --key /private/monitor.pem \
-  --bridge 1.1 --bridge-uses most --bridge-most 'rx:*.*.*' \
+  --bridge 1.5 --bridge-uses most --bridge-most 'rx:*.*.*' \
   --output /private/monitor-passive.nbt build/most-monitor-qnx
 ```
 

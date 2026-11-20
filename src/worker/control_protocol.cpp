@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/control_protocol.hpp"
 
+#include "nbt/app_compat.h"
 #include "nbt/app_faults.h"
 #include "nbt/app_host.h"
 #include "nbt/core/checked.hpp"
@@ -175,7 +176,11 @@ core::Status IpcDispatcher::handleList() {
     }
     size_t used = static_cast<size_t>(length);
     for (int i = 0; i < count; ++i) {
-        length = snprintf(list + used, sizeof(list) - used, "\t%s", names[i]);
+        // "|update": disabled until updated (app_compat.h); an unreadable record
+        // is listed as is, and starting it says so.
+        const bool update = nbt_app_compatible(root_.legacy(), names[i], NULL, 0) == 1;
+        length =
+            snprintf(list + used, sizeof(list) - used, "\t%s%s", names[i], update ? "|update" : "");
         if (length < 0 || static_cast<size_t>(length) >= sizeof(list) - used) {
             return core::Status::error(ERANGE, "list too large");
         }

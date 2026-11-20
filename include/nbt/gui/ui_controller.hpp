@@ -208,6 +208,7 @@ public:
     size_t appCount;
     char appStatus[kAppsMax][kAppStatusMax + 1];
     unsigned char running[kAppsMax];
+    unsigned char needsUpdate[kAppsMax] = {}; // disabled until updated (LIST "<app>|update")
     char app[kIdMax + 1];
     char target[kIdMax + 1];
     int stopping;
@@ -265,6 +266,7 @@ public:
     int autostart = 0;       // settingsApp starts with the car (SETTINGS <app> live)
     int autostartPaused = 0; // ...but is paused after failed automatic starts
     int autostartPick = 0;   // the choice being saved (R_AUTOSTART)
+    int settingsUpdate = 0;  // settingsApp is disabled until updated (SETTINGS "+update")
     StatusFacts facts;       // Settings > Status and the gamepad test (gatherStatus)
     // An application's files (files_ui.hpp). Not "= {}": GCC 4.8 (QNX) flags that
     // with missing-field-initializers.

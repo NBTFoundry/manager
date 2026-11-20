@@ -29,8 +29,16 @@ typedef struct {
     char files[NBT_BRIDGE_FILES_MAX + 1];
 } nbt_bridge_requirement;
 
+/* The oldest bridge 1 minor this manager runs (nbt_bridge_current): an
+ * application declaring an older one is disabled until updated
+ * (docs/app-bridge.md, "Versions"). One declaring none still runs. */
+#define NBT_BRIDGE_OLDEST_MINOR 5
+
 typedef struct {
     uint16_t major, minor;
+    /* A provider's oldest served minor of this major (0: all of them). Release
+     * lines cannot state it: the worker's own provider sets it. */
+    uint16_t oldest;
     char caps[NBT_BRIDGE_CAPS_MAX + 1];
 } nbt_bridge_version;
 
@@ -54,7 +62,8 @@ int nbt_bridge_requirement_format(const nbt_bridge_requirement *value, const cha
  * Majors must increase; no duplicates, at most current and previous major. */
 int nbt_bridge_provider_add(nbt_bridge_provider *out, const char *text);
 void nbt_bridge_current(nbt_bridge_provider *out);
-/* Required version/capabilities must be served. Optional ones are intersected.
+/* Required version/capabilities must be served, and the declared minor be no
+ * older than the served major's oldest. Optional ones are intersected.
  * available == NULL checks implementation (install); otherwise checks runtime
  * availability as well. Grants never include undeclared capabilities. A MOST
  * policy needs a served `most` even when the capability is optional: only

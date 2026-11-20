@@ -63,12 +63,14 @@ static void most_declarations(void) {
     assert(nbt_bridge_requirement_format(&need, "new_", text, sizeof(text)) > 0);
     assert(strstr(text, "new_bridge-most=rx:E5.*.*,tx:82.00.*,ctl:E5.03\n"));
     nbt_bridge_current(&provider);
+    need.minor = 5; // this manager runs 1.5 and later
     assert(!nbt_bridge_check(&need, &provider, NULL, &grant, error, sizeof(error)) &&
            !strcmp(grant.caps, "show,most"));
     /* Unavailable at run time: an optional `most` is simply not granted. */
     assert(!nbt_bridge_check(&need, &provider, "show,status,live-settings", &grant, error,
                              sizeof(error)) &&
            !strcmp(grant.caps, "show"));
+    need.minor = 1;
     memset(&old, 0, sizeof(old));
     assert(!nbt_bridge_provider_add(&old, "1.1|show,status,live-settings"));
     assert(nbt_bridge_check(&need, &old, NULL, NULL, error, sizeof(error)) &&
@@ -246,11 +248,19 @@ int main(void) {
     nbt_bridge_current(&provider);
     assert(provider.count == 1 && provider.versions[0].major == 1 &&
            provider.versions[0].minor == 5 &&
+           provider.versions[0].oldest == NBT_BRIDGE_OLDEST_MINOR &&
            !strcmp(provider.versions[0].caps,
                    "show,status,live-settings,most,gamepad,controller,files"));
+    /* Older than the oldest version this manager runs: disabled until updated,
+     * with the reason. No bridge at all still runs, with no grant. */
     memset(&need, 0, sizeof(need));
     assert(!nbt_bridge_check(&need, &provider, "", &grant, error, sizeof(error)) && !grant.major);
     need.major = 1;
+    need.minor = 4;
+    strcpy(need.optional, "show");
+    assert(nbt_bridge_check(&need, &provider, NULL, NULL, error, sizeof(error)) &&
+           !strcmp(error, "declares bridge 1.4; this manager runs 1.5 and later"));
+    need.minor = 5;
     strcpy(need.optional, "show,future-capability");
     assert(!nbt_bridge_check(&need, &provider, "", &grant, error, sizeof(error)));
     assert(grant.major == 1 && !grant.caps[0]);
@@ -264,7 +274,7 @@ int main(void) {
     assert(!nbt_bridge_provider_add(&provider, "1.3|status,show"));
     assert(!nbt_bridge_provider_add(&provider, "2.0|status"));
     assert(nbt_bridge_provider_add(&provider, "3.0|"));
-    need.minor = 2;
+    need.minor = 2; // release lines state no oldest version: every minor still runs
     assert(!nbt_bridge_check(&need, &provider, "status,show", &grant, error, sizeof(error)));
     assert(grant.major == 1 && grant.minor == 3 && !strcmp(grant.caps, "status,show"));
     assert(nbt_bridge_check(&need, &provider, "show", &grant, error, sizeof(error)));

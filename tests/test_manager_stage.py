@@ -130,18 +130,21 @@ class ManagerStageTests(unittest.TestCase):
         (self.root / "state/manager/release.upload").chmod(0o600)
         return output.read_bytes()
 
-    def test_manager_update_preserves_installed_bridge_dependencies(self):
+    def test_manager_update_names_an_application_it_disables(self):
+        # Not refused: the new release disables the application until it is updated.
         self.baseline()
         self.bridge_app(optional="show")
         self.bridge_release(2, "--no-bridge")
-        before = (self.root / "state/manager/activation").read_bytes()
         result = self.stage("update")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(b"test: needs bridge 1.0", result.stderr)
-        self.assertEqual((self.root / "state/manager/activation").read_bytes(), before)
-        self.assertFalse((self.root / "manager/slots/1/release.nbtr").exists())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"Disabled until updated: test: needs bridge 1.0; this manager does not serve that major",
+                      result.stderr)
+        self.assertEqual(self.state()["phase"], "pending")
+        self.assertTrue((self.root / "manager/slots/1/release.nbtr").exists())
         self.bridge_release(3)  # the current provider grants the optional show
-        self.assertEqual(self.stage("update").returncode, 0)
+        result = self.stage("update")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn(b"Disabled", result.stderr)
         self.assertEqual(self.state()["phase"], "pending")
 
     def test_pending_manager_activation_blocks_new_app_dependencies(self):
@@ -177,18 +180,29 @@ class ManagerStageTests(unittest.TestCase):
         source = Path(self.tmp.name) / "app"
         source.write_bytes((self.path / "gui").read_bytes())
         package = Path(self.tmp.name) / "app.nbt"
-        result = run("python3", ROOT / "tools/package.py", "--app", "test", "--version", "v1", "--sequence", "1",
-                     "--compat", "demo-1", "--key", self.path / "manager.pem", "--output", package,
-                     "--bridge", "1.0", "--bridge-optional", "show", source)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        key, payload = (self.path / "manager.pub").read_bytes(), package.read_bytes()
         env = dict(os.environ, NBT_TEST_MANAGER_ROOT=str(self.root))
-        result = subprocess.run([LAUNCHER, "--provision-app", "test", "demo-1", str(len(key)), str(len(payload)),
-                                 hashlib.sha256(payload).hexdigest()], input=key + payload, env=env, capture_output=True)
+
+        def provision(bridge):
+            package.unlink(missing_ok=True)
+            result = run("python3", ROOT / "tools/package.py", "--app", "test", "--version", "v1", "--sequence", "1",
+                         "--compat", "demo-1", "--key", self.path / "manager.pem", "--output", package,
+                         "--bridge", bridge, "--bridge-optional", "show", source)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            key, payload = (self.path / "manager.pub").read_bytes(), package.read_bytes()
+            return subprocess.run([LAUNCHER, "--provision-app", "test", "demo-1", str(len(key)), str(len(payload)),
+                                   hashlib.sha256(payload).hexdigest()], input=key + payload, env=env,
+                                  capture_output=True), payload
+
+        # The release lines cannot state the oldest version this manager runs; the launcher adds it.
+        result, _ = provision("1.4")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(b"declares bridge 1.4; this manager runs 1.5 and later", result.stderr)
+        self.assertFalse((self.root / "trust/apps/test.conf").exists())
+        result, payload = provision("1.5")
         self.assertEqual(result.returncode, 0, result.stderr)
         record = (self.root / "state/test/installed").read_text()
         self.assertTrue(record.startswith("NBTSTATE2\n"))
-        self.assertIn("bridge=1.0\nbridge-uses=\nbridge-optional=show\n", record)
+        self.assertIn("bridge=1.5\nbridge-uses=\nbridge-optional=show\n", record)
         (self.root / "state/test/upload").write_bytes(payload)
         (self.root / "state/test/upload").chmod(0o600)
         self.bridge_release(2)
@@ -203,14 +217,16 @@ class ManagerStageTests(unittest.TestCase):
         self.bridge_app(version="1.2", uses="show")
         self.bridge_release(2, "--bridge", "1.1|show")
         result = self.stage("update")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(b"test: needs bridge 1.2", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"Disabled until updated: test: needs bridge 1.2", result.stderr)
         self.bridge_release(3, "--bridge", "1.3|status")
         result = self.stage("update")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(b"test: needs show", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"Disabled until updated: test: needs show", result.stderr)
         self.bridge_release(4, "--bridge", "1.3|show", "--bridge", "2.0|")
-        self.assertEqual(self.stage("update").returncode, 0)
+        result = self.stage("update")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn(b"Disabled", result.stderr)
 
     def test_explicit_manager_recovery_warns_about_bridge_dependencies(self):
         self.bridge_release(5)

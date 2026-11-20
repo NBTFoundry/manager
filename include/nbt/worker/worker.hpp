@@ -26,8 +26,9 @@ enum class State { Idle, Session, Verified, Installing, Installed, Failed };
 enum class Operation { None, Stop, Install, Restore, Confirmed, Fault, HostStop, HostInstall };
 enum class Ended { None, Cancelled, Expired };
 /* Screen: started or shown, and its host has the application surface, so the
- * GUI hands it the panel. ScreenTaken: another application's host has it. */
-enum class StartResult { Started, AlreadyRunning, Screen, ScreenTaken, Quarantined };
+ * GUI hands it the panel. ScreenTaken: another application's host has it.
+ * Incompatible: this manager does not run it until it is updated (app_compat.h). */
+enum class StartResult { Started, AlreadyRunning, Screen, ScreenTaken, Quarantined, Incompatible };
 
 struct WorkerState {
     WorkerState();

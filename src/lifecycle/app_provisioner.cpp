@@ -102,6 +102,24 @@ done:
     return result;
 }
 
+/* The active release's bridge lines plus the oldest version this manager runs,
+ * which they cannot state (app_compat.h). */
+int activeProvider(nbt_fs *fs, nbt_bridge_provider *out) {
+    nbt_bridge_provider current;
+    nbt_bridge_current(&current);
+    if (nbt_manager_active_bridge(fs, out)) {
+        return -1;
+    }
+    for (unsigned i = 0; i < out->count && i < NBT_BRIDGE_VERSIONS_MAX; ++i) {
+        for (unsigned j = 0; j < current.count; ++j) {
+            if (out->versions[i].major == current.versions[j].major) {
+                out->versions[i].oldest = current.versions[j].oldest;
+            }
+        }
+    }
+    return 0;
+}
+
 /* Installs a verified package as a new application's baseline: executable,
  * installed record and settings declaration, then the profile, which makes
  * it an application. Nothing of it may exist; what it created goes again on
@@ -123,7 +141,7 @@ int installBaseline(nbt_fs *fs, const char *app, const char *compat, int pkg,
                                    : "manager operation is in progress");
     }
     memset(&provider, 0, sizeof(provider));
-    if (package.bridge.major && nbt_manager_active_bridge(fs, &provider)) {
+    if (package.bridge.major && activeProvider(fs, &provider)) {
         fail(error, errorSize, "cannot verify active manager bridge");
         goto done;
     }

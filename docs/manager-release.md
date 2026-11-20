@@ -33,16 +33,20 @@ are bounded to 16 bits (major is nonzero); comma-separated capability names
 are unique, 1-24 lowercase letter/digit/hyphen characters starting with a
 letter, at most 255 bytes per list. An empty list uses a trailing `|`.
 `tools/package_release.py` defaults to `tools/bridge.py`'s `CURRENT`,
-`bridge=1.4|show,status,live-settings,most,gamepad,controller`.
+`bridge=1.5|show,status,live-settings,most,gamepad,controller,files`. The lines
+cannot state the oldest minor the worker runs (1.5): the worker carries it
+(docs/app-bridge.md, "Versioning and dependencies").
 Repeated `--bridge '1.0|...'` overrides describe the actual built worker;
 `--no-bridge`, or a legacy release without lines, serves no bridge. The C and
 Rust verifiers validate these signed fields independently.
 
 Staging checks every installed application's recorded requirements before
 changing the inactive slot, under the manager operation lock and all app
-transaction locks. A normal update that drops a required version/capability
-fails with the application name. Explicit older-release recovery allows a
-mismatch and writes `Recovery warning: <app>: <reason>` to stderr. Busy or
+transaction locks. An update that drops a required version/capability is not
+refused: it disables that application until it is updated (PROTOCOL.md,
+"Disabled until updated") and writes `Disabled until updated: <app>: <reason>`
+to stderr; explicit older-release recovery writes `Recovery warning: <app>:
+<reason>`. Busy or
 invalid application records still stop staging. Pending/trial activation blocks
 new application provisioning/updates so its dependency snapshot stays valid.
 Provisioning reads the active authenticated release's provider, keeping this

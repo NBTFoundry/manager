@@ -3,8 +3,9 @@
 
 Bridge capability `gamepad` (bridge 1.3 and later) gives the application on screen
 the state of one wired USB gamepad. It changes no package, installed-record or
-journal format. Applications may keep minimum bridge 1.2 and request `gamepad`
-as optional; unknown optional capabilities stay compatible with older managers.
+journal format. Applications request `gamepad` as optional to stay compatible
+with managers that lack it (unknown optional capabilities are omitted); they
+declare bridge 1.5, the oldest this manager runs.
 A required capability needs an implemented service; an unplugged controller is
 an ordinary disconnected state. Applications never choose a USB path or send USB
 commands.

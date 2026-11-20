@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/daemon.hpp"
 
+#include "nbt/app_compat.h"
 #include "nbt/app_host.h"
 #include "nbt/autostart.h"
 #include "nbt/core/system.hpp"
@@ -231,7 +232,12 @@ int autostartMain(const char *root, const char *self, int argc, char **argv) {
             result = 1;
             continue;
         }
-        if (state.enabled && state.failures < NBT_AUTOSTART_FAILURE_LIMIT) {
+        char reason[128];
+        if (state.enabled && state.failures < NBT_AUTOSTART_FAILURE_LIMIT &&
+            nbt_app_compatible(rootObject.legacy(), names[i], reason, sizeof(reason)) == 1) {
+            // Disabled until updated: not a failed start, so autostart is not paused.
+            nbt_logf("autostart %s: skipped, needs an update: %s", names[i], reason);
+        } else if (state.enabled && state.failures < NBT_AUTOSTART_FAILURE_LIMIT) {
             const pid_t running = nbt_app_host_pid(rootObject.legacy(), names[i]);
             if (running < 0 ||
                 (!running && nbt_app_host_autostart(rootObject.legacy(), names[i]))) {

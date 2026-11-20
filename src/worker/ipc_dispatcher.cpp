@@ -57,7 +57,7 @@ IpcDispatcher::IpcDispatcher(storage::ManagedRoot &root, Worker &worker, WebServ
 core::Status IpcDispatcher::handleSettings(bool setting, char *cursor) {
     nbt_settings settings;
     nbt_autostart autostart = {0, 0};
-    int mode = 0, live = 0, files = 0;
+    int mode = 0, live = 0, files = 0, update = 0; // update: disabled until updated (app_compat.h)
     char *app = word(&cursor);
     char *key = setting ? word(&cursor) : NULL;
     char *val = setting ? word(&cursor) : NULL;
@@ -101,13 +101,13 @@ core::Status IpcDispatcher::handleSettings(bool setting, char *cursor) {
         nbt_bridge_provider provider;
         nbt_bridge_version grant;
         nbt_bridge_current(&provider);
-        if (nbt_tx_installed(root_.legacy(), app, &installed) ||
-            nbt_bridge_check(&installed.bridge, &provider, provider.versions[0].caps, &grant, NULL,
-                             0)) {
+        if (nbt_tx_installed(root_.legacy(), app, &installed)) {
             return control_.respond("ERR settings\n");
         }
-        live = nbt_bridge_cap_has(grant.caps, "live-settings");
-        files = nbt_bridge_cap_has(grant.caps, "files"); // its page offers Files
+        update = nbt_bridge_check(&installed.bridge, &provider, provider.versions[0].caps, &grant,
+                                  NULL, 0) != 0;
+        live = !update && nbt_bridge_cap_has(grant.caps, "live-settings");
+        files = !update && nbt_bridge_cap_has(grant.caps, "files"); // its page offers Files
         // Start with the car: shown as off when its record cannot be read.
         if (nbt_autostart_load(root_.legacy(), app, &autostart)) {
             autostart.enabled = 0;
@@ -115,12 +115,13 @@ core::Status IpcDispatcher::handleSettings(bool setting, char *cursor) {
     }
     const bool paused = autostart.failures >= NBT_AUTOSTART_FAILURE_LIMIT;
     char list[2048];
-    int length =
-        snprintf(list, sizeof(list), "SETTINGS\t%u%s%s%s%s", static_cast<unsigned>(settings.count),
-                 mode ? "\t" : "", mode ? (live ? "live" : "restart") : "", files ? "+files" : "",
-                 !autostart.enabled ? ""
-                 : paused           ? "+autostart-paused"
-                                    : "+autostart");
+    int length = snprintf(list, sizeof(list), "SETTINGS\t%u%s%s%s%s%s",
+                          static_cast<unsigned>(settings.count), mode ? "\t" : "",
+                          mode ? (live ? "live" : "restart") : "", files ? "+files" : "",
+                          !autostart.enabled ? ""
+                          : paused           ? "+autostart-paused"
+                                             : "+autostart",
+                          update ? "+update" : "");
     if (length < 0 || length >= static_cast<int>(sizeof(list))) {
         return core::Status::error(ERANGE, "settings too large");
     }
@@ -159,9 +160,10 @@ core::Status IpcDispatcher::handleStart(char *cursor, uint64_t nowMs) {
     if (!result.get()) {
         return control_.respond("ERR start\n");
     }
-    // In StartResult's order: Started, AlreadyRunning, Screen, ScreenTaken, Quarantined.
-    static const char *const kReplies[] = {"OK\n", "ERR running\n", "OK screen\n", "ERR screen\n",
-                                           "ERR quarantined\n"};
+    // In StartResult's order.
+    static const char *const kReplies[] = {
+        "OK\n",         "ERR running\n",     "OK screen\n",
+        "ERR screen\n", "ERR quarantined\n", "ERR incompatible\n"};
     return control_.respond(kReplies[static_cast<int>(result.value())]);
 }
 

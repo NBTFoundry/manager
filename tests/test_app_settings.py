@@ -153,7 +153,7 @@ class AppSettingsTests(unittest.TestCase):
     def live_app(self, optional=False):
         path = self.state / "installed"
         text = path.read_text().replace("NBTSTATE1", "NBTSTATE2")
-        text += ("bridge=1.0\nbridge-uses=" + ("" if optional else "live-settings") +
+        text += ("bridge=1.5\nbridge-uses=" + ("" if optional else "live-settings") +
                  "\nbridge-optional=" + ("live-settings,future" if optional else "") + "\n")
         self.private("state/test/installed", text)
 
