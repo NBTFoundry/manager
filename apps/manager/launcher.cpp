@@ -81,9 +81,10 @@ int main(int argc, char **argv) {
     if (nbt_child_reaping_init()) {
         return 1;
     }
+    const int autostart = argc == 2 && !strcmp(argv[1], "--autostart");
     if (!(argc == 2 && !strcmp(argv[1], "--open")) && !(argc == 2 && !strcmp(argv[1], "--door")) &&
-        !transfer && !bootstrap && !provision && !refresh && !removeCapture && !tryShim &&
-        !shimCheck && !shimSwitch) {
+        !autostart && !transfer && !bootstrap && !provision && !refresh && !removeCapture &&
+        !tryShim && !shimCheck && !shimSwitch) {
         return 2;
     }
     /* --provision-app <app> <compat> <key-size> <package-size> <package-sha256> */
@@ -204,6 +205,10 @@ int main(int argc, char **argv) {
     }
     if (argc == 2 && !strcmp(argv[1], "--door")) {
         return nbt::launcher::startDoor(&fs);
+    }
+    if (autostart) {
+        (void)nbt_log_open(&fs, "launcher");
+        return nbt::launcher::runAutostart(&fs);
     }
     if (transfer) {
         if (nbt_manager_receive_update(&fs, 0, size, digest, !strcmp(argv[1], "--stage-recovery"),

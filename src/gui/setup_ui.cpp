@@ -7,6 +7,7 @@
  * That request runs OnOffDSICommander appreset, which restarts the whole head
  * unit (the user, 2026-11-18), not iDrive alone. */
 #include "nbt/gui/setup_ui.hpp"
+#include "nbt/gui/autostart_ui.hpp"
 #include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
@@ -59,6 +60,9 @@ int setupReply(UiController &ui, int kind, const char *reply, uint64_t now) {
     }
     if (kind == R_LANGUAGE) {
         return languageReply(ui, reply);
+    }
+    if (kind == R_AUTOSTART) {
+        return autostartReply(ui, reply);
     }
     if (kind != R_SETUP) {
         return -1;

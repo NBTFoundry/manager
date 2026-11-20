@@ -63,7 +63,7 @@ void PhoneRuntime::start(bmw::PluginApp *instance, uint64_t now) {
     nextDoor = now + 15000;
     speedKnown = contextSafe = opening = false;
     speedMs = contextMs = doorHealthyMs = 0;
-    guardReset = shimChecked = false;
+    guardReset = shimChecked = autostartAsked = false;
     display.fd = -1;
     display.pid = 0;
     display.used = 0;
@@ -118,6 +118,13 @@ bool PhoneRuntime::shimCheckDue(uint64_t now) {
     }
     shimChecked = true;
     return true;
+}
+bool PhoneRuntime::autostartDue(uint64_t now) {
+    if (!app || autostartAsked || now < boot || now - boot < 25000) {
+        return false;
+    }
+    autostartAsked = true;
+    return gui::bootOnceClaim(gui::kAutostartBootPath);
 }
 bool PhoneRuntime::doorDue(uint64_t now) {
     if (!app || now < boot || now < nextDoor) {

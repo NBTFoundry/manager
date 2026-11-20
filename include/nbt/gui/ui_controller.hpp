@@ -63,8 +63,9 @@ enum RequestKind {
     R_PHONE_FORGET,
     R_SETUP, // after R_PHONE_*: replies go through phoneReply, then setupReply
     R_IDRIVE_RESTART,
-    R_LANGUAGE, // SET manager language: languageReply, after setupReply
-    R_FILES,    // FILES: filesReply (files_ui.hpp), after setupReply
+    R_LANGUAGE,  // SET manager language: languageReply, after setupReply
+    R_AUTOSTART, // AUTOSTART <app> on|off: autostartReply (autostart_ui.hpp), after setupReply
+    R_FILES,     // FILES: filesReply (files_ui.hpp), after setupReply
     R_FILES_DELETE,
     R_FILES_SCAN,
     R_FILES_USB,
@@ -166,12 +167,20 @@ public:
     /* Shows the language the setting and iDrive ask for (nbt/model/language.hpp). */
     void applyLanguage();
     size_t appIndex(const char *name) const;
+    /* An application's page: its declared settings, Start with the car
+     * (autostart_ui.hpp), then Stop while it runs, Unblock, Files, Uninstall. */
+    size_t autostartItem() const {
+        return settings.count;
+    }
+    size_t stopItem() const {
+        return settings.count + (managerSettings() ? 0u : 1u);
+    }
     bool stopEntry() const;
     bool unblockEntry() const {
         return !managerSettings() && !strcmp(settingsApp, quarantinedApp);
     }
     size_t unblockItem() const {
-        return settings.count + (stopEntry() ? 1u : 0u);
+        return stopItem() + (stopEntry() ? 1u : 0u);
     }
     /* The Settings item for settingsApp's files (capability `files`), then the
      * one that uninstalls it (neither offered for the manager). */
@@ -253,7 +262,10 @@ public:
     int languageChoice = model::kLanguageAuto; // manager/language, as loaded or saved
     int carLanguage = -1;                      // iDrive's language as a model::Language; -1 unknown
     int languagePick = -1;                     // the choice being saved (R_LANGUAGE)
-    StatusFacts facts; // Settings > Status and the gamepad test (gatherStatus)
+    int autostart = 0;       // settingsApp starts with the car (SETTINGS <app> live)
+    int autostartPaused = 0; // ...but is paused after failed automatic starts
+    int autostartPick = 0;   // the choice being saved (R_AUTOSTART)
+    StatusFacts facts;       // Settings > Status and the gamepad test (gatherStatus)
     // An application's files (files_ui.hpp). Not "= {}": GCC 4.8 (QNX) flags that
     // with missing-field-initializers.
     FilesState files = FilesState();

@@ -779,6 +779,47 @@ time.sleep(30)
         with (self.root / "state/manager/operation.lock").open("r+") as lock:
             fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
+    def autostart(self, exit_code=0):
+        worker = Path(self.tmp.name) / "autostart-worker"
+        worker.write_text('''#!/usr/bin/python3
+import fcntl, sys
+assert sys.argv[1:3] == ["--autostart", "--root"], sys.argv
+root = sys.argv[3]
+try:
+    with open(root + "/state/manager/operation.lock", "r+") as lock:
+        fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    held = "free"
+except OSError:
+    held = "held"
+with open(root + "/autostart-ran", "w") as output:
+    output.write(held)
+sys.exit(''' + str(exit_code) + ''')
+''')
+        worker.chmod(0o700)
+        env = dict(os.environ, NBT_TEST_MANAGER_ROOT=str(self.root),
+                   NBT_TEST_MANAGER_WORKER=str(worker))
+        return run(LAUNCHER, "--autostart", env=env)
+
+    def test_autostart_dispatches_with_the_known_good_worker_under_the_operation_lock(self):
+        self.baseline()
+        self.assertEqual(self.autostart().returncode, 0)
+        # The dispatch ran while the launcher held the operation lock, and released it after.
+        self.assertEqual((self.root / "autostart-ran").read_text(), "held")
+        with (self.root / "state/manager/operation.lock").open("r+") as lock:
+            fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        self.assertNotEqual(self.autostart(exit_code=1).returncode, 0)
+        # During a pending activation only the previous, known-good slot is used.
+        self.upload(2)
+        self.assertEqual(self.stage("update").returncode, 0)
+        (self.root / "manager/slots/1/worker").write_bytes(b"corrupt trial")
+        (self.root / "autostart-ran").unlink()
+        self.assertEqual(self.autostart().returncode, 0)
+        (self.root / "manager/slots/0/worker").write_bytes(b"corrupt known-good")
+        (self.root / "autostart-ran").unlink()
+        self.assertNotEqual(self.autostart().returncode, 0)
+        self.assertFalse((self.root / "autostart-ran").exists())
+        self.assertEqual(self.state()["phase"], "pending")
+
     def test_launcher_owns_the_worker_and_restarts_both_after_its_death(self):
         self.baseline()
         worker = Path(self.tmp.name) / "worker-dies-once"

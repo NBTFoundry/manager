@@ -55,6 +55,9 @@ BMW AG.
   ([docs/app-bridge.md](docs/app-bridge.md)).
 - **Input capture.** While the manager or an application is shown, iDrive does
   not act on the controller ([docs/input-capture.md](docs/input-capture.md)).
+- **Start with the car.** Each application's settings offer to start it about
+  25 s after the head unit boots, without opening the manager; repeated
+  failed starts pause that until it is started by hand.
 - **Diagnostics.** A per-application log and a debug log, readable from the
   phone, and a Settings → Status page with a live gamepad test.
 - **Languages.** English, French, German, Italian, Spanish, Chinese

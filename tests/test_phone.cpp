@@ -120,6 +120,11 @@ static bool run() {
     TEST_CHECK(phoneDoorClaim(path) && phoneDoorClaim(path) && phoneDoorClaim(path) &&
                !phoneDoorClaim(path));
     unlink(path);
+    // Automatic starts: asked for once per boot (the record outlives an iDrive restart).
+    TEST_CHECK(bootOnceClaim(path) && !bootOnceClaim(path) && !bootOnceClaim(path));
+    unlink(path);
+    TEST_CHECK(symlink("/dev/null", path) == 0 && !bootOnceClaim(path));
+    unlink(path);
     return true;
 }
 int main() {

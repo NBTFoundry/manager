@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/view_builder.hpp"
+#include "nbt/gui/autostart_ui.hpp"
 #include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/phone_ui.hpp"
@@ -95,8 +96,12 @@ void buildMainMenu(const UiController &ui, UiView *v) {
 void buildSettings(const UiController &ui, UiView *v) {
     const bool manager = ui.managerSettings();
     textf(v->title, sizeof(v->title), manager ? T_SETTINGS : T_APP_SETTINGS, ui.settingsApp);
+    char label[kTextMax + 1];
     if (ui.message[0]) {
         addLine(v, ui.message);
+    }
+    if (autostartNote(ui, label, sizeof(label))) {
+        addLine(v, label);
     }
     addText(v,
             manager                                ? T_APPLY_MANAGER_NEXT
@@ -104,10 +109,13 @@ void buildSettings(const UiController &ui, UiView *v) {
             : ui.settings.count                    ? T_APPLY_APP_NEXT
                                                    : T_NO_SETTINGS,
             ui.settingsApp);
-    char label[kTextMax + 1];
     for (size_t i = 0; i < ui.settings.count; ++i) {
         const nbt_setting &s = ui.settings.items[i];
         textf(label, sizeof(label), T_SETTING_ROW, settingLabel(ui, s), settingChoice(ui, s.value));
+        addItem(v, label);
+    }
+    if (!manager) { // autostartItem()
+        autostartEntry(ui, label, sizeof(label));
         addItem(v, label);
     }
     if (ui.stopEntry()) {

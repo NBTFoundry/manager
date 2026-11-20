@@ -39,14 +39,24 @@ class AutostartTests(unittest.TestCase):
 
     def test_preference_is_separate_and_guard_needs_manual_start(self):
         _, command = self.worker()
+
+        def page_flags():  # the GUI's settings page: "restart", "live+files+autostart", ...
+            return command("SETTINGS test live").split("\t")[2].split("+")
+
         self.assertEqual(command("AUTOSTART test"), "AUTOSTART\toff\tready")
+        self.assertNotIn("autostart", page_flags())
         self.assertEqual(self.dispatch().returncode, 0)
         self.assertFalse(self.host_lock.exists())
         for value in ("on", "off", "on"):
             self.assertEqual(command("AUTOSTART test " + value), "OK")
             self.assertEqual(command("AUTOSTART test"), f"AUTOSTART\t{value}\tready")
+            self.assertEqual("autostart" in page_flags(), value == "on")
         self.private("autostart-guard", "NBTAUTOGUARD1\nfailures=3\n")
         self.assertEqual(command("AUTOSTART test"), "AUTOSTART\ton\tblocked")
+        flags = page_flags()
+        self.assertIn("autostart-paused", flags)
+        self.assertNotIn("autostart", flags)
+        self.assertIn(flags[0], ("live", "restart"))
         self.assertEqual(self.automatic().returncode, 0)
         self.assertFalse(hosts.lock_holder(self.lease))
         self.assertEqual(command("AUTOSTART test off"), "OK")
@@ -55,6 +65,7 @@ class AutostartTests(unittest.TestCase):
         self.assertEqual(command("START test"), "OK")
         self.wait_for(lambda: hosts.lock_holder(self.lease))
         self.assertEqual(self.failures(), 0)
+        self.assertIn("autostart", page_flags())  # a start by hand resumed it
         self.assertEqual(command("STOP test"), "OK")
         self.wait_for(lambda: not hosts.lock_holder(self.host_lock))
         for line in ("AUTOSTART", "AUTOSTART manager on", "AUTOSTART ../test on",

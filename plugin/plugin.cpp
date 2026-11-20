@@ -130,6 +130,9 @@ void runnablePoll(void *) {
         if (phoneRuntime.shimCheckDue(now)) {
             (void)spawnLauncher("--shim-check", false);
         }
+        if (phoneRuntime.autostartDue(now)) { // with iDrive's preloads: applications draw
+            (void)spawnLauncher("--autostart");
+        }
         if (phoneRuntime.poll(now, running) && !requestOpen(instance)) {
             phoneRuntime.openFailed();
         }

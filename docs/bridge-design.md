@@ -153,22 +153,20 @@ Manual START re-arms before attempting start/show. Malformed records fail
 closed; unsafe paths cannot be repaired by overwriting their targets.
 See PROTOCOL.md for exact records and interruption semantics.
 
-The rest of the design: a manager-provided GUI choice and guard reason, the
-stable launcher's selection of a verified known-good worker (including pending
-manager updates), and the plugin's one-shot delayed invocation below; the
-plugin and launcher do not invoke autostart. Host tests cover the 30-second
-window, repeated failures, killed hosts, path aliases and record boundaries.
+Built on that: every application's settings page has a manager-provided
+"Start with the car" (off/on) after its own settings, stored by the worker in
+`state/<app>/autostart`. Once per boot, 25 s after iDrive loads the plugin,
+the plugin runs the launcher with `--autostart`, which runs the verified
+known-good worker's dispatch under the manager operation lock: each
+application that has it on starts as `START` does, without the GUI
+(PROTOCOL.md, "Autostart"). Host tests cover the GUI row, the settings flags,
+the launcher's slot choice and lock, and the once-per-boot record; the boot
+timing needs the car.
 
-Every application's settings page gets a manager-provided last setting,
-"Start with the car" (off/on), stored by the worker in
-`state/<app>/autostart`. When the plugin is loaded at boot it waits 15 s,
-then runs the launcher with `--autostart`, which starts each application
-that has it on, as `START` does, without opening the GUI.
-
-Boot guard: the launcher counts autostarts that did not reach 10 s of
-healthy running (`state/<app>/autostart-guard`). After three in a row it
-skips the autostart until the application is started by hand once, and
-the settings page says so. Host-testable apart from the boot timing.
+Boot guard: the host counts autostarts that did not reach 10 s of healthy
+running (`state/<app>/autostart-guard`). After three in a row automatic
+starts pause until the application is started by hand once, and the settings
+page says so.
 
 ## Favourite entry
 

@@ -250,10 +250,24 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
     memcpy(number, reply + 9, length);
     number[length] = 0;
     if ((length > 1 && number[0] == '0') || nbt_parse_u64(number, &count, 0) ||
-        count > NBT_SETTINGS_MAX || split(copy, reply, f, static_cast<size_t>(count) + 3) ||
-        (strcmp(f[2], "live") && strcmp(f[2], "restart") && strcmp(f[2], "live+files") &&
-         strcmp(f[2], "restart+files"))) {
+        count > NBT_SETTINGS_MAX || split(copy, reply, f, static_cast<size_t>(count) + 3)) {
         return -1;
+    }
+    // "live" or "restart", then any of "+files", "+autostart", "+autostart-paused".
+    char *rest = NULL, *token = strtok_r(f[2], "+", &rest);
+    const bool live = token && !strcmp(token, "live");
+    bool files = false, autostart = false, paused = false;
+    if (!live && (!token || strcmp(token, "restart"))) {
+        return -1;
+    }
+    while ((token = strtok_r(NULL, "+", &rest))) {
+        paused = paused || !strcmp(token, "autostart-paused");
+        autostart = autostart || paused || !strcmp(token, "autostart");
+        files = files || !strcmp(token, "files");
+        if (strcmp(token, "files") && strcmp(token, "autostart") &&
+            strcmp(token, "autostart-paused")) {
+            return -1;
+        }
     }
     memset(&parsed, 0, sizeof(parsed));
     for (size_t i = 0; i < static_cast<size_t>(count); ++i) {
@@ -262,8 +276,10 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
         }
     }
     ui.settings = parsed;
-    ui.liveSettings = !strncmp(f[2], "live", 4);
-    ui.files.offered = strstr(f[2], "+files") != NULL;
+    ui.liveSettings = live;
+    ui.files.offered = files;
+    ui.autostart = autostart;
+    ui.autostartPaused = paused;
     return 0;
 }
 

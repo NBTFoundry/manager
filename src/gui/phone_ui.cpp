@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/phone_ui.hpp"
+#include "nbt/gui/autostart_ui.hpp"
 #include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
@@ -71,7 +72,7 @@ bool phoneRequest(const UiController &ui, int kind, Request &request) {
         break;
     default:
         return setupRequest(kind, request) || languageRequest(ui, kind, request) ||
-               filesRequest(ui, kind, request);
+               autostartRequest(ui, kind, request) || filesRequest(ui, kind, request);
     }
     return true;
 }

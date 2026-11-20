@@ -269,7 +269,8 @@ never cross the command line:
 
 Refusals are `ERR <reason>`: `app`, `busy`, `unavailable`, `invalid-command`
 or a files reason (`quota`, `space`, `count`, `size`, `type`, `name`,
-`missing`). `SETTINGS <app> live` answers `live+files` or `restart+files` for
+`missing`). `SETTINGS <app> live` answers `live+files` or `restart+files` (and
+`+autostart` or `+autostart-paused`, "Autostart") for
 an application granted `files`.
 
 ## Application settings
@@ -314,7 +315,7 @@ In the GUI, holding the push on an application opens its settings (`SETTINGS <ap
 
 Applications therefore need no iDrive plugin of their own: the manager's main menu starts them, and their settings, and stopping them, live in the manager.
 
-### Autostart core (boot integration pending)
+### Autostart
 
 The worker accepts `--autostart` as a one-shot dispatcher and `--host-auto <app>`
 as its guarded detached host. It starts enabled applications through the same
@@ -337,11 +338,22 @@ resets the guard before attempting start/show; even an unsuccessful manual
 attempt re-arms it. A late persistence error can already have saved the record;
 retry and read it back. Settings and application data are untouched.
 
-The GUI's **Start with the car** choice, the blocked reason, the stable
-launcher's `--autostart` slot selection and the plugin's delayed invocation are
-designed in [docs/bridge-design.md](docs/bridge-design.md#start-automatically):
-direct worker dispatch is not boot integration, because the launcher must verify and select the signed known-good worker under its operation lock,
-without opening a GUI or implicitly confirming a pending manager release.
+Boot: once per boot (the record `/dev/shmem/nbt-manager.autostart`, which an
+iDrive restart keeps), 25 s after iDrive loaded it and after the door's job,
+the plugin runs `nbt-manager-launcher --autostart` with iDrive's environment
+(its preloads included: applications draw). The launcher takes the manager
+operation lock (retrying for up to 10 s), verifies the known-good worker (the
+active slot, or the previous one while a manager update is pending, so a boot
+job never confirms a candidate), runs its `--autostart` and holds the lock
+until that dispatch has ended (at most 15 s). No GUI opens.
+
+GUI: an application's settings page shows **Start with the car** after the
+settings its package declares (`include/nbt/gui/autostart_ui.hpp`).
+`SETTINGS <app> live` adds `+autostart` to its mode field when the preference
+is on, or `+autostart-paused` when it is on but three unconfirmed attempts
+paused it; selecting the row sends `AUTOSTART <app> on|off` and reads the page
+again. While paused the page says to start the application once by hand, which
+resets the guard.
 
 ### Managed application isolation and fault quarantine
 

@@ -7,6 +7,8 @@ namespace nbt {
 namespace gui {
 static const char kPhoneWakePath[] = "/dev/shmem/nbt-manager.wake";
 static const char kDoorLivePath[] = "/dev/shmem/nbt-manager.door";
+/* Marks that this boot's automatic application starts were asked for. */
+static const char kAutostartBootPath[] = "/dev/shmem/nbt-manager.autostart";
 enum PhoneWakeState { WakeOpening, WakeOpen, WakeBusy, WakeMoving, WakeOff };
 struct PhoneWake {
     char id[33];
@@ -18,6 +20,9 @@ struct PhoneWake {
  * `writing`); -1 for anything else. */
 int privateRecordOpen(const char *path, bool writing);
 bool phoneDoorClaim(const char *path);
+/* True once per boot: /dev/shmem starts empty after a reboot, but keeps the
+ * record across iDrive restarts. */
+bool bootOnceClaim(const char *path);
 bool phoneDoorReset(const char *path);
 bool phoneWakeParse(const char *text, size_t size, PhoneWake &wake);
 bool phoneWakeRead(const char *path, PhoneWake &wake);

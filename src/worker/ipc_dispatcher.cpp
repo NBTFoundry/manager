@@ -56,6 +56,7 @@ IpcDispatcher::IpcDispatcher(storage::ManagedRoot &root, Worker &worker, WebServ
 
 core::Status IpcDispatcher::handleSettings(bool setting, char *cursor) {
     nbt_settings settings;
+    nbt_autostart autostart = {0, 0};
     int mode = 0, live = 0, files = 0;
     char *app = word(&cursor);
     char *key = setting ? word(&cursor) : NULL;
@@ -107,11 +108,19 @@ core::Status IpcDispatcher::handleSettings(bool setting, char *cursor) {
         }
         live = nbt_bridge_cap_has(grant.caps, "live-settings");
         files = nbt_bridge_cap_has(grant.caps, "files"); // its page offers Files
+        // Start with the car: shown as off when its record cannot be read.
+        if (nbt_autostart_load(root_.legacy(), app, &autostart)) {
+            autostart.enabled = 0;
+        }
     }
+    const bool paused = autostart.failures >= NBT_AUTOSTART_FAILURE_LIMIT;
     char list[2048];
     int length =
-        snprintf(list, sizeof(list), "SETTINGS\t%u%s%s%s", static_cast<unsigned>(settings.count),
-                 mode ? "\t" : "", mode ? (live ? "live" : "restart") : "", files ? "+files" : "");
+        snprintf(list, sizeof(list), "SETTINGS\t%u%s%s%s%s", static_cast<unsigned>(settings.count),
+                 mode ? "\t" : "", mode ? (live ? "live" : "restart") : "", files ? "+files" : "",
+                 !autostart.enabled ? ""
+                 : paused           ? "+autostart-paused"
+                                    : "+autostart");
     if (length < 0 || length >= static_cast<int>(sizeof(list))) {
         return core::Status::error(ERANGE, "settings too large");
     }

@@ -154,7 +154,20 @@ the debug log on:
 | Restart the head unit | The files are still there |
 | Uninstall the application | `files/<app>` is gone |
 
-## 10. MOST subscriptions and parameter capture (A1/A3/B3/B4)
+## 10. Start with the car
+
+With the debug log on and the test application installed
+([PROTOCOL.md](../PROTOCOL.md), "Autostart"):
+
+| Action | Expected |
+| --- | --- |
+| Hold the push on the application; select **Start with the car** | The row reads "on"; `state/<app>/autostart` holds `enabled=1` |
+| Switch the car off, wait for the head unit to sleep, start it again | About 25 s after iDrive's menu appears the application runs (its status label in the manager's menu) without the manager's screen opening; the debug log shows `launcher spawn begin (--autostart)` once |
+| Restart iDrive only (Settings > Status, or `OnOffDSICommander appreset`) | No second automatic start: `/dev/shmem/nbt-manager.autostart` is still there |
+| Install a test package that fails its start, with the row on; reboot three times | The fourth boot starts nothing; the page says it is paused; starting it once by hand resumes it |
+| Stage a manager update and reboot while it is pending | The automatic start runs with the previous, known-good worker; the update stays pending |
+
+## 11. MOST subscriptions and parameter capture (A1/A3/B3/B4)
 
 Record the firmware, manager commit, monitor package
 digest, date and operator. Use an isolated bench first. Keep raw logs in private

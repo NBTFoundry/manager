@@ -144,6 +144,7 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
             break;
         }
         go(Settings);
+        focus = uninstallItem(); // as after No: on Uninstall
         textf(message, sizeof(message),
               !strcmp(replyText, "ERR running") ? T_STOP_FIRST
               : !strcmp(replyText, "ERR busy")  ? T_BUSY_UNINSTALL_LATER

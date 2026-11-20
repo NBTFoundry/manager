@@ -501,13 +501,16 @@ static void test_hold_opens_settings(void) {
     now = pressed + nbt::gui::kHoldMs;
     exchange(&ui, "SETTINGS test live", TEST_SETTINGS);
     v = view(&ui);
-    /* A running application's settings end with stopping and uninstalling it. */
+    /* A running application's settings: its own, Start with the car, then stopping and
+     * uninstalling it. */
     CHECK(ui.screen == nbt::gui::Settings && !v.modal.shown && !strcmp(v.title, "test settings") &&
-          v.itemCount == 3);
-    CHECK(!strcmp(v.items[0], "Background color: blue") && !strcmp(v.items[1], "Stop test") &&
-          !strcmp(v.items[2], "Uninstall test"));
-    CHECK(v.itemStyle[0] == nbt::gui::ItemEntry && v.itemStyle[1] == nbt::gui::ItemAction &&
-          v.itemStyle[2] == nbt::gui::ItemAction && v.focus == 0);
+          v.itemCount == 4);
+    CHECK(!strcmp(v.items[0], "Background color: blue") &&
+          !strcmp(v.items[1], "Start with the car: off") && !strcmp(v.items[2], "Stop test") &&
+          !strcmp(v.items[3], "Uninstall test"));
+    CHECK(v.itemStyle[0] == nbt::gui::ItemEntry && v.itemStyle[1] == nbt::gui::ItemEntry &&
+          v.itemStyle[2] == nbt::gui::ItemAction && v.itemStyle[3] == nbt::gui::ItemAction &&
+          v.focus == 0);
     CHECK(view_contains(&ui, "Changes apply when test next starts"));
     /* Letting go after the hold starts nothing. */
     CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 0 && !ui.queued);
@@ -517,6 +520,7 @@ static void test_hold_opens_settings(void) {
     exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
     /* Stopping is an entry like the settings. */
     hold(&ui, "SETTINGS test live", TEST_SETTINGS);
+    press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeyDown, 0);
@@ -532,21 +536,21 @@ static void test_hold_opens_settings(void) {
     CHECK(ui.screen == nbt::gui::Settings && view_contains(&ui, "test stopped"));
     exchange(&ui, "RUNNING status", "RUNNING\t0");
     v = view(&ui);
-    /* Focus stays on the second item, now Uninstall (which asks first). */
-    CHECK(v.itemCount == 2 && !strcmp(v.items[0], "Background color: blue") && v.focus == 1 &&
-          !strcmp(v.items[1], "Uninstall test") && !v.busy);
+    /* Focus stays on the third item, now Uninstall (which asks first). */
+    CHECK(v.itemCount == 3 && !strcmp(v.items[0], "Background color: blue") && v.focus == 2 &&
+          !strcmp(v.items[2], "Uninstall test") && !v.busy);
     idle(&ui);
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 1 && !view_contains(&ui, "test stopped"));
     exchange(&ui, "RUNNING status", "RUNNING\t0");
     CHECK(!strcmp(view(&ui).items[1], "test"));
-    /* Nothing to set and not running: only Uninstall; BACK leaves. */
+    /* Nothing to set and not running: Start with the car and Uninstall; BACK leaves. */
     press(&ui, nbt::gui::KeyUp, 1);
     hold(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
     v = view(&ui);
     CHECK(!strcmp(v.title, "demo settings") && view_contains(&ui, "demo has no settings"));
-    CHECK(v.itemCount == 1 && !strcmp(v.items[0], "Uninstall demo") &&
-          v.itemStyle[0] == nbt::gui::ItemAction);
+    CHECK(v.itemCount == 2 && !strcmp(v.items[0], "Start with the car: off") &&
+          !strcmp(v.items[1], "Uninstall demo") && v.itemStyle[1] == nbt::gui::ItemAction);
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 0);
 }
@@ -614,14 +618,15 @@ static void test_uninstall(void) {
     UiView v;
     loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t0");
     hold(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
-    /* Uninstall asks first, with No focused. */
+    /* Uninstall (after Start with the car) asks first, with No focused. */
+    press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     v = view(&ui);
     CHECK(ui.screen == nbt::gui::Uninstall && !strcmp(v.title, "Uninstall demo?") && v.focus == 0);
     CHECK(v.itemCount == 2 && !strcmp(v.items[0], "No") && !strcmp(v.items[1], "Yes, uninstall"));
     CHECK(view_contains(&ui, "demo and all its data are deleted") && !ui.queued);
     press(&ui, nbt::gui::KeySelect, 1);
-    CHECK(ui.screen == nbt::gui::Settings && ui.focus == 0 && !ui.queued);
+    CHECK(ui.screen == nbt::gui::Settings && ui.focus == ui.uninstallItem() && !ui.queued);
     press(&ui, nbt::gui::KeySelect, 1);
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Settings && !ui.queued);
@@ -661,8 +666,9 @@ static void test_stop_failures(void) {
     UiController ui;
     loaded(&ui, "APPS\t1\ttest", "RUNNING\t1\ttest");
     hold(&ui, "SETTINGS test live", "SETTINGS\t0\trestart");
-    CHECK(view(&ui).itemCount == 2 && !strcmp(view(&ui).items[0], "Stop test"));
+    CHECK(view(&ui).itemCount == 3 && !strcmp(view(&ui).items[1], "Stop test"));
     CHECK(view_contains(&ui, "test has no settings"));
+    press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "STOP test", "ERR stop");
     CHECK(ui.screen == nbt::gui::Settings && view_contains(&ui, "Cannot stop test"));
@@ -1122,9 +1128,10 @@ static void test_app_settings(void) {
          "SETTINGS\t2\trestart\tbackground|Background color|blue|blue,red,green,black"
          "\tsize|Text size|small|small,large");
     v = view(&ui);
-    CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "test settings") && v.itemCount == 3);
+    CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "test settings") && v.itemCount == 4);
     CHECK(!strcmp(v.items[0], "Background color: blue") &&
-          !strcmp(v.items[1], "Text size: small") && !strcmp(v.items[2], "Uninstall test"));
+          !strcmp(v.items[1], "Text size: small") &&
+          !strcmp(v.items[2], "Start with the car: off") && !strcmp(v.items[3], "Uninstall test"));
     press(&ui, nbt::gui::KeySelect, 1);
     v = view(&ui);
     CHECK(ui.screen == nbt::gui::Choice && !strcmp(v.title, "Background color") &&
@@ -1205,7 +1212,7 @@ static void test_app_settings(void) {
         CHECK(used > 1024);
         loaded(&ui, "APPS\t1\ttest", "RUNNING\t1\ttest");
         hold(&ui, "SETTINGS test live", reply);
-        CHECK(ui.settings.count == 12 && view(&ui).itemCount == 14);
+        CHECK(ui.settings.count == 12 && view(&ui).itemCount == 15);
         CHECK(view_contains(&ui, "Changes apply at once"));
         for (i = 0; i < 11; ++i) {
             press(&ui, nbt::gui::KeyDown, 1);
@@ -1236,6 +1243,9 @@ static void test_app_settings(void) {
             "SETTINGS\t1\trestart\tx|A|a|",
             "SETTINGS\t1\trestart\tx|A|a|toolongchoice1",
             "SETTINGS\t01\trestart\tx|A|a|a",
+            "SETTINGS\t0\trestart+bogus",
+            "SETTINGS\t0\t+autostart",
+            "SETTINGS\t0\tautostart+live",
             "OK"};
         size_t i;
         for (i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
@@ -1514,16 +1524,17 @@ static void test_quarantine_unblock_and_abort_app(void) {
     CHECK(view_contains(&ui, "test blocked after faults"));
     exchange(&ui, "RUNNING status", "RUNNING\t0");
 
-    /* Hold opens Settings with Unblock test before Uninstall test. */
+    /* Hold opens Settings with Unblock test before Uninstall test (after Start with the car). */
     press(&ui, nbt::gui::KeySelect, 1);
     now += nbt::gui::kHoldMs;
     exchange(&ui, "SETTINGS test live", "SETTINGS\t0\tlive");
-    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 2);
-    CHECK(!strcmp(view(&ui).items[0], "Unblock test") &&
-          !strcmp(view(&ui).items[1], "Uninstall test"));
+    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 3);
+    CHECK(!strcmp(view(&ui).items[1], "Unblock test") &&
+          !strcmp(view(&ui).items[2], "Uninstall test"));
+    press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "UNBLOCK test", "OK");
-    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 1);
+    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 2);
     CHECK(view_contains(&ui, "test unblocked"));
 
     /* abortApp stops a hung/failed screen app with STOP <app> fault and clears stopping on Apps. */
@@ -1542,14 +1553,71 @@ static void test_quarantine_unblock_and_abort_app(void) {
     "FILES\t13\t3145728\t1073741824\t5000000000\t1\tA.sfc\t1048576\tB.sfc\t10\tC.sfc\t10\tD."      \
     "sfc\t10"                                                                                      \
     "\tE.sfc\t10\tF.sfc\t10\tG.sfc\t10\tH.sfc\t10\tI.sfc\t10\tJ.sfc\t10\tK.sfc\t10\tL.sfc\t10"
+/* An application's Start with the car: after its own settings, switched at once,
+ * paused after failed automatic starts (PROTOCOL.md, "Autostart"). */
+static void test_autostart_setting(void) {
+    UiController ui;
+    UiView v;
+    loaded(&ui, "APPS\t1\tdemo", "RUNNING\t1\tdemo");
+    hold(&ui, "SETTINGS demo live", TEST_SETTINGS);
+    v = view(&ui);
+    CHECK(v.itemCount == 4 && !strcmp(v.items[1], "Start with the car: off") &&
+          !strcmp(v.items[2], "Stop demo") && !strcmp(v.items[3], "Uninstall demo"));
+    CHECK(ui.autostartItem() == 1 && ui.stopItem() == 2 && ui.uninstallItem() == 3);
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "AUTOSTART demo on", "OK");
+    exchange(
+        &ui, "SETTINGS demo live",
+        "SETTINGS\t1\trestart+autostart\tbackground|Background color|blue|blue,red,green,black");
+    v = view(&ui);
+    CHECK(ui.screen == nbt::gui::Settings && ui.focus == ui.autostartItem());
+    CHECK(!strcmp(v.items[1], "Start with the car: on") && !view_contains(&ui, "Paused"));
+    /* Paused: the page says how to resume; switching it off is still possible. */
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "AUTOSTART demo off", "OK");
+    exchange(&ui, "SETTINGS demo live",
+             "SETTINGS\t1\trestart+autostart-paused\tbackground|Background "
+             "color|blue|blue,red,green,black");
+    CHECK(!strcmp(view(&ui).items[1], "Start with the car: on"));
+    CHECK(view_contains(&ui, "Paused after failed starts: start demo once from here"));
+    /* A refused switch says so and shows the page as the worker has it. */
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "AUTOSTART demo off", "ERR settings");
+    CHECK(view_contains(&ui, "Cannot save"));
+    exchange(&ui, "SETTINGS demo live", TEST_SETTINGS);
+    CHECK(!strcmp(view(&ui).items[1], "Start with the car: off"));
+    /* Stop keeps working below it. */
+    press(&ui, nbt::gui::KeyDown, 1);
+    CHECK(ui.focus == ui.stopItem());
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "STOP demo", "OK");
+    /* The manager's own page has no such row; an unknown flag is a protocol error. */
+    UiController manager;
+    loaded(&manager, "APPS\t1\tdemo", "RUNNING\t0");
+    manager_settings(&manager);
+    CHECK(!view_contains(&manager, "Start with the car"));
+    UiController bad;
+    loaded(&bad, "APPS\t1\tdemo", "RUNNING\t0");
+    press(&bad, nbt::gui::KeySelect, 1);
+    now += nbt::gui::kHoldMs;
+    {
+        Request request;
+        CHECK(bad.nextRequest(now, request) == 1 && !strcmp(request.command, "SETTINGS demo live"));
+        CHECK(bad.reply("SETTINGS\t0\trestart+autostart+bogus", now) == -1);
+        CHECK(bad.screen == nbt::gui::Error && bad.fatal);
+    }
+}
+
 static void test_files_screens(void) {
     UiController ui;
     UiView v;
     loaded(&ui, "APPS\t1\tsnes", "RUNNING\t0");
     hold(&ui, "SETTINGS snes live", "SETTINGS\t0\trestart+files");
     v = view(&ui);
-    CHECK(v.itemCount == 2 && !strcmp(v.items[0], "Files") &&
-          !strcmp(v.items[1], "Uninstall snes"));
+    CHECK(v.itemCount == 3 && !strcmp(v.items[0], "Start with the car: off") &&
+          !strcmp(v.items[1], "Files") && !strcmp(v.items[2], "Uninstall snes"));
+    press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "FILES snes first", FILES_PAGE_ONE);
     v = view(&ui);
@@ -1637,7 +1705,8 @@ static void test_files_screens(void) {
     /* An application without files has no entry; sizes are written in the car's language. */
     loaded(&ui, "APPS\t1\tdemo", "RUNNING\t0");
     hold(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
-    CHECK(view(&ui).itemCount == 1 && !view_contains(&ui, "Files"));
+    CHECK(view(&ui).itemCount == 2 &&
+          !view_contains(&ui, "Files")); /* Start with the car, Uninstall */
     char size[32];
     nbt::gui::setCurrentLanguage(nbt::model::LangFr);
     nbt::gui::formatSize(UINT64_C(3) << 20, size, sizeof(size));
@@ -1649,6 +1718,7 @@ static void test_files_screens(void) {
 
 int main(void) {
     test_files_screens();
+    test_autostart_setting();
     test_application_status();
     test_main_menu_and_banner();
     test_push_starts_and_closes();

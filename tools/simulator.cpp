@@ -60,7 +60,8 @@ static struct {
     uint64_t stop_ms;
     int started; /* 1 + the application a START started: the manager closes */
     char message[64];
-} w = {0, "", 1, 0, "", {1, 0}, -1, 0, 0, "-"};
+    int autostart[APPS]; /* Start with the car: 0 off, 1 on, 2 on but paused (media-player) */
+} w = {0, "", 1, 0, "", {1, 0}, -1, 0, 0, "-", {2, 0}};
 
 /* What each application declares in its package. */
 static const char *const declared[APPS] = {NULL,
@@ -304,10 +305,15 @@ static void worker(const char *command, char *reply, size_t size, uint64_t now) 
             snprintf(reply, size, "ERR settings");
             return;
         }
-        used = (size_t)snprintf(reply, size, "SETTINGS\t%u\t%s", (unsigned)list->count,
+        const int index = app_index(app);
+        const int autostart = index >= 0 ? w.autostart[index] : 0;
+        used = (size_t)snprintf(reply, size, "SETTINGS\t%u\t%s%s", (unsigned)list->count,
                                 !strcmp(app, "test")           ? "live"
                                 : !strcmp(app, "media-player") ? "restart+files"
-                                                               : "restart");
+                                                               : "restart",
+                                autostart == 2   ? "+autostart-paused"
+                                : autostart == 1 ? "+autostart"
+                                                 : "");
         for (i = 0; i < list->count && used + 1 < size; ++i) {
             int n;
             reply[used++] = '\t';
@@ -317,6 +323,16 @@ static void worker(const char *command, char *reply, size_t size, uint64_t now) 
             }
             used += (size_t)n;
         }
+    } else if (!strncmp(command, "AUTOSTART ", 10)) {
+        char app[49], mode[4];
+        const int index = sscanf(command + 10, "%48s %3s", app, mode) == 2 ? app_index(app) : -1;
+        if (index < 0 || (strcmp(mode, "on") && strcmp(mode, "off"))) {
+            snprintf(reply, size, "ERR invalid-command");
+            return;
+        }
+        /* Switching does not clear the pause: only a start by hand does. */
+        w.autostart[index] = !strcmp(mode, "off") ? 0 : w.autostart[index] == 2 ? 2 : 1;
+        snprintf(reply, size, "OK");
     } else if (!strncmp(command, "SET ", 4)) {
         char app[49], key[17], value[13];
         nbt_settings *list = NULL;
@@ -340,6 +356,9 @@ static void worker(const char *command, char *reply, size_t size, uint64_t now) 
         }
     } else if (!strncmp(command, "START ", 6) && app_index(command + 6) >= 0) {
         int index = app_index(command + 6);
+        if (w.autostart[index] == 2) {
+            w.autostart[index] = 1; /* a start by hand resumes automatic starts */
+        }
         if (w.running[index] && index == 0) {
             snprintf(reply, size, "ERR running");
         } else {

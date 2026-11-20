@@ -70,6 +70,15 @@ bool phoneDoorClaim(const char *path) {
         valid && lseek(fd, 0, SEEK_SET) == 0 && write(fd, value, 1) == 1 && !ftruncate(fd, 1);
     return close(fd) == 0 && result;
 }
+bool bootOnceClaim(const char *path) {
+    const int fd = openPrivate(path, true);
+    if (fd < 0) {
+        return false;
+    }
+    char value = 0;
+    const bool first = read(fd, &value, 1) == 0 && write(fd, "1", 1) == 1;
+    return close(fd) == 0 && first;
+}
 bool phoneDoorReset(const char *path) {
     const int fd = openPrivate(path, true);
     if (fd < 0) {

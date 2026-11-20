@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+#include "nbt/gui/autostart_ui.hpp"
 #include "nbt/gui/ui_controller.hpp"
 
 #include "nbt/gui/files_ui.hpp"
@@ -54,7 +55,8 @@ int UiController::press(Key key) {
     if (inputBusy() || stopping) {
         return 0;
     }
-    if (phonePress(*this, key) || statusPress(*this, key) || languagePress(*this, key)) {
+    if (phonePress(*this, key) || statusPress(*this, key) || languagePress(*this, key) ||
+        autostartPress(*this, key)) {
         return 1;
     }
     switch (screen) {
@@ -85,7 +87,7 @@ int UiController::press(Key key) {
             queued = R_PHONES;
             return 1;
         }
-        if (key == KeySelect && focus == settings.count && stopEntry()) {
+        if (key == KeySelect && focus == stopItem() && stopEntry()) {
             strcpy(target, settingsApp);
             faultStop = 0;
             queued = R_STOP;
