@@ -10,6 +10,7 @@
 #include "nbt/manager_refresh.h"
 #include "nbt/storage/capture_install.hpp"
 #include "nbt/util.h"
+#include "nbt/worker/autostart_request.hpp"
 #include "nbt/worker/ipc_dispatcher.hpp"
 
 #include <errno.h>
@@ -39,31 +40,14 @@ char *autostartWord(char **cursor) {
 } // namespace
 
 core::Status IpcDispatcher::handleAutostart(char *cursor) {
-    nbt_autostart state;
-    char output[256];
+    char output[64];
     char *app = autostartWord(&cursor);
     char *mode = autostartWord(&cursor);
-    if (!app || cursor || !nbt_token_valid(app, NBT_ID_MAX, 0) || !strcmp(app, "manager") ||
-        nbt_fs_exists(root_.legacy(), NBT_FS_PROFILE, app, NULL) != 1 ||
-        (mode && strcmp(mode, "on") && strcmp(mode, "off"))) {
-        return control_.respond("ERR invalid-command\n");
-    }
-    if (mode) {
-        if ((worker_.state().updateLock.valid() && !strcmp(app, worker_.state().app)) ||
-            nbt_autostart_set(root_.legacy(), app, !strcmp(mode, "on"))) {
-            return control_.respond("ERR settings\n");
-        }
-        return control_.respond("OK\n");
-    }
-    if (nbt_autostart_load(root_.legacy(), app, &state)) {
-        return control_.respond("ERR settings\n");
-    }
-    const int length =
-        snprintf(output, sizeof(output), "AUTOSTART\t%s\t%s\n", state.enabled ? "on" : "off",
-                 state.failures >= NBT_AUTOSTART_FAILURE_LIMIT ? "blocked" : "ready");
-    return length < 0 || length >= static_cast<int>(sizeof(output))
-               ? core::Status::error(ERANGE, "autostart response too large")
-               : control_.respond(output);
+    const AutostartResult result =
+        cursor ? AutostartInvalid : autostartRequest(worker_, app, mode, core::Span<char>(output));
+    return control_.respond(result == AutostartDone      ? output
+                            : result == AutostartInvalid ? "ERR invalid-command\n"
+                                                         : "ERR settings\n");
 }
 
 core::Status IpcDispatcher::handleSystem(bool setup, const char *cursor) {

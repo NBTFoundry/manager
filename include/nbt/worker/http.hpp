@@ -26,7 +26,8 @@ enum Route {
     FilesList,
     FilesPut,
     FilesData,
-    FilesRemove
+    FilesRemove,
+    Autostart
 };
 /* Routes whose body is streamed to a file rather than read into memory. */
 inline bool streamed(Route route) {

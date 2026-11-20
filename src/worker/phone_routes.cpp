@@ -3,6 +3,7 @@
 #include "nbt/app_settings.h"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
+#include "nbt/worker/autostart_request.hpp"
 #include "nbt/worker/worker.hpp"
 #include <stdio.h>
 #include <string.h>
@@ -35,6 +36,22 @@ int phoneApplications(Worker &worker, core::Span<char> out) {
     }
     return 200;
 }
+int phoneAutostart(Worker &worker, const char *body, core::Span<char> out) {
+    char text[64];
+    const size_t length = body ? strlen(body) : 0;
+    if (!length || length >= sizeof(text) || body[length - 1] != '\n') {
+        return 400;
+    }
+    memcpy(text, body, length - 1);
+    text[length - 1] = 0;
+    char *mode = strchr(text, '\t');
+    if (mode) {
+        *mode++ = 0;
+    }
+    const AutostartResult result = autostartRequest(worker, text, mode, out);
+    return result == AutostartDone ? 200 : result == AutostartInvalid ? 400 : 409;
+}
+
 int phoneSettings(Worker &worker, const char *body, bool setting, core::Span<char> out) {
     char text[160];
     if (!body || strlen(body) >= sizeof(text)) {

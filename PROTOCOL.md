@@ -353,7 +353,9 @@ settings its package declares (`include/nbt/gui/autostart_ui.hpp`).
 is on, or `+autostart-paused` when it is on but three unconfirmed attempts
 paused it; selecting the row sends `AUTOSTART <app> on|off` and reads the page
 again. While paused the page says to start the application once by hand, which
-resets the guard.
+resets the guard. A paired phone reads and switches the same preference with
+`POST /v1/autostart` (the worker and the door), through the same code
+(`src/worker/autostart_request.cpp`).
 
 ### Managed application isolation and fault quarantine
 
@@ -556,6 +558,7 @@ connections, a 5-second header deadline, a 15-second inactivity timeout and a
 | `GET /v1/apps` | empty | `APPS\t<count>\n`, then `id\tversion\tsequence\t<0\|1 running>\n` per app | Yes |
 | `POST /v1/settings/read` | `app\n` | `SETTINGS\t<count>\n`, then `key\|label\|value\|choice,choice\n` per setting | Yes |
 | `POST /v1/settings/set` | `app\tkey\tvalue\n` | `OK\n`; declared choice applied under the app transaction lock, without a car prompt | Yes |
+| `POST /v1/autostart` | `app\n`, or `app\t<on\|off>\n` | `AUTOSTART\t<off\|on>\t<ready\|blocked>\n`, or `OK\n` once saved (the pause stays until a start by hand); 400 for anything but an installed application and `on`/`off`, 409 while it is being updated ("Autostart") | Yes |
 | `POST /v1/wake` | empty | `WAKE\t<opening\|open\|busy\|moving\|off>\n` | Only |
 | `POST /v1/pair` | below | HTTP 202 `PAIR\tpending\t<6 digits>\n`; local confirmation required | No |
 | `POST /v1/upload` | complete `.nbt` package | HTTP 202 `STATUS\twaiting\tChecking the package\n` while the worker verifies it on its job, then `verified` or `failed` through `/v1/status` (`STATUS\tverified\tReview and confirm on the car\n` when it was verified at once); HTTP 400 for an upload that is no application package | No |

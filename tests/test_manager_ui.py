@@ -252,6 +252,13 @@ class ManagerUiTests(unittest.TestCase):
                          (200, b"OK\n"))
         self.assertIn(b"background|Background|red|", self.phone.request(self.host, "POST", "/v1/settings/read", b"other\n")[1])
         self.assertEqual(self.phone.request(self.host, "POST", "/v1/settings/set", b"other\tbackground\tinvalid\n")[0], 409)
+        # Start with the car, from the paired phone (PROTOCOL.md, "Autostart").
+        autostart = lambda body: self.phone.request(self.host, "POST", "/v1/autostart", body)
+        self.assertEqual(autostart(b"other\n"), (200, b"AUTOSTART\toff\tready\n"))
+        self.assertEqual(autostart(b"other\ton\n"), (200, b"OK\n"))
+        self.assertEqual(autostart(b"other\n"), (200, b"AUTOSTART\ton\tready\n"))
+        for bad in (b"other\tyes\n", b"manager\ton\n", b"missing\n", b"other", b""):
+            self.assertEqual(autostart(bad)[0], 400, bad)
         self.assertEqual(self.send("poll").screen, RESULT)
         self.finish()
 
