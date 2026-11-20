@@ -73,6 +73,33 @@ python3 tools/package_release.py --version v1 --sequence 1 --compat demo-1 \
 build/nbt-verify-release manager-v1.nbtr manager-public.pem demo-1
 ```
 
+**CI releases.** Pushing a tag `vX.Y.Z` (each part below 1000) runs
+`.github/workflows/release.yml` and publishes `nbt-manager-X.Y.Z.nbtr`, the manager
+public key and `SHA256SUMS` as a GitHub release (a pre-release while X is 0). The
+release sequence is `X*1000000 + Y*1000 + Z`, so every later tag updates an earlier
+release; a local kit (sequence from its keys directory) cannot replace a CI release
+until its sequence is higher. The worker carries `release/apps-public.pem`.
+
+Four jobs split what each one can reach. The build runs in the private QNX image
+(`ci/qnx/README.md`) with no secret. The sign job runs in the `release` environment,
+which hands out `MANAGER_SIGNING_KEY` only to `v*` tags and only after a maintainer
+approves the run; it executes nothing but `tools/package_release.py` from the tag and
+`openssl`, never a build output, writes the key outside the workspace for that one
+step and refuses a key that is not the pair of `release/manager-public.pem`. A
+separate job runs the build's verifier on the signed file without any credential,
+and the publishing job, the only one with write access, executes nothing from the
+build. All actions are pinned to commit SHAs.
+
+Application packages (`.nbt`) are released the same way by
+`.github/workflows/app-release.yml`, which application repositories call from their
+own `v*` tag workflow with the SDK commit, build command and executable. The
+package description is the repository's `release/package.args` (`tools/package.py
+@FILE`, also used by its Makefile); the sequence follows the same rule. The apps key
+is the secret `APPS_SIGNING_KEY` of the application repository's `release`
+environment and must be the pair of `release/apps-public.pem` here; the sign job
+takes `tools/package.py` from the called workflow's own commit, and the verify job
+checks the package with `nbt-verify` built from that commit.
+
 The desktop installer and target launcher enforce the manager signing key,
 release sequence, installation and rollback policies described below. A valid
 signature alone does not establish hardware compatibility.

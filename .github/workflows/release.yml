@@ -1,0 +1,222 @@
+# SPDX-License-Identifier: MPL-2.0
+# Signed manager release from a vMAJOR.MINOR.PATCH tag (docs/manager-release.md, "CI
+# releases"). Each job holds only what it needs:
+#   build    private QNX image, no secret; produces the unsigned components
+#   sign     environment "release" (tag-only, approved by a maintainer): the manager
+#            key; runs only tools/package_release.py from the tag, never build output
+#   verify   runs the build's verifier on the signed release; holds nothing
+#   publish  contents:write; runs nothing from the build
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # The compatibility token the car's trust/manager.conf carries (release/README.md).
+  MANAGER_COMPAT: nbt-evo-dev
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    container:
+      # ci/qnx/README.md: built from a local toolchain by ci/qnx/build-image.sh.
+      image: ghcr.io/nbtfoundry/qnx65-build@sha256:f384f2e48ab1641b97559ef6101b6c9e219b61b2754aabbf37f0b96ec119da07
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sequence: ${{ steps.version.outputs.sequence }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Fetch LVGL
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git -c url.https://github.com/.insteadOf=git@github.com: submodule update --init --depth 1 third_party/lvgl
+      - name: Version and sequence from the tag
+        id: version
+        run: |
+          # vX.Y.Z, each part below 1000: sequence X*1000000 + Y*1000 + Z, so a
+          # later tag always updates an earlier release.
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
+            echo "::error::release tags are vMAJOR.MINOR.PATCH, each part below 1000"
+            exit 1
+          fi
+          sequence=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + BASH_REMATCH[3] ))
+          (( sequence > 0 )) || { echo "::error::v0.0.0 is not a release"; exit 1; }
+          echo "version=${GITHUB_REF_NAME#v}" >>"$GITHUB_OUTPUT"
+          echo "sequence=$sequence" >>"$GITHUB_OUTPUT"
+      - name: Build for the head unit
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          make -j"$(nproc)" qnx qnx-plugin qnx-capture qnx-check "$PWD/build/nbt-verify-release" \
+            MANAGER_VERSION="$VERSION" APPS_PUBLIC_KEY=release/apps-public.pem
+          # A worker without the apps key would accept no application package.
+          key_line="$(sed -n 2p release/apps-public.pem)"
+          grep -qF "$key_line" build/nbt-managerd-qnx || { echo "::error::the worker lacks the apps key"; exit 1; }
+          mkdir -p out/unsigned/NbtManager out/verifier
+          cp build/nbt-manager-launcher build/nbt-manager-gui build/nbt-managerd-qnx build/libnbt-capture.so out/unsigned/
+          cp build/NbtManager/{libNbtManager.so,NbtManager.manifest,NbtManager.xml,NbtManager_ALL_Texts.zip,NbtManager_ALL_Images.zip} out/unsigned/NbtManager/
+          cp build/nbt-verify-release out/verifier/
+          (cd out/unsigned && find . -type f | sort | xargs sha256sum)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned
+          path: out/unsigned
+          if-no-files-found: error
+          retention-days: 3
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verifier
+          path: out/verifier
+          if-no-files-found: error
+          retention-days: 3
+
+  sign:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            tools/package_release.py
+            tools/bridge.py
+            release/manager-public.pem
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsigned
+          path: unsigned
+      - name: Sign
+        env:
+          MANAGER_SIGNING_KEY: ${{ secrets.MANAGER_SIGNING_KEY }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SEQUENCE: ${{ needs.build.outputs.sequence }}
+        run: |
+          # The key exists only in this step, as a mode-600 file outside the
+          # workspace that is removed on exit; it is never printed or uploaded.
+          umask 077
+          key="$RUNNER_TEMP/manager-signing.pem"
+          trap 'rm -f "$key"' EXIT
+          [[ -n "$MANAGER_SIGNING_KEY" ]] || { echo "::error::MANAGER_SIGNING_KEY is not set in the release environment"; exit 1; }
+          printf '%s' "$MANAGER_SIGNING_KEY" | base64 -d >"$key"
+          unset MANAGER_SIGNING_KEY
+          if ! cmp -s <(openssl pkey -in "$key" -pubout -outform DER) \
+                      <(openssl pkey -pubin -in release/manager-public.pem -outform DER); then
+            echo "::error::the signing key is not the pair of release/manager-public.pem"
+            exit 1
+          fi
+          mkdir -p signed
+          python3 tools/package_release.py --launcher unsigned/nbt-manager-launcher \
+            --gui unsigned/nbt-manager-gui --worker unsigned/nbt-managerd-qnx \
+            --plugin-dir unsigned/NbtManager --capture-lib unsigned/libnbt-capture.so \
+            --key "$key" --output "signed/nbt-manager-$VERSION.nbtr" \
+            --version "$VERSION" --sequence "$SEQUENCE" --compat "$MANAGER_COMPAT"
+          # No line of the private key may appear in the output.
+          python3 -I - "$key" signed/*.nbtr <<'EOF'
+          import sys
+          key, data = open(sys.argv[1], "rb").read(), open(sys.argv[2], "rb").read()
+          lines = [l for l in key.splitlines() if len(l) >= 40 and not l.startswith(b"-----")]
+          sys.exit("private key material in the release" if any(l in data for l in lines) else 0)
+          EOF
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed
+          path: signed
+          if-no-files-found: error
+          retention-days: 3
+
+  verify:
+    needs: [build, sign]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      sha256: ${{ steps.verify.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: release/manager-public.pem
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: "{signed,verifier}"
+      - name: Verify the signed release
+        id: verify
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          SEQUENCE: ${{ needs.build.outputs.sequence }}
+        run: |
+          release="signed/nbt-manager-$VERSION.nbtr"
+          chmod +x verifier/nbt-verify-release
+          out="$(verifier/nbt-verify-release "$release" release/manager-public.pem "$MANAGER_COMPAT")"
+          echo "$out"
+          [[ "$(head -2 <<<"$out")" == "version=$VERSION"$'\n'"sequence=$SEQUENCE" ]] \
+            || { echo "::error::the signed release does not carry version $VERSION, sequence $SEQUENCE"; exit 1; }
+          echo "sha256=$(sha256sum "$release" | cut -d' ' -f1)" >>"$GITHUB_OUTPUT"
+
+  publish:
+    needs: [build, verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: release/manager-public.pem
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: signed
+          path: dist
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SEQUENCE: ${{ needs.build.outputs.sequence }}
+          VERIFIED: ${{ needs.verify.outputs.sha256 }}
+        run: |
+          release="dist/nbt-manager-$VERSION.nbtr"
+          [[ "$(sha256sum "$release" | cut -d' ' -f1)" == "$VERIFIED" ]] \
+            || { echo "::error::the release differs from the verified one"; exit 1; }
+          cp release/manager-public.pem dist/nbt-manager-public.pem
+          (cd dist && sha256sum nbt-manager-*.nbtr nbt-manager-public.pem >SHA256SUMS)
+          fingerprint="$(openssl pkey -pubin -in release/manager-public.pem -outform DER | sha256sum | cut -d' ' -f1)"
+          cat >notes.md <<EOF
+          NBT Manager $VERSION: release sequence $SEQUENCE, compatibility \`$MANAGER_COMPAT\`.
+
+          Signed with the manager key \`nbt-manager-public.pem\` (SHA-256 of its DER: \`$fingerprint\`), built from $GITHUB_SHA by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
+          Install it with the desktop installer, or update a car's manager from the phone app.
+          EOF
+          prerelease=()
+          [[ "$VERSION" == 0.* ]] && prerelease=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "NBT Manager $VERSION" \
+            --notes-file notes.md "${prerelease[@]}" dist/*

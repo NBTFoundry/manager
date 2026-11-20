@@ -1,0 +1,284 @@
+# SPDX-License-Identifier: MPL-2.0
+# Signed application package (.nbt) from a vMAJOR.MINOR.PATCH tag, called by
+# application repositories (docs/manager-release.md, "CI releases"):
+#
+#   on:
+#     push:
+#       tags: ["v*"]
+#   permissions: {}
+#   jobs:
+#     release:
+#       uses: NBTFoundry/manager/.github/workflows/app-release.yml@<manager commit>
+#       permissions:
+#         contents: write
+#         packages: read
+#       with:
+#         sdk-ref: <NBTFoundry/sdk commit>
+#         build: make qnx qnx-check
+#         payload: build/nbt-doom-qnx
+#
+# The caller's release/package.args describes the package (tools/package.py @FILE).
+# The apps key comes from the caller's "release" environment (secret APPS_SIGNING_KEY,
+# base64 of the PEM) and must be the pair of this repository's release/apps-public.pem,
+# the key the manager trusts. Each job holds only what it needs:
+#   build    private QNX image, no secret; produces the unsigned executable
+#   sign     the release environment; runs only tools/package.py from this workflow's
+#            commit, never build output
+#   verify   nbt-verify built from this workflow's commit; holds nothing
+#   publish  contents:write; runs nothing from the build
+name: Application release
+
+on:
+  workflow_call:
+    inputs:
+      sdk-ref:
+        description: The NBTFoundry/sdk commit the application builds against (checked out at ../sdk)
+        type: string
+        required: true
+      build:
+        description: Command that builds the executable in the QNX image, run in the application's root
+        type: string
+        required: true
+      payload:
+        description: The executable it produces, relative to the application's root
+        type: string
+        required: true
+      package-args:
+        description: The package description, one tools/package.py argument per line
+        type: string
+        default: release/package.args
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+    container:
+      # ci/qnx/README.md; the same image as release.yml.
+      image: ghcr.io/nbtfoundry/qnx65-build@sha256:f384f2e48ab1641b97559ef6101b6c9e219b61b2754aabbf37f0b96ec119da07
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      app: ${{ steps.meta.outputs.app }}
+      compat: ${{ steps.meta.outputs.compat }}
+      version: ${{ steps.meta.outputs.version }}
+      sequence: ${{ steps.meta.outputs.sequence }}
+      payload: ${{ steps.meta.outputs.payload }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: app
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: NBTFoundry/sdk
+          ref: ${{ inputs.sdk-ref }}
+          path: sdk
+          persist-credentials: false
+      - name: Fetch submodules
+        run: |
+          git config --global --add safe.directory '*'
+          for repository in app sdk; do
+            git -C "$repository" -c url.https://github.com/.insteadOf=git@github.com: \
+              submodule update --init --recursive --depth 1
+          done
+      - name: Version, sequence and package identity
+        id: meta
+        env:
+          ARGS: app/${{ inputs.package-args }}
+          PAYLOAD: ${{ inputs.payload }}
+        run: |
+          # vX.Y.Z, each part below 1000: sequence X*1000000 + Y*1000 + Z, so a
+          # later tag always updates an earlier package.
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
+            echo "::error::release tags are vMAJOR.MINOR.PATCH, each part below 1000"
+            exit 1
+          fi
+          sequence=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + BASH_REMATCH[3] ))
+          (( sequence > 0 )) || { echo "::error::v0.0.0 is not a release"; exit 1; }
+          value() { awk -v name="$1" 'found { print; exit } $0 == name { found = 1 }' "$ARGS"; }
+          app="$(value --app)"
+          compat="$(value --compat)"
+          [[ "$app" =~ ^[a-z0-9_-]{1,48}$ && "$compat" =~ ^[a-z0-9_.-]{1,48}$ ]] \
+            || { echo "::error::$ARGS must give --app and --compat"; exit 1; }
+          {
+            echo "app=$app"
+            echo "compat=$compat"
+            echo "version=${GITHUB_REF_NAME#v}"
+            echo "sequence=$sequence"
+            echo "payload=$(basename "$PAYLOAD")"
+          } >>"$GITHUB_OUTPUT"
+      - name: Build
+        working-directory: app
+        env:
+          BUILD: ${{ inputs.build }}
+          PAYLOAD: ${{ inputs.payload }}
+          APP_VERSION: ${{ steps.meta.outputs.version }}
+          APP_SEQ: ${{ steps.meta.outputs.sequence }}
+          NBT_SDK_DIR: ../sdk
+        run: |
+          bash -eo pipefail -c "$BUILD"
+          mkdir -p ../out
+          cp "$PAYLOAD" ../out/
+          sha256sum ../out/*
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned
+          path: out
+          if-no-files-found: error
+          retention-days: 3
+
+  sign:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: app
+          persist-credentials: false
+          sparse-checkout: ${{ inputs.package-args }}
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: manager
+          persist-credentials: false
+          sparse-checkout: |
+            tools/package.py
+            tools/bridge.py
+            release/apps-public.pem
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsigned
+          path: unsigned
+      - name: Sign
+        env:
+          APPS_SIGNING_KEY: ${{ secrets.APPS_SIGNING_KEY }}
+          ARGS: app/${{ inputs.package-args }}
+          APP: ${{ needs.build.outputs.app }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SEQUENCE: ${{ needs.build.outputs.sequence }}
+          PAYLOAD: ${{ needs.build.outputs.payload }}
+        run: |
+          # The key exists only in this step, as a mode-600 file outside the
+          # workspace that is removed on exit; it is never printed or uploaded.
+          umask 077
+          key="$RUNNER_TEMP/apps-signing.pem"
+          trap 'rm -f "$key"' EXIT
+          [[ -n "$APPS_SIGNING_KEY" ]] || { echo "::error::APPS_SIGNING_KEY is not set in the release environment"; exit 1; }
+          printf '%s' "$APPS_SIGNING_KEY" | base64 -d >"$key"
+          unset APPS_SIGNING_KEY
+          if ! cmp -s <(openssl pkey -in "$key" -pubout -outform DER) \
+                      <(openssl pkey -pubin -in manager/release/apps-public.pem -outform DER); then
+            echo "::error::the signing key is not the pair of the manager's release/apps-public.pem"
+            exit 1
+          fi
+          mkdir -p signed
+          # The explicit arguments come last, so the description file cannot override them.
+          python3 manager/tools/package.py "@$ARGS" --version "$VERSION" --sequence "$SEQUENCE" \
+            --key "$key" --output "signed/$APP-$VERSION.nbt" "unsigned/$PAYLOAD"
+          # No line of the private key may appear in the output.
+          python3 -I - "$key" signed/*.nbt <<'EOF'
+          import sys
+          key, data = open(sys.argv[1], "rb").read(), open(sys.argv[2], "rb").read()
+          lines = [l for l in key.splitlines() if len(l) >= 40 and not l.startswith(b"-----")]
+          sys.exit("private key material in the package" if any(l in data for l in lines) else 0)
+          EOF
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed
+          path: signed
+          if-no-files-found: error
+          retention-days: 3
+
+  verify:
+    needs: [build, sign]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      sha256: ${{ steps.verify.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: manager
+          persist-credentials: false
+      - name: Build nbt-verify
+        working-directory: manager
+        run: |
+          sudo apt-get install -y --no-install-recommends libssl-dev >/dev/null
+          git -c url.https://github.com/.insteadOf=git@github.com: submodule update --init --depth 1 third_party/lvgl
+          make -j"$(nproc)" "$PWD/build/nbt-verify"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: signed
+          path: signed
+      - name: Verify the signed package
+        id: verify
+        env:
+          APP: ${{ needs.build.outputs.app }}
+          COMPAT: ${{ needs.build.outputs.compat }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SEQUENCE: ${{ needs.build.outputs.sequence }}
+        run: |
+          package="signed/$APP-$VERSION.nbt"
+          out="$(manager/build/nbt-verify "$package" manager/release/apps-public.pem "$APP" "$COMPAT")"
+          echo "$out"
+          grep -qxF "version=$VERSION" <<<"$out" && grep -qxF "sequence=$SEQUENCE" <<<"$out" \
+            || { echo "::error::the package does not carry version $VERSION, sequence $SEQUENCE"; exit 1; }
+          echo "sha256=$(sha256sum "$package" | cut -d' ' -f1)" >>"$GITHUB_OUTPUT"
+
+  publish:
+    needs: [build, verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: signed
+          path: dist
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          APP: ${{ needs.build.outputs.app }}
+          COMPAT: ${{ needs.build.outputs.compat }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SEQUENCE: ${{ needs.build.outputs.sequence }}
+          VERIFIED: ${{ needs.verify.outputs.sha256 }}
+          MANAGER: ${{ job.workflow_repository }}@${{ job.workflow_sha }}
+        run: |
+          package="dist/$APP-$VERSION.nbt"
+          [[ "$(sha256sum "$package" | cut -d' ' -f1)" == "$VERIFIED" ]] \
+            || { echo "::error::the package differs from the verified one"; exit 1; }
+          (cd dist && sha256sum "$APP-$VERSION.nbt" >SHA256SUMS)
+          cat >notes.md <<EOF
+          \`$APP\` $VERSION: package sequence $SEQUENCE, compatibility \`$COMPAT\`.
+
+          Signed with the apps key that NBT Manager trusts ($MANAGER, \`release/apps-public.pem\`), built from $GITHUB_SHA by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
+          Install it from the phone app.
+          EOF
+          prerelease=()
+          [[ "$VERSION" == 0.* ]] && prerelease=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$APP $VERSION" \
+            --notes-file notes.md "${prerelease[@]}" "$package" dist/SHA256SUMS
