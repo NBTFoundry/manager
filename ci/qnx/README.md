@@ -7,7 +7,8 @@ repositories call, for their packages. It holds:
 
 - the files of the QNX 6.5 SP1 toolchain (`qcc`, GCC 4.8.3, binutils, headers,
   target libraries, its `env.sh`) that the manager's and the applications' builds
-  open, listed in `files.txt` (about 330 files, 63 MB);
+  open, the SDK's `nbt-runner` included (the executable of applications released
+  as a module or guest bundle), listed in `files.txt` (about 330 files, 63 MB);
 - four head-unit libraries the links need: `libscreen.so` and `libcrypto.so`
   (`QNX_SCREEN_LIBDIR`), `libAppFramework.A.so` and `libCoreFramework.A.so`
   (`RHMI_LIBDIR`);
@@ -29,7 +30,7 @@ the release build fails with a missing file. Then, on a machine with the toolcha
 
 ```sh
 export QNX_SCREEN_LIBDIR=/path/to/head-unit/screen/lib RHMI_LIBDIR=/path/to/framework/lib
-ci/qnx/trace.sh ../nf-doom ../nf-snes9x   # rewrites files.txt from strace'd clean builds
+ci/qnx/trace.sh ../nf-doom ../nf-snes9x ../nf-android-auto   # rewrites files.txt from strace'd clean builds
 ci/qnx/build-image.sh --push    # needs `gh auth refresh -s write:packages` and docker login ghcr.io
 ```
 

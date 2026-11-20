@@ -9,7 +9,6 @@ sdk/host/linux/x86/usr/bin/arm-unknown-nto-qnx6.5.0eabi-as
 sdk/host/linux/x86/usr/bin/arm-unknown-nto-qnx6.5.0eabi-as-2.24
 sdk/host/linux/x86/usr/bin/arm-unknown-nto-qnx6.5.0eabi-ld
 sdk/host/linux/x86/usr/bin/arm-unknown-nto-qnx6.5.0eabi-ld-2.19
-sdk/host/linux/x86/usr/bin/make
 sdk/host/linux/x86/usr/bin/ntoarmv7-ar
 sdk/host/linux/x86/usr/bin/ntoarmv7-ar-2.19
 sdk/host/linux/x86/usr/bin/ntoarmv7-nm
@@ -67,6 +66,7 @@ sdk/target/qnx6/usr/include/altq/if_altq.h
 sdk/target/qnx6/usr/include/arm/context.h
 sdk/target/qnx6/usr/include/arm/cpuinline.h
 sdk/target/qnx6/usr/include/arm/fault.h
+sdk/target/qnx6/usr/include/arm/neutrino.h
 sdk/target/qnx6/usr/include/arm/platform.h
 sdk/target/qnx6/usr/include/arm/smpxchg.h
 sdk/target/qnx6/usr/include/arm/syspage.h
@@ -291,6 +291,7 @@ sdk/target/qnx6/usr/include/sys/debug.h
 sdk/target/qnx6/usr/include/sys/fault.h
 sdk/target/qnx6/usr/include/sys/ioctl.h
 sdk/target/qnx6/usr/include/sys/mman.h
+sdk/target/qnx6/usr/include/sys/neutrino.h
 sdk/target/qnx6/usr/include/sys/param.h
 sdk/target/qnx6/usr/include/sys/part.h
 sdk/target/qnx6/usr/include/sys/platform.h
@@ -306,6 +307,7 @@ sdk/target/qnx6/usr/include/sys/socket.h
 sdk/target/qnx6/usr/include/sys/sockio.h
 sdk/target/qnx6/usr/include/sys/srcversion.h
 sdk/target/qnx6/usr/include/sys/stat.h
+sdk/target/qnx6/usr/include/sys/states.h
 sdk/target/qnx6/usr/include/sys/statvfs.h
 sdk/target/qnx6/usr/include/sys/storage.h
 sdk/target/qnx6/usr/include/sys/syspage.h
