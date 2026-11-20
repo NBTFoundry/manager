@@ -14,9 +14,13 @@
 #define NBT_BRIDGE_MOST_MAX 640
 /* Equal to NBT_FILES_POLICY_MAX (include/nbt/files_policy.h). */
 #define NBT_BRIDGE_FILES_MAX 160
-/* Formatted requirement: three lines of at most 300 bytes, the MOST line and
- * the files line. */
-#define NBT_BRIDGE_TEXT_MAX 1800
+/* Equal to NBT_CDS_POLICY_MAX (include/nbt/cds_policy.h). */
+#define NBT_BRIDGE_CDS_MAX 255
+/* Equal to NBT_NET_POLICY_MAX (include/nbt/net_policy.h). */
+#define NBT_BRIDGE_NET_MAX 96
+/* Formatted requirement: three lines of at most 300 bytes, the MOST line, the
+ * files line, the car-data line and the network line. */
+#define NBT_BRIDGE_TEXT_MAX 2200
 
 typedef struct {
     uint16_t major, minor;
@@ -27,6 +31,12 @@ typedef struct {
     /* The files policy (capability `files`, bridge 1.5), or empty. Only with
      * `files` declared. */
     char files[NBT_BRIDGE_FILES_MAX + 1];
+    /* The car data it reads (capability `car-data`, bridge 1.6), or empty.
+     * Only with `car-data` declared. */
+    char cds[NBT_BRIDGE_CDS_MAX + 1];
+    /* The packet-filter rules it needs (capability `net`, bridge 1.6), or
+     * empty. Only with `net` declared. */
+    char net[NBT_BRIDGE_NET_MAX + 1];
 } nbt_bridge_requirement;
 
 /* The oldest bridge 1 minor this manager runs (nbt_bridge_current): an
@@ -53,9 +63,13 @@ void nbt_bridge_caps_without(const char *caps, const char *name, char out[NBT_BR
 int nbt_bridge_cap_has(const char *list, const char *name);
 /* Optional ordered fields: <prefix>bridge, bridge-uses, bridge-optional, then
  * bridge-most when the application declares `most` (required then), then
- * bridge-files when it declares `files` (required then; bridge 1.5 or later).
+ * bridge-files when it declares `files` (required then; bridge 1.5 or later),
+ * then bridge-cds and bridge-net when it declares `car-data` and `net`
+ * (required then; bridge 1.6 or later).
  * nbt_field consumes input in place. Missing bridge means no dependency. */
 int nbt_bridge_requirement_parse(char **text, const char *prefix, nbt_bridge_requirement *out);
+/* 1 when `value` is a valid declaration (as parsed), else 0. */
+int nbt_bridge_requirement_valid(const nbt_bridge_requirement *value);
 int nbt_bridge_requirement_format(const nbt_bridge_requirement *value, const char *prefix,
                                   char *out, size_t size);
 /* Release line: bridge=<major>.<minor>|<comma separated capabilities>.

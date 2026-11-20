@@ -7,7 +7,7 @@ namespace process {
 /* Private copies survive spawn's descriptor mapping; all paths close them. */
 class MappedChannels {
 public:
-    MappedChannels(int status, int most, int gamepad, int controller, int output);
+    MappedChannels(int status, int most, int gamepad, int controller, int output, int hold = -1);
     bool valid() const {
         return valid_;
     }
@@ -26,9 +26,12 @@ public:
     int output() const {
         return fds_[4].get();
     }
+    int hold() const {
+        return fds_[5].get();
+    }
 
 private:
-    core::UniqueFd fds_[5];
+    core::UniqueFd fds_[6];
     bool valid_;
 };
 } // namespace process

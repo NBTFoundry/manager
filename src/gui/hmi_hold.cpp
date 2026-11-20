@@ -194,6 +194,26 @@ unsigned HmiHold::poll(uint64_t now, bool running) {
     return focusAgain(*this, now) | HoldPoll;
 }
 
+int shmemWriteLine(const char *path, const char *text, size_t length) {
+    return path && text ? writeLine(path, text, length) : -1;
+}
+
+int shmemReadLine(const char *path, char *out, size_t size) {
+    if (!path || !out || !size) {
+        return -1;
+    }
+    const int fd = openShmemChecked(path, false);
+    if (fd < 0) {
+        return -1;
+    }
+    ssize_t count;
+    do {
+        count = read(fd, out, size);
+    } while (count < 0 && errno == EINTR);
+    close(fd);
+    return count < 0 ? -1 : static_cast<int>(count);
+}
+
 int holdSignalParse(const char *text, size_t size, uint64_t &sequence, HoldSignal &signal) {
     if (!text || !size || size > kSignalMax) {
         return -1;

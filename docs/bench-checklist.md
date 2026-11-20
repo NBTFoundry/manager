@@ -88,6 +88,19 @@ Reset between runs with `rm debug.log debug.log.1; touch debug.log; chmod 600 de
 | Leave the manager by any means | iDrive returns to the list holding the entry | `plugin ... release` |
 | Open a popup, then select the entry | At most four retries, then iDrive is left alone | repeated `hold` |
 
+With an application declaring `hold`, `car-data` and `net` (Android Auto,
+[app-bridge.md](app-bridge.md) components 5-7), the manager closed:
+
+| Action | Expected | Log |
+| --- | --- | --- |
+| The application asks for the hold (Android Auto on screen) | iDrive goes to the blank state; the knob does nothing in iDrive underneath | `host <app>: hold request hold`, `plugin ... application hold <app>: open hold`, then `held` |
+| Touch a favourite key (`peek`) | iDrive's favourites bar shows over the application; nothing is re-asserted | `host <app>: hold request peek` |
+| MENU, NAV, reverse, a Check Control warning | The application is told `aside` (it decides what to do) | `plugin ... application hold <app>: aside` |
+| Select the manager's entry while an application holds | The manager takes the hold; the application is told `aside` | `application hold <app>: aside`, then the manager's `hold` |
+| The application ends or releases | iDrive returns to the list holding the entry | `plugin ... application hold <app>: release` |
+| A declared car-data name (gear, day/night) changes | `/dev/shmem/nbt-bridge1-cds-<name>` gets the value | `plugin ... car data <name>` (first value) |
+| `pfctl -s rules` while it runs, and after | `nbt-app-<app>` rules for its ports while it runs, none after | `host <app>: packet filter open for ...` |
+
 ## 5. Pairing
 
 | Action | Expected | Log |

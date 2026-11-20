@@ -20,6 +20,7 @@
 #endif
 
 #include "capture_diag.hpp"
+#include "car_data.hpp"
 #include "car_language.hpp"
 #include "focus_events.hpp"
 #include "framework.hpp"
@@ -50,6 +51,10 @@ bmw::PluginApp *instance = NULL;
 uint64_t holdStorage[(sizeof(nbt::gui::HmiHold) + sizeof(uint64_t) - 1) / sizeof(uint64_t)];
 nbt::gui::HmiHold *hold = NULL;
 uint64_t signalSequence = 0;
+// An application's hold (capability `hold`), next to the manager's own.
+uint64_t appHoldStorage[(sizeof(nbt::gui::AppHold) + sizeof(uint64_t) - 1) / sizeof(uint64_t)];
+nbt::gui::AppHold *appHold = NULL;
+uint64_t answerSequence = 0;
 
 struct PollRunnable {
     void **vptr;
@@ -59,6 +64,7 @@ void *pollVtable[5];
 bool polling = false;
 nbt::plugin::PhoneRuntime phoneRuntime;
 nbt::plugin::CarLanguage carLanguage;
+nbt::plugin::CarData carData;
 nbt::plugin::CaptureDiagLogState captureDiagState;
 bool requestOpen(bmw::PluginApp *app);
 
@@ -67,6 +73,23 @@ void signalGui(nbt::gui::HoldSignal signal) {
     signalSequence = now > signalSequence ? now : signalSequence + 1;
     if (nbt::gui::holdSignalWrite(nbt::gui::kHoldSignalPath, signalSequence, signal)) {
         logError("cannot signal the manager window", errno);
+    }
+}
+
+// The focus events and the next poll, for the manager's hold and an application's.
+void sendFocus(bmw::PluginApp *app, unsigned actions) {
+    if (actions & nbt::gui::HoldToParent) {
+        focusEvent(app, kOpenEvent);
+    }
+    if (actions & nbt::gui::HoldFocus) {
+        focusEvent(app, kHoldEvent);
+    }
+    if (actions & nbt::gui::HoldRelease) {
+        focusEvent(app, kReleaseEvent);
+    }
+    if ((actions & nbt::gui::HoldPoll) && !polling) {
+        polling = true;
+        app->post(reinterpret_cast<bmw::Runnable *>(&pollRunnable), nbt::gui::kHoldPollMs);
     }
 }
 
@@ -80,25 +103,47 @@ void apply(bmw::PluginApp *app, unsigned actions) {
                  (actions & nbt::gui::HoldAside) ? " aside" : "",
                  (actions & nbt::gui::HoldShow) ? " show" : "");
     }
-    if (actions & nbt::gui::HoldToParent) {
-        focusEvent(app, kOpenEvent);
-    }
-    if (actions & nbt::gui::HoldFocus) {
-        focusEvent(app, kHoldEvent);
-    }
-    if (actions & nbt::gui::HoldRelease) {
-        focusEvent(app, kReleaseEvent);
-    }
     if (actions & nbt::gui::HoldAside) {
         signalGui(nbt::gui::SignalAside);
     }
     if (actions & nbt::gui::HoldShow) {
         signalGui(nbt::gui::SignalShow);
     }
-    if ((actions & nbt::gui::HoldPoll) && !polling) {
-        polling = true;
-        app->post(reinterpret_cast<bmw::Runnable *>(&pollRunnable), nbt::gui::kHoldPollMs);
+    sendFocus(app, actions);
+}
+
+void answerApp(const char *name, nbt::gui::AppAnswer answer) {
+    const uint64_t now = nowMs();
+    answerSequence = now > answerSequence ? now : answerSequence + 1;
+    if (nbt::gui::appHoldAnswerWrite(nbt::gui::kAppHoldAnswerDir, name, answerSequence, answer)) {
+        logError("cannot answer the application's hold", errno);
     }
+    nbt_logf("application hold %s: %s", name, answer == nbt::gui::AnswerHeld ? "held" : "aside");
+}
+
+// Focus events for an application's hold; its answers are written by pollAppHold.
+void applyApp(bmw::PluginApp *app, unsigned actions) {
+    if (actions & (nbt::gui::HoldToParent | nbt::gui::HoldFocus | nbt::gui::HoldRelease)) {
+        nbt_logf("application hold %s:%s%s%s", appHold->app(),
+                 (actions & nbt::gui::HoldToParent) ? " open" : "",
+                 (actions & nbt::gui::HoldFocus) ? " hold" : "",
+                 (actions & nbt::gui::HoldRelease) ? " release" : "");
+    }
+    sendFocus(app, actions);
+}
+
+void pollAppHold(bmw::PluginApp *app) {
+    nbt::gui::AppRequest request;
+    const uint64_t now = nowMs();
+    const bool fresh = nbt::gui::appHoldRelayRead(nbt::gui::kAppHoldRelayPath, now, request);
+    char name[NBT_HOLD_APP_MAX + 1];
+    nbt::gui::AppAnswer answer = nbt::gui::AnswerNone;
+    const unsigned actions = appHold->poll(now, fresh ? &request : NULL,
+                                           hold->phase != nbt::gui::HoldIdle, name, answer);
+    if (answer != nbt::gui::AnswerNone) {
+        answerApp(name, answer);
+    }
+    applyApp(app, actions);
 }
 
 void runnableNoop(void *) {
@@ -115,6 +160,10 @@ void checkStuck() {
         nbt_logf("iDrive does not answer; hold dropped, manager aside");
         hold->reset();
         signalGui(nbt::gui::SignalAside);
+        if (appHold->active()) {
+            answerApp(appHold->app(), nbt::gui::AnswerAside);
+        }
+        appHold->reset();
     }
 }
 
@@ -137,7 +186,9 @@ void runnablePoll(void *) {
             phoneRuntime.openFailed();
         }
         apply(instance, hold->poll(now, guiRunning()));
+        pollAppHold(instance);
         carLanguage.poll(now);
+        carData.poll(now);
         nbt::plugin::pollCaptureDiag(captureDiagState);
         if (!polling) {
             polling = true;
@@ -168,6 +219,7 @@ bool onBlankFocus(void *, const bmw::Parcel &parcel) {
     parcel.readBool(focused);
     nbt_logf("blank state focus %d", focused ? 1 : 0);
     hold->focus(nbt::gui::HoldBlank, focused, nowMs());
+    appHold->focus(nbt::gui::HoldBlank, focused, nowMs());
     return true;
 }
 
@@ -176,10 +228,12 @@ bool onParentFocus(void *object, const bmw::Parcel &parcel) {
     parcel.readBool(focused);
     nbt_logf("parent state focus %d", focused ? 1 : 0);
     hold->focus(nbt::gui::HoldParent, focused, nowMs());
+    appHold->focus(nbt::gui::HoldParent, focused, nowMs());
     if (focused) {
         // Hold again now, not at the next poll (up to 250 ms): a second BACK or
         // a knob turn in that window took iDrive out of the manager (dev88).
         apply(static_cast<bmw::PluginApp *>(object), hold->poll(nowMs(), guiRunning()));
+        pollAppHold(static_cast<bmw::PluginApp *>(object));
     }
     return true;
 }
@@ -201,6 +255,7 @@ bool onInit(bmw::PluginApp *app) {
     pollVtable[4] = reinterpret_cast<void *>(&runnablePoll);
     pollRunnable.vptr = pollVtable + 2;
     hold = new (holdStorage) nbt::gui::HmiHold();
+    appHold = new (appHoldStorage) nbt::gui::AppHold();
     app->addHandler(kOpenAction, action);
     addHandler(app, kBlankState, kFocusHandler, &onBlankFocus);
     addHandler(app, kParentState, kFocusHandler, &onParentFocus);
@@ -209,6 +264,7 @@ bool onInit(bmw::PluginApp *app) {
         nbt::plugin::startFocusEvents(app);
         phoneRuntime.start(app, nowMs());
         carLanguage.start(app, nowMs());
+        carData.start(app);
         polling = true;
         app->post(reinterpret_cast<bmw::Runnable *>(&pollRunnable), 1000);
     }
@@ -216,12 +272,17 @@ bool onInit(bmw::PluginApp *app) {
 }
 
 void onFinalize(bmw::PluginApp *app) {
+    carData.stop();
     carLanguage.stop();
     phoneRuntime.stop();
     nbt::plugin::stopFocusEvents();
     if (hold) {
         hold->~HmiHold();
         hold = NULL;
+    }
+    if (appHold) {
+        appHold->~AppHold();
+        appHold = NULL;
     }
     nbt_log_close();
     app->onFinalize();

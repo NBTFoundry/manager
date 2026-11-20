@@ -332,7 +332,7 @@ tsan:
 
 FUZZ_BUILD_DIR ?= $(BUILD_DIR)/fuzz
 FUZZ_SECONDS ?= 1
-FUZZ_TARGETS = gamepad-wire gamepad-gip gamepad-sony http phone-signature phone-pair phone-context control package-header package-manifest release-manifest settings-schema settings-values controller-config installed-record journal most-codec most-joiner ccs most-policy files-policy bridge-requirement bridge-status wfd-most capture-control capture-stream starter-config language
+FUZZ_TARGETS = gamepad-wire gamepad-gip gamepad-sony http phone-signature phone-pair phone-context control package-header package-manifest release-manifest settings-schema settings-values controller-config installed-record journal most-codec most-joiner ccs most-policy files-policy bridge-requirement bridge-status wfd-most capture-control capture-stream starter-config language cds-policy net-policy bridge-hold
 fuzz:
 	$(MAKE) BUILD_DIR=$(FUZZ_BUILD_DIR) \
 		CFLAGS='-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie' \
@@ -453,13 +453,18 @@ qnx-plugin: plugin-resources
 	test -f "$(RHMI_LIBDIR)/libCoreFramework.A.so"
 	mkdir -p $(QNX_UNSTRIPPED)
 	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Iinclude -c src/gui/hmi_hold.cpp -o $(BUILD_DIR)/hmi-hold-plugin.o
+	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Iinclude -c src/gui/app_hold.cpp -o $(BUILD_DIR)/app-hold-plugin.o
 	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Iinclude -c src/gui/focus_sender.cpp -o $(BUILD_DIR)/focus-sender-plugin.o
 	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Iinclude -c src/log/log.cpp -o $(BUILD_DIR)/log-plugin.o
 	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/gui/phone_wake.cpp -o $(BUILD_DIR)/phone-wake-plugin.o
 	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/gui/car_language.cpp -o $(BUILD_DIR)/car-language-plugin.o
+	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/gui/car_data_relay.cpp -o $(BUILD_DIR)/car-data-relay-plugin.o
+	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/sdk/bridge_hold.cpp -o $(BUILD_DIR)/bridge-hold-plugin.o
+	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/model/cds_policy.cpp -o $(BUILD_DIR)/cds-policy-plugin.o
+	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wc,-std=c++11 -Wc,-fno-exceptions -Wc,-fno-rtti -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/model/net_policy.cpp -o $(BUILD_DIR)/net-policy-plugin.o
 	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/capture/control.c -o $(BUILD_DIR)/capture-control-plugin.o
 	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -Iinclude -c src/capture/diag.c -o $(BUILD_DIR)/capture-diag-plugin.o
-	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -fno-exceptions -fno-rtti -shared -Iinclude -Wl,-soname,libNbtManager.so -o $(QNX_UNSTRIPPED)/libNbtManager.so plugin/plugin.cpp plugin/launcher_spawn.cpp plugin/phone_runtime.cpp plugin/phone_display.cpp plugin/focus_events.cpp plugin/hmi_threads.cpp plugin/car_language.cpp $(BUILD_DIR)/phone-wake-plugin.o $(BUILD_DIR)/car-language-plugin.o $(BUILD_DIR)/hmi-hold-plugin.o $(BUILD_DIR)/focus-sender-plugin.o $(BUILD_DIR)/log-plugin.o $(BUILD_DIR)/capture-control-plugin.o $(BUILD_DIR)/capture-diag-plugin.o $(RHMI_LIBDIR)/libAppFramework.A.so $(RHMI_LIBDIR)/libCoreFramework.A.so -Wl,--allow-shlib-undefined -Wl,-z,defs -Wl,--exclude-libs,ALL -lang-c++
+	$(QCC) $(QNX_VARIANT) -D_QNX_SOURCE -O2 -Wall -Wextra -Werror -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -fno-exceptions -fno-rtti -shared -Iinclude -Wl,-soname,libNbtManager.so -o $(QNX_UNSTRIPPED)/libNbtManager.so plugin/plugin.cpp plugin/launcher_spawn.cpp plugin/phone_runtime.cpp plugin/phone_display.cpp plugin/focus_events.cpp plugin/hmi_threads.cpp plugin/car_language.cpp plugin/car_data.cpp $(BUILD_DIR)/phone-wake-plugin.o $(BUILD_DIR)/car-language-plugin.o $(BUILD_DIR)/car-data-relay-plugin.o $(BUILD_DIR)/bridge-hold-plugin.o $(BUILD_DIR)/cds-policy-plugin.o $(BUILD_DIR)/net-policy-plugin.o $(BUILD_DIR)/hmi-hold-plugin.o $(BUILD_DIR)/app-hold-plugin.o $(BUILD_DIR)/focus-sender-plugin.o $(BUILD_DIR)/log-plugin.o $(BUILD_DIR)/capture-control-plugin.o $(BUILD_DIR)/capture-diag-plugin.o $(RHMI_LIBDIR)/libAppFramework.A.so $(RHMI_LIBDIR)/libCoreFramework.A.so -Wl,--allow-shlib-undefined -Wl,-z,defs -Wl,--exclude-libs,ALL -lang-c++
 	$(QNX_STRIP) -o $(BUILD_DIR)/NbtManager/libNbtManager.so $(QNX_UNSTRIPPED)/libNbtManager.so
 
 DEPS = $(shell find $(OBJ_DIR) -name '*.d' 2>/dev/null)

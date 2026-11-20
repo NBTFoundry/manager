@@ -238,6 +238,11 @@ int nbt_hmi_drop_old(nbt_hmi_fs *hmi);
  * a root-local equivalent in host tests. create replaces a validated old file
  * with a fresh, private regular file before launching a new instance. */
 int nbt_fs_status_open(nbt_fs *fs, const char *app, int create);
+/* The same for another per-application bridge file, nbt-bridge1-<app>.<suffix>
+ * (suffix "status" or "hold", capability `hold`), in nbt_fs_bridge_dir(). */
+int nbt_fs_bridge_open(nbt_fs *fs, const char *app, const char *suffix, int create);
+/* /dev/shmem; the managed root in host tests. */
+const char *nbt_fs_bridge_dir(const nbt_fs *fs);
 /* One in-place write plus truncate, no rename/fsync. The caller owns fd;
  * only a validated regular, singly-linked descriptor may be modified. */
 int nbt_fs_status_write(int fd, const char *line, size_t length);

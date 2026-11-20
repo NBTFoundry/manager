@@ -9,6 +9,7 @@
 #include "nbt/process.h"
 #include "nbt/process/app_output.hpp"
 #include "nbt/process/app_pause.hpp"
+#include "nbt/process/host_bridge.hpp"
 #include "nbt/process/host_control.hpp"
 #include "nbt/process/host_start.hpp"
 #include "nbt/transaction.h"
@@ -107,6 +108,7 @@ private:
     int failStart(int txLock, const char *reason, int error) {
         closeFd(statusFd_);
         closeFd(surfaceFd_);
+        bridge_.stop();
         channels_.stop();
         closeFd(txLock);
         closeFd(hostLock_);
@@ -173,9 +175,10 @@ private:
             canStatus_ = false;
             nbt_app_environment_remove(&start.environment, "NBT_STATUS_FD=5");
         }
+        bridge_.prepare(fs_, app_, start.grantCaps, start.record.bridge, &start.environment);
         errno = 0;
         const nbt_app_channels appChannels = {statusFd_, channels_.most(), channels_.gamepad(),
-                                              channels_.controller()};
+                                              channels_.controller(), bridge_.holdFd()};
         const char *failed =
             canShow_ && nbt_app_surface_grant(fs_, app_, &start.environment, &surfaceFd_)
                 ? "cannot start: environment full"
@@ -207,6 +210,7 @@ private:
             }
             output_.log().syncDue();
             channels_.poll(now, ready[0].revents);
+            bridge_.poll(now, child_.ready != 0);
             pause_.hold(child_, now);
             const int status = nbt_process_poll(&child_, now);
             if (status != 1) {
@@ -283,6 +287,7 @@ private:
                             (child_.fault || child_.exit_signal || child_.exit_status))) {
             (void)nbt_app_fault_record(fs_, app_);
         }
+        bridge_.stop();
         channels_.stop();
         nbt_logf("host %s: ended", app_);
         closeFd(surfaceFd_);
@@ -296,6 +301,7 @@ private:
     bool canShow_, canStatus_, advertised_, statusAdvertised_;
     nbt::process::AppOutput output_;
     nbt::process::HostChannels channels_;
+    nbt::process::HostBridge bridge_;
     nbt::process::AppPause pause_;
     int exitCode_ = 0;
     nbt_process child_;

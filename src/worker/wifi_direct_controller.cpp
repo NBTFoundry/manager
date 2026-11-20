@@ -2,6 +2,7 @@
 #include "nbt/worker/wifi_direct_controller.hpp"
 
 #include "nbt/core/system.hpp"
+#include "nbt/gui/car_data_relay.hpp"
 #include "nbt/log.h"
 #include "nbt/worker/android_auto_wifi.hpp"
 #include "nbt/worker/phone_network.hpp"
@@ -181,6 +182,11 @@ void WifiDirectController::restore(uint64_t nowMs) {
     enabledByUs_ = false;
     if (androidAutoUsesWifiDirect()) {
         nbt_logf("Wi-Fi Direct: A0.03 group left on: Android Auto (NBT-AAD) uses it");
+        return;
+    }
+    if (gui::netWfd0InUse(gui::kCarDataDir, nowMs)) {
+        nbt_logf(
+            "Wi-Fi Direct: A0.03 group left on: a running application lets connections in on it");
         return;
     }
     if (!client_.active() || !client_.linkUpWithTarget()) {

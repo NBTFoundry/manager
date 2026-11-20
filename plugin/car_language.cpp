@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "car_language.hpp"
+#include "car_data.hpp"
 #include "nbt/gui/car_language.hpp"
 #include "nbt/log.h"
 #include <stddef.h>
@@ -61,6 +62,7 @@ void CarLanguage::poll(uint64_t now) {
 }
 bool CarLanguage::onLanguage(void *self, const bmw::BasicString<unsigned short> &value) {
     CarLanguage &language = *static_cast<CarLanguage *>(self);
+    CarData::offer("vehicle.language", value);
     char text[33];
     unsigned number = 0;
     if (!ascii(value, text, sizeof(text)) || !gui::carLanguageParse(text, number)) {

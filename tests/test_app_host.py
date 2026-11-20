@@ -335,7 +335,7 @@ event("exit")
         self.wait_for(lambda: show_holder(self.host_lock))
         host, application = lock_holder(self.host_lock), lock_holder(self.lease)
         self.assertEqual(show_holder(self.host_lock), host)
-        self.assertIn("bridge=1.5", self.events())
+        self.assertIn("bridge=1.6", self.events())
         self.assertIn("caps=show", self.events())
         # The one application surface, held by this host for its life.
         self.assertIn("surface=1291", self.events())
@@ -944,6 +944,47 @@ event("exit")
         self.assertIn("caps=\n", self.app_log())  # granted nothing
         self.assertEqual(command("STOP test"), "OK")
         self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_bridge_16_hold_car_data_and_network(self):
+        """Bridge 1.6: the hold request is relayed to the plugin and released at
+        the end, the car-data names and network rules are published while the
+        application runs, and its packet-filter rules are opened and closed."""
+        firewall = self.root / "firewall-log"
+        previous = os.environ.get("NBT_TEST_FIREWALL_LOG")
+        os.environ["NBT_TEST_FIREWALL_LOG"] = str(firewall)
+        self.addCleanup(lambda: os.environ.__setitem__("NBT_TEST_FIREWALL_LOG", previous)
+                        if previous is not None else os.environ.pop("NBT_TEST_FIREWALL_LOG", None))
+        self.script_app("for key in ('NBT_HOLD_FD', 'NBT_HOLD_STATE', 'NBT_CDS_DIR', 'NBT_NET'):\n"
+                        "    print(key + '=' + os.environ.get(key, 'absent'), flush=True)\n"
+                        "os.write(3, b'R')\n"
+                        "os.pwrite(9, b'1 hold\\n', 0)\n"
+                        "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
+        record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE5\n")
+        record += ("bridge=1.6\nbridge-uses=\nbridge-optional=hold,car-data,net\n"
+                   "bridge-cds=driving.gear,sensors.PDCStatus\nbridge-net=tcp:5277@uap0+wfd0\n")
+        (self.root / "state/test/installed").write_text(record)
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        relay = self.root / "nbt-bridge1-hmi"
+        self.wait_for(lambda: relay.exists() and relay.read_text().endswith(" 1 test hold\n"))
+        log = self.app_log()
+        self.assertIn("NBT_HOLD_FD=9", log)
+        self.assertIn(f"NBT_HOLD_STATE={self.root}/nbt-bridge1-test.hmi", log)
+        self.assertIn(f"NBT_CDS_DIR={self.root}", log)
+        self.assertIn("NBT_NET=tcp:5277@uap0+wfd0", log)
+        want, net = self.root / "nbt-bridge1-test.want", self.root / "nbt-bridge1-test.net"
+        self.wait_for(lambda: want.exists() and net.exists())
+        self.assertRegex(want.read_text(), r"^\d+ driving.gear,sensors.PDCStatus\n$")
+        self.assertRegex(net.read_text(), r"^\d+ tcp:5277@uap0\+wfd0\n$")
+        app_rules = lambda: [l for l in firewall.read_text().splitlines() if l.startswith("app ")]
+        self.assertEqual(app_rules()[:3],
+                         ["app close test", "app open test uap0 5277", "app open test wfd0 5277"])
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.wait_for(lambda: relay.read_text().endswith(" 1 test release\n"))
+        self.assertFalse(want.exists() or net.exists())
+        self.assertEqual(app_rules()[-1], "app close test")
         self.assertEqual(command("QUIT"), "OK")
 
     def test_output_and_a_crash_reach_the_application_log(self):

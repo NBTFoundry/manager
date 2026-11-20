@@ -4,7 +4,7 @@ import re
 
 VERSION = re.compile(r"([1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{0,23}\Z")
-CURRENT = ("1.5|show,status,live-settings,most,gamepad,controller,files",)  # matches nbt_bridge_current
+CURRENT = ("1.6|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net",)  # nbt_bridge_current
 # One rule of a MOST policy (src/model/most_policy.cpp, docs/most-bridge.md).
 MOST_RULE = re.compile(r"(?:rx:\*\.\*\.\*|(?:rx|tx):[0-9A-F]{2}\.(?:\*|[0-9A-F]{2})\.(?:\*|[0-9A-F]{3})"
                        r"|ctl:[0-9A-F]{2}\.[0-9A-F]{2}|sub:[0-9A-F]{2}\.[0-9A-F]{2}\.[0-9A-F]{3})\Z")
@@ -13,6 +13,11 @@ MOST_MAX, MOST_RULES, MOST_CONTROLS = 640, 48, 16
 FILES_EXTENSION = re.compile(r"[a-z0-9]{1,8}\Z")
 FILES_NUMBER = re.compile(r"[1-9][0-9]{0,4}\Z")
 FILES_MAX, FILES_EXTENSIONS, FILES_FILE_MIB, FILES_QUOTA_MIB = 160, 16, 4096, 65536
+# A car-data policy (src/model/cds_policy.cpp) and a network policy (src/model/net_policy.cpp).
+CDS_NAME = re.compile(r"[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+\Z")
+CDS_MAX, CDS_NAMES, CDS_NAME_MAX = 255, 16, 64
+NET_RULE = re.compile(r"tcp:([1-9][0-9]{0,4})@((?:uap0|wfd0)(?:\+(?:uap0|wfd0))?)\Z")
+NET_MAX, NET_RULES = 96, 4
 
 
 def version(text):
@@ -64,9 +69,29 @@ def files_policy(text):
     return text
 
 
-def requirement(ver, uses, optional, most="", files=""):
+def cds_policy(text):
+    """Validates a car-data policy as the C parser does; returns it unchanged."""
+    names = text.split(",")
+    if (not text or len(text) > CDS_MAX or len(names) > CDS_NAMES or len(set(names)) != len(names) or
+            not all(3 <= len(n) <= CDS_NAME_MAX and CDS_NAME.fullmatch(n) for n in names)):
+        raise ValueError("invalid car-data policy: 1-16 unique dotted names of 3-64 [A-Za-z0-9_.]")
+    return text
+
+
+def net_policy(text):
+    """Validates a network policy as the C parser does; returns it unchanged."""
+    rules = [NET_RULE.fullmatch(r) for r in text.split(",")]
+    ports = [int(m.group(1)) for m in rules if m]
+    if (not text or len(text) > NET_MAX or len(rules) > NET_RULES or not all(rules) or
+            any(p > 65535 for p in ports) or len(set(ports)) != len(ports) or
+            any(m.group(2) in ("uap0+uap0", "wfd0+wfd0") for m in rules)):
+        raise ValueError("invalid network policy: tcp:<port>@uap0|wfd0[+...], at most 4 distinct ports")
+    return text
+
+
+def requirement(ver, uses, optional, most="", files="", cds="", net=""):
     if ver is None:
-        if uses or optional or most or files:
+        if uses or optional or most or files or cds or net:
             raise ValueError("bridge capabilities require --bridge")
         return ""
     major, minor = version(ver)
@@ -81,9 +106,17 @@ def requirement(ver, uses, optional, most="", files=""):
         raise ValueError("a files policy (--bridge-files) is required exactly when files is declared")
     if files and major == 1 and minor < 5:
         raise ValueError("files requires bridge 1.5")
+    if ("car-data" in required | wanted) != bool(cds):
+        raise ValueError("a car-data policy (--bridge-cds) is required exactly when car-data is declared")
+    if ("net" in required | wanted) != bool(net):
+        raise ValueError("a network policy (--bridge-net) is required exactly when net is declared")
+    if (cds or net) and major == 1 and minor < 6:
+        raise ValueError("car-data and net require bridge 1.6")
     text = f"bridge={ver}\nbridge-uses={uses}\nbridge-optional={optional}\n"
     text += f"bridge-most={most_policy(most)}\n" if most else ""
-    return text + (f"bridge-files={files_policy(files)}\n" if files else "")
+    text += f"bridge-files={files_policy(files)}\n" if files else ""
+    text += f"bridge-cds={cds_policy(cds)}\n" if cds else ""
+    return text + (f"bridge-net={net_policy(net)}\n" if net else "")
 
 
 def provider(values):

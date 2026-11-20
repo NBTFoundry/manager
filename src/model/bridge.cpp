@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/model/bridge.hpp"
 
+#include "nbt/cds_policy.h"
 #include "nbt/files_policy.h"
 #include "nbt/most_policy.h"
+#include "nbt/net_policy.h"
 #include "nbt/util.h"
 
 #include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -39,16 +42,22 @@ const char *nextCapName(const char *p, char name[NBT_BRIDGE_NAME_MAX + 1]) {
     return end ? end + 1 : p + n;
 }
 
+bool declared(const nbt_bridge_requirement *v, const char *name) {
+    return nbt_bridge_cap_has(v->uses, name) || nbt_bridge_cap_has(v->optional, name);
+}
+
 bool validRequirement(const nbt_bridge_requirement *v) {
     char name[NBT_BRIDGE_NAME_MAX + 1];
     if (!v || !memchr(v->uses, 0, sizeof(v->uses)) ||
         !memchr(v->optional, 0, sizeof(v->optional)) || !nbt_bridge_caps_valid(v->uses) ||
         !nbt_bridge_caps_valid(v->optional) || !memchr(v->most, 0, sizeof(v->most)) ||
-        !memchr(v->files, 0, sizeof(v->files))) {
+        !memchr(v->files, 0, sizeof(v->files)) || !memchr(v->cds, 0, sizeof(v->cds)) ||
+        !memchr(v->net, 0, sizeof(v->net))) {
         return false;
     }
     if (!v->major) {
-        return !v->minor && !v->uses[0] && !v->optional[0] && !v->most[0] && !v->files[0];
+        return !v->minor && !v->uses[0] && !v->optional[0] && !v->most[0] && !v->files[0] &&
+               !v->cds[0] && !v->net[0];
     }
     for (const char *p = v->optional; *p;) {
         p = nextCapName(p, name);
@@ -65,11 +74,26 @@ bool validRequirement(const nbt_bridge_requirement *v) {
         return false;
     }
     // `files` came with bridge 1.5: an older manager would not know its line.
-    if (nbt_bridge_cap_has(v->uses, "files") || nbt_bridge_cap_has(v->optional, "files")) {
-        return v->files[0] != 0 && nbt_files_policy_parse(v->files, NULL) == 0 &&
-               !(v->major == 1 && v->minor < 5);
+    if (declared(v, "files")) {
+        if (!v->files[0] || nbt_files_policy_parse(v->files, NULL) ||
+            (v->major == 1 && v->minor < 5)) {
+            return false;
+        }
+    } else if (v->files[0]) {
+        return false;
     }
-    return !v->files[0];
+    // `car-data` and `net` came with bridge 1.6, likewise.
+    if (declared(v, "car-data")) {
+        if (!v->cds[0] || nbt_cds_policy_parse(v->cds, NULL) || (v->major == 1 && v->minor < 6)) {
+            return false;
+        }
+    } else if (v->cds[0]) {
+        return false;
+    }
+    if (declared(v, "net")) {
+        return v->net[0] && !nbt_net_policy_parse(v->net, NULL) && !(v->major == 1 && v->minor < 6);
+    }
+    return !v->net[0];
 }
 
 } // namespace
@@ -217,7 +241,29 @@ int nbt_bridge_requirement_parse(char **text, const char *prefix, nbt_bridge_req
         }
         memcpy(out->files, v, strlen(v) + 1);
     }
+    static const struct {
+        const char *name;
+        size_t field, max;
+    } kLater[] = {{"bridge-cds=", offsetof(nbt_bridge_requirement, cds), NBT_BRIDGE_CDS_MAX},
+                  {"bridge-net=", offsetof(nbt_bridge_requirement, net), NBT_BRIDGE_NET_MAX}};
+    for (size_t i = 0; i < sizeof(kLater) / sizeof(kLater[0]); ++i) {
+        n = snprintf(field, sizeof(field), "%s%s", prefix, kLater[i].name);
+        if (n < 0 || n >= static_cast<int>(sizeof(field))) {
+            return -1;
+        }
+        if (!strncmp(*text, field, static_cast<size_t>(n))) {
+            field[n - 1] = 0;
+            if (!(v = nbt_field(text, field)) || strlen(v) > kLater[i].max) {
+                return -1;
+            }
+            memcpy(reinterpret_cast<char *>(out) + kLater[i].field, v, strlen(v) + 1);
+        }
+    }
     return nbt::model::validRequirement(out) ? 0 : -1;
+}
+
+int nbt_bridge_requirement_valid(const nbt_bridge_requirement *v) {
+    return nbt::model::validRequirement(v) ? 1 : 0;
 }
 
 int nbt_bridge_requirement_format(const nbt_bridge_requirement *v, const char *prefix, char *out,
@@ -230,10 +276,13 @@ int nbt_bridge_requirement_format(const nbt_bridge_requirement *v, const char *p
         return 0;
     }
     const int n = snprintf(
-        out, size, "%sbridge=%u.%u\n%sbridge-uses=%s\n%sbridge-optional=%s\n%s%s%s%s%s%s%s%s",
+        out, size,
+        "%sbridge=%u.%u\n%sbridge-uses=%s\n%sbridge-optional=%s\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
         prefix, v->major, v->minor, prefix, v->uses, prefix, v->optional, v->most[0] ? prefix : "",
         v->most[0] ? "bridge-most=" : "", v->most, v->most[0] ? "\n" : "",
         v->files[0] ? prefix : "", v->files[0] ? "bridge-files=" : "", v->files,
-        v->files[0] ? "\n" : "");
+        v->files[0] ? "\n" : "", v->cds[0] ? prefix : "", v->cds[0] ? "bridge-cds=" : "", v->cds,
+        v->cds[0] ? "\n" : "", v->net[0] ? prefix : "", v->net[0] ? "bridge-net=" : "", v->net,
+        v->net[0] ? "\n" : "");
     return n < 0 || static_cast<size_t>(n) >= size ? -1 : n;
 }

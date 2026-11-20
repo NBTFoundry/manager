@@ -116,6 +116,11 @@ framework calls NBT-AAD uses; they need the car.
 
 ## Focus hold for applications (capability `hold`)
 
+Built in bridge 1.6 ([app-bridge.md](app-bridge.md), component 5), with a
+per-application request file relayed by the host instead of the application
+writing the shared line, and `peek` for iDrive's favourites preview;
+`release-menu` is not provided. The design as first written:
+
 The plugin's hold (`src/gui/hmi_hold.cpp`) becomes a hold on behalf of whatever
 has the screen, the manager or one application:
 
@@ -296,7 +301,7 @@ requests. The adapter's view of the daemon is in that repository's
   check (`nbt-aad --license`, nothing else touched), `show`, the status label,
   twelve declared settings given to the daemon as its `NBT_*` variables and
   flag files in `NBT_DATA_DIR`. The daemon keeps its own MOST client.
-- Bridge 1.6, all generic: car data as a signed allowlist of iDrive car-data
+- Bridge 1.6 (built; components 5-7 of [app-bridge.md](app-bridge.md)), all generic: car data as a signed allowlist of iDrive car-data
   names the plugin relays as the car gives them (`bridge-cds`), so a new
   signal NBT-AAD wants needs no manager release; the focus hold for an
   application that places its own surface (`hold`, with `aside` back); a

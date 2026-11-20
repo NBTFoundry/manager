@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "phone_runtime.hpp"
+#include "car_data.hpp"
 #include "nbt/log.h"
 #include <fcntl.h>
 #include <stdio.h>
@@ -91,6 +92,7 @@ void PhoneRuntime::stop() {
 }
 bool PhoneRuntime::onSpeed(void *self, const bmw::BasicString<unsigned short> &value) {
     PhoneRuntime &runtime = *static_cast<PhoneRuntime *>(self);
+    CarData::offer("driving.speedActual", value);
     char text[65];
     unsigned speed = 0;
     if (!ascii(value, text, sizeof(text)) || !gui::phoneSpeed(text, speed)) {
@@ -107,6 +109,7 @@ bool PhoneRuntime::onSpeed(void *self, const bmw::BasicString<unsigned short> &v
 }
 bool PhoneRuntime::onContext(void *self, const bmw::BasicString<unsigned short> &value) {
     PhoneRuntime &runtime = *static_cast<PhoneRuntime *>(self);
+    CarData::offer("hmi.graphicalContext", value);
     char text[2049];
     runtime.contextSafe = ascii(value, text, sizeof(text)) && gui::phoneContextSafe(text);
     runtime.contextMs = clockMs();

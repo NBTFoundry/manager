@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/bridge.h"
+#include "nbt/cds_policy.h"
 #include "nbt/files_policy.h"
+#include "nbt/net_policy.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -220,6 +222,131 @@ static void files_declarations(void) {
     assert(!nbt_bridge_requirement_parse(&p, "old_", &need) && !*p);
 }
 
+/* Car-data and network policies (bridge 1.6): canonical names and rules. */
+static void cds_net_policies(void) {
+    nbt_cds_policy cds;
+    nbt_net_policy net;
+    const char *badCds[] = {"",     "gear", ".a.b",  "a.b.",  "a..b", "a.b,a.b",
+                            "a.b,", ",a.b", "a-b.c", "a.b c", "ab"};
+    unsigned i;
+    for (i = 0; i < sizeof(badCds) / sizeof(badCds[0]); ++i) {
+        assert(nbt_cds_policy_parse(badCds[i], NULL));
+    }
+    assert(!nbt_cds_policy_parse("driving.gear,sensors.PDCStatus,communication.callStatus0", &cds));
+    assert(cds.count == 3 && !strcmp(cds.names[1], "sensors.PDCStatus"));
+    char text[NBT_CDS_POLICY_MAX + 2];
+    text[0] = 0;
+    for (i = 0; i < 17; ++i) {
+        sprintf(text + strlen(text), "%sa.%u", i ? "," : "", i);
+    }
+    assert(nbt_cds_policy_parse(text, NULL)); /* 17 names */
+    char longName[NBT_CDS_NAME_MAX + 2];
+    memset(longName, 'a', sizeof(longName));
+    longName[1] = '.';
+    longName[NBT_CDS_NAME_MAX] = 0;
+    assert(!nbt_cds_policy_parse(longName, NULL));
+    longName[NBT_CDS_NAME_MAX] = 'a';
+    longName[NBT_CDS_NAME_MAX + 1] = 0;
+    assert(nbt_cds_policy_parse(longName, NULL));
+    const char *badNet[] = {"",
+                            "tcp:0@uap0",
+                            "tcp:05277@uap0",
+                            "tcp:65536@uap0",
+                            "udp:53@uap0",
+                            "tcp:5277@eth0",
+                            "tcp:5277@uap0+uap0",
+                            "tcp:5277@",
+                            "tcp:5277",
+                            "tcp:5277@uap0,tcp:5277@wfd0",
+                            "tcp:1@uap0,tcp:2@uap0,tcp:3@uap0,tcp:4@uap0,tcp:5@uap0",
+                            "tcp:5277@uap0+",
+                            "tcp:5277@uap0 "};
+    for (i = 0; i < sizeof(badNet) / sizeof(badNet[0]); ++i) {
+        assert(nbt_net_policy_parse(badNet[i], NULL));
+    }
+    assert(!nbt_net_policy_parse("tcp:5277@uap0+wfd0,tcp:65535@wfd0", &net));
+    assert(net.count == 2 && net.rules[0].port == 5277 &&
+           net.rules[0].interfaces == (NBT_NET_UAP0 | NBT_NET_WFD0) && net.rules[1].port == 65535 &&
+           net.rules[1].interfaces == NBT_NET_WFD0);
+    assert(!strcmp(nbt_net_interface_name(NBT_NET_WFD0), "wfd0") && !nbt_net_interface_name(3));
+}
+
+/* bridge-cds and bridge-net: present exactly when `car-data` and `net` are
+ * declared, bridge 1.6 or later, after the files line, round-trip, and need a
+ * manager serving them; the largest declaration formats within
+ * NBT_BRIDGE_TEXT_MAX. */
+static void cds_net_declarations(void) {
+    nbt_bridge_provider provider, old;
+    nbt_bridge_requirement need;
+    nbt_bridge_version grant;
+    char text[NBT_BRIDGE_TEXT_MAX], error[128], *p;
+    const char *bad[] = {
+        "bridge=1.6\nbridge-uses=\nbridge-optional=car-data\n",                  /* no policy */
+        "bridge=1.6\nbridge-uses=\nbridge-optional=\nbridge-cds=driving.gear\n", /* undeclared */
+        "bridge=1.5\nbridge-uses=\nbridge-optional=car-data\nbridge-cds=driving.gear\n", /* old */
+        "bridge=1.6\nbridge-uses=\nbridge-optional=net\nbridge-net=tcp:0@uap0\n",
+        "bridge=1.5\nbridge-uses=\nbridge-optional=net\nbridge-net=tcp:5277@uap0\n",
+        "bridge=1.6\nbridge-uses=\nbridge-optional=\nbridge-net=tcp:5277@uap0\n",
+        /* the network line after the car-data line, never before */
+        "bridge=1.6\nbridge-uses=\nbridge-optional=car-data,net\nbridge-net=tcp:5277@uap0\n"
+        "bridge-cds=driving.gear\n",
+    };
+    unsigned i;
+    for (i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
+        strcpy(text, bad[i]);
+        p = text;
+        assert(nbt_bridge_requirement_parse(&p, "", &need) || *p);
+    }
+    strcpy(text,
+           "new_bridge=1.6\nnew_bridge-uses=status\nnew_bridge-optional=hold,car-data,net\n"
+           "new_bridge-cds=driving.gear,sensors.PDCStatus\nnew_bridge-net=tcp:5277@uap0+wfd0\n"
+           "next=1\n");
+    p = text;
+    assert(!nbt_bridge_requirement_parse(&p, "new_", &need) && !strcmp(p, "next=1\n"));
+    assert(!strcmp(need.cds, "driving.gear,sensors.PDCStatus") &&
+           !strcmp(need.net, "tcp:5277@uap0+wfd0"));
+    assert(nbt_bridge_requirement_format(&need, "new_", text, sizeof(text)) > 0);
+    assert(strstr(text, "new_bridge-cds=driving.gear,sensors.PDCStatus\n"
+                        "new_bridge-net=tcp:5277@uap0+wfd0\n"));
+    nbt_bridge_current(&provider);
+    assert(provider.versions[0].minor == 6);
+    assert(!nbt_bridge_check(&need, &provider, NULL, &grant, error, sizeof(error)) &&
+           !strcmp(grant.caps, "status,hold,car-data,net"));
+    memset(&old, 0, sizeof(old));
+    assert(!nbt_bridge_provider_add(&old, "1.6|status,hold"));
+    assert(nbt_bridge_check(&need, &old, NULL, NULL, error, sizeof(error)) &&
+           strstr(error, "car-data"));
+    /* The largest declaration, journal prefix included. */
+    memset(&need, 0, sizeof(need));
+    need.major = 1;
+    need.minor = 6;
+    for (i = 0; i < 9; ++i) {
+        sprintf(need.uses + strlen(need.uses), "%su%02u-%s", i ? "," : "", i,
+                "abcdefghijklmnopqrst");
+        sprintf(need.optional + strlen(need.optional), "%so%02u-%s", i ? "," : "", i,
+                "abcdefghijklmnopqrst");
+    }
+    strcat(need.uses, ",most");
+    strcat(need.optional, ",files,car-data,net");
+    for (i = 0; i < 48; ++i) {
+        sprintf(need.most + strlen(need.most), "%srx:%02X.00.%03X", i ? "," : "", i, i);
+    }
+    for (i = 0; i < 16; ++i) {
+        sprintf(need.files + strlen(need.files), "%sext%05u", i ? "," : "", i);
+    }
+    strcat(need.files, "|4096|65536");
+    for (i = 0; i < 16 && strlen(need.cds) + 16 <= NBT_BRIDGE_CDS_MAX; ++i) {
+        sprintf(need.cds + strlen(need.cds), "%sabcdefghij.k%02u", i ? "," : "", i);
+    }
+    strcpy(need.net,
+           "tcp:65531@uap0+wfd0,tcp:65532@uap0+wfd0,tcp:65533@uap0+wfd0,tcp:65534@wfd0+uap0");
+    assert(strlen(need.net) <= NBT_BRIDGE_NET_MAX && !nbt_net_policy_parse(need.net, NULL));
+    assert(!nbt_cds_policy_parse(need.cds, NULL));
+    assert(nbt_bridge_requirement_format(&need, "old_", text, sizeof(text)) > 0);
+    p = text;
+    assert(!nbt_bridge_requirement_parse(&p, "old_", &need) && !*p);
+}
+
 int main(void) {
     status_lines();
     nbt_bridge_provider provider;
@@ -247,10 +374,10 @@ int main(void) {
     assert(!nbt_bridge_caps_valid(text));
     nbt_bridge_current(&provider);
     assert(provider.count == 1 && provider.versions[0].major == 1 &&
-           provider.versions[0].minor == 5 &&
+           provider.versions[0].minor == 6 &&
            provider.versions[0].oldest == NBT_BRIDGE_OLDEST_MINOR &&
            !strcmp(provider.versions[0].caps,
-                   "show,status,live-settings,most,gamepad,controller,files"));
+                   "show,status,live-settings,most,gamepad,controller,files,hold,car-data,net"));
     /* Older than the oldest version this manager runs: disabled until updated,
      * with the reason. No bridge at all still runs, with no grant. */
     memset(&need, 0, sizeof(need));
@@ -298,6 +425,8 @@ int main(void) {
     most_declarations();
     files_policies();
     files_declarations();
+    cds_net_declarations();
+    cds_net_policies();
     puts("bridge checks passed");
     return 0;
 }

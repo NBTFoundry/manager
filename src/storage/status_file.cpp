@@ -63,6 +63,19 @@ core::Status StatusFile::write(int fd, core::Span<const char> line) {
 } // namespace nbt
 
 int nbt_fs_status_open(nbt_fs *fs, const char *app, int create) {
+    return nbt_fs_bridge_open(fs, app, "status", create);
+}
+
+const char *nbt_fs_bridge_dir(const nbt_fs *fs) {
+#ifdef NBT_TESTING
+    return fs ? fs->root : NULL;
+#else
+    (void)fs;
+    return "/dev/shmem";
+#endif
+}
+
+int nbt_fs_bridge_open(nbt_fs *fs, const char *app, const char *suffix, int create) {
     char path[NBT_PATH_MAX];
     struct stat before;
     struct stat after;
@@ -73,11 +86,12 @@ int nbt_fs_status_open(nbt_fs *fs, const char *app, int create) {
         errno = EINVAL;
         return -1;
     }
-#ifdef NBT_TESTING
-    const int n = snprintf(path, sizeof(path), "%s/nbt-bridge1-%s.status", fs->root, app);
-#else
-    const int n = snprintf(path, sizeof(path), "/dev/shmem/nbt-bridge1-%s.status", app);
-#endif
+    if (!suffix || (strcmp(suffix, "status") && strcmp(suffix, "hold"))) {
+        errno = EINVAL;
+        return -1;
+    }
+    const int n =
+        snprintf(path, sizeof(path), "%s/nbt-bridge1-%s.%s", nbt_fs_bridge_dir(fs), app, suffix);
     if (n < 0 || n >= (int)sizeof(path)) {
         errno = ENAMETOOLONG;
         return -1;

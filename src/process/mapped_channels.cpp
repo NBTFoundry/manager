@@ -3,10 +3,11 @@
 #include <fcntl.h>
 namespace nbt {
 namespace process {
-MappedChannels::MappedChannels(int status, int most, int gamepad, int controller, int output)
+MappedChannels::MappedChannels(int status, int most, int gamepad, int controller, int output,
+                               int hold)
     : fds_(), valid_(true) {
-    const int sources[] = {status, most, gamepad, controller, output};
-    for (unsigned i = 0; i < 5; ++i) {
+    const int sources[] = {status, most, gamepad, controller, output, hold};
+    for (unsigned i = 0; i < 6; ++i) {
         if (sources[i] < 0) {
             continue;
         }

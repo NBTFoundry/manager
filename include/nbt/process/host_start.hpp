@@ -23,6 +23,7 @@ struct HostStart {
     nbt_app_environment environment;
     bool canShow;
     bool canStatus;
+    char grantCaps[NBT_BRIDGE_CAPS_MAX + 1];
     uint64_t nowMs;
 };
 

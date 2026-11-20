@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/bridge.h"
+#include "nbt/bridge_hold.h"
 #include "nbt/capture/classifier.h"
 #include "nbt/capture/control.h"
 #include "nbt/ccs.h"
+#include "nbt/cds_policy.h"
 #include "nbt/controller_config.h"
 #include "nbt/core/span.hpp"
 #include "nbt/core/unique_fd.hpp"
@@ -19,6 +21,7 @@
 #include "nbt/model/language.hpp"
 #include "nbt/most.h"
 #include "nbt/most_policy.h"
+#include "nbt/net_policy.h"
 #include "nbt/package/package_verifier.hpp"
 #include "nbt/package/release_verifier.hpp"
 #include "nbt/settings.h"
@@ -74,7 +77,10 @@ enum Target {
     CaptureControl,
     CaptureStream,
     StarterConfigTarget,
-    LanguageTarget
+    LanguageTarget,
+    CdsPolicy,
+    NetPolicy,
+    BridgeHold
 };
 
 struct TargetName {
@@ -109,7 +115,10 @@ const TargetName kTargets[] = {{"gamepad-wire", GamepadWire},
                                {"capture-control", CaptureControl},
                                {"capture-stream", CaptureStream},
                                {"starter-config", StarterConfigTarget},
-                               {"language", LanguageTarget}};
+                               {"language", LanguageTarget},
+                               {"cds-policy", CdsPolicy},
+                               {"net-policy", NetPolicy},
+                               {"bridge-hold", BridgeHold}};
 
 class Mutator {
 public:
@@ -370,6 +379,23 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
                       "bridge-most=rx:05.00.621,sub:05.00.621\n");
         addSeed(&out, "bridge=1.5\nbridge-uses=files\nbridge-optional=most\n"
                       "bridge-most=rx:05.00.621\nbridge-files=sfc,smc|16|1024\n");
+        addSeed(&out, "bridge=1.6\nbridge-uses=status\nbridge-optional=hold,car-data,net\n"
+                      "bridge-cds=driving.gear,hmi.graphicalContext\n"
+                      "bridge-net=tcp:5277@uap0+wfd0\n");
+        break;
+    case CdsPolicy:
+        addSeed(&out, "driving.gear,sensors.PDCStatus,vehicle.dayNightChangeOver");
+        addSeed(&out, "a.b,c..d,.e,f.");
+        break;
+    case NetPolicy:
+        addSeed(&out, "tcp:5277@uap0+wfd0");
+        addSeed(&out, "tcp:1@uap0,tcp:65535@wfd0,tcp:80@uap0+wfd0,tcp:8080@wfd0");
+        break;
+    case BridgeHold:
+        addSeed(&out, "12 hold\n");
+        addSeed(&out, "1700000000000 12 android-auto peek\n");
+        addSeed(&out, "12 aside\n");
+        addSeed(&out, "7 {\"gear\":2}\n");
         break;
     case BridgeStatus:
         addSeed(&out, "00000000000000000001 ready\n");
@@ -572,6 +598,44 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
         (void)nbt_files_name_valid(text);
         if (nbt::worker::UsbFiles::storedName(text, name) && !nbt_files_name_valid(name)) {
             abort(); // a stored name is always valid
+        }
+        break;
+    }
+    case CdsPolicy: {
+        nbt_cds_policy policy;
+        copyText(input, text);
+        (void)nbt_cds_policy_parse(text, &policy);
+        (void)nbt_cds_name_valid(text, strlen(text));
+        break;
+    }
+    case NetPolicy: {
+        nbt_net_policy policy;
+        copyText(input, text);
+        (void)nbt_net_policy_parse(text, &policy);
+        break;
+    }
+    case BridgeHold: {
+        // The four bridge 1.6 lines, as raw bytes (no NUL): each parsed line formats back.
+        const char *line = input.empty() ? "" : reinterpret_cast<const char *>(&input[0]);
+        uint64_t ms = 0, sequence = 0;
+        nbt_hold_word word = NBT_HOLD_RELEASE;
+        nbt_hold_state state = NBT_HOLD_HELD;
+        char app[NBT_HOLD_APP_MAX + 1], value[NBT_CDS_VALUE_MAX + 1], out[NBT_CDS_LINE_MAX + 1];
+        if (!nbt_hold_request_parse(line, input.size(), &sequence, &word) &&
+            nbt_hold_request_format(sequence, word, out, sizeof(out)) < 0) {
+            abort();
+        }
+        if (!nbt_hold_relay_parse(line, input.size(), &ms, &sequence, app, &word) &&
+            nbt_hold_relay_format(ms, sequence, app, word, out, sizeof(out)) < 0) {
+            abort();
+        }
+        if (!nbt_hold_state_parse(line, input.size(), &sequence, &state) &&
+            nbt_hold_state_format(sequence, state, out, sizeof(out)) < 0) {
+            abort();
+        }
+        if (!nbt_cds_value_parse(line, input.size(), &sequence, value) &&
+            nbt_cds_value_format(sequence, value, out, sizeof(out)) < 0) {
+            abort();
         }
         break;
     }

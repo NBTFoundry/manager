@@ -2,6 +2,8 @@
 #ifndef NBT_GUI_HMI_HOLD_HPP
 #define NBT_GUI_HMI_HOLD_HPP
 
+#include "nbt/bridge_hold.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -53,6 +55,69 @@ public:
     bool seen;
     bool shown; // HoldShow sent since the entry: the GUI may cover iDrive
 };
+
+/* An application's focus hold (capability `hold`, bridge 1.6): its host relays
+ * the application's request in kAppHoldRelayPath; the plugin answers in
+ * <kAppHoldAnswerDir>/nbt-bridge1-<app>.hmi (include/nbt/bridge_hold.h). */
+static const char kAppHoldRelayPath[] = "/dev/shmem/nbt-bridge1-hmi";
+static const char kAppHoldAnswerDir[] = "/dev/shmem";
+
+enum AppAnswer { AnswerNone = 0, AnswerHeld = 1, AnswerAside = 2 };
+
+struct AppRequest {
+    uint64_t sequence;
+    char app[NBT_HOLD_APP_MAX + 1];
+    nbt_hold_word word;
+};
+
+/* The decisions, host-testable: poll() is given the relay's request when it is
+ * fresh (else NULL) and whether the manager's own hold is in use, which has
+ * priority. It returns HoldAction bits for the focus events and says what to
+ * tell which application. `hold` takes iDrive to the blank state as the
+ * entry does and keeps it there after BACK; `peek` keeps it without
+ * re-asserting it (iDrive's favourites preview); iDrive leaving for its own
+ * screen, the manager or another application taking the hold, answer `aside`,
+ * after which only a new request (a new sequence) holds again. */
+class AppHold {
+public:
+    AppHold();
+    void reset();
+    unsigned poll(uint64_t nowMs, const AppRequest *request, bool manager,
+                  char answerApp[NBT_HOLD_APP_MAX + 1], AppAnswer &answer);
+    void focus(HoldState state, bool focused, uint64_t nowMs);
+    bool active() const {
+        return active_;
+    }
+    const char *app() const {
+        return app_;
+    }
+
+private:
+    unsigned stepAside(char answerApp[NBT_HOLD_APP_MAX + 1], AppAnswer &answer);
+
+    HmiHold hold_;
+    char app_[NBT_HOLD_APP_MAX + 1];
+    uint64_t sequence_;
+    bool active_;
+    bool asideKnown_;
+    uint64_t asideSequence_;
+    char asideApp_[NBT_HOLD_APP_MAX + 1];
+};
+
+/* The relay's request, when its line parses and is at most NBT_HOLD_FRESH_MS
+ * old by nowMs (the hosts and the plugin share the monotonic clock). */
+bool appHoldRelayRead(const char *path, uint64_t nowMs, AppRequest &out);
+int appHoldRelayWrite(const char *path, uint64_t nowMs, uint64_t sequence, const char *app,
+                      nbt_hold_word word);
+/* <dir>/nbt-bridge1-<app>.hmi, `<sequence> held|aside`. */
+int appHoldAnswerPath(const char *dir, const char *app, char *out, size_t size);
+int appHoldAnswerWrite(const char *dir, const char *app, uint64_t sequence, AppAnswer answer);
+
+/* A line in /dev/shmem, rewritten in place with one write and cut to its
+ * length; read whole. Private regular files of this user only. */
+int shmemWriteLine(const char *path, const char *text, size_t length);
+/* Bytes read (at most `size`), or -1. */
+int shmemReadLine(const char *path, char *out, size_t size);
 
 int holdSignalParse(const char *text, size_t size, uint64_t &sequence, HoldSignal &signal);
 HoldReadResult holdSignalRead(const char *path, uint64_t &sequence, HoldSignal &signal);

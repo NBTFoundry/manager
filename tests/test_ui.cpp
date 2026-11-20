@@ -488,7 +488,8 @@ static void test_push_starts(void) {
     exchange(&ui, "START test", "OK");
     /* Started without the screen (in the background): the manager stays on its
      * list, says so and reads which applications run. */
-    CHECK(!wantsExit(&ui) && ui.screen == nbt::gui::Apps && view_contains(&ui, "Application started"));
+    CHECK(!wantsExit(&ui) && ui.screen == nbt::gui::Apps &&
+          view_contains(&ui, "Application started"));
     CHECK(!ui.takeHandover());
     exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
     CHECK(!wantsExit(&ui) && !ui.takeAppEnded());

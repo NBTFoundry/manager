@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+#include "nbt/gui/car_data_relay.hpp"
 #include "nbt/gui/hmi_hold.hpp"
 
 #include <stdio.h>
@@ -254,6 +255,186 @@ static void test_shmem_hardening(void) {
     CHECK(unlink(base) == 0 && unlink(victim) == 0);
 }
 
+static nbt::gui::AppRequest request(const char *app, uint64_t sequence, nbt_hold_word word) {
+    nbt::gui::AppRequest r;
+    memset(&r, 0, sizeof(r));
+    strcpy(r.app, app);
+    r.sequence = sequence;
+    r.word = word;
+    return r;
+}
+
+/* An application's hold: held on the blank state, kept through BACK, peek
+ * enforces nothing, iDrive taking the screen says aside (once), a new
+ * request holds again, release and a stale request release, the manager and
+ * another application take it over. */
+static void test_application_hold(void) {
+    nbt::gui::AppHold a;
+    char who[NBT_HOLD_APP_MAX + 1];
+    nbt::gui::AppAnswer answer;
+    nbt::gui::AppRequest aa = request("android-auto", 7, NBT_HOLD_HOLD);
+    /* No request, or a peek alone: nothing. */
+    CHECK(a.poll(now, NULL, false, who, answer) == 0 && answer == nbt::gui::AnswerNone);
+    nbt::gui::AppRequest peek = request("android-auto", 7, NBT_HOLD_PEEK);
+    CHECK(a.poll(now, &peek, false, who, answer) == 0 && !a.active());
+    /* hold: the parent first, then the blank state; held once iDrive is there. */
+    CHECK(a.poll(now, &aa, false, who, answer) == (PARENT | POLL) && a.active());
+    a.focus(nbt::gui::HoldParent, 1, now + 30);
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &aa, false, who, answer) == (FOCUS | POLL));
+    a.focus(nbt::gui::HoldParent, 0, now + 30);
+    a.focus(nbt::gui::HoldBlank, 1, now + 40);
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &aa, false, who, answer) == POLL && answer == nbt::gui::AnswerHeld &&
+          !strcmp(who, "android-auto"));
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &aa, false, who, answer) == POLL && answer == nbt::gui::AnswerNone);
+    /* BACK: iDrive goes to the parent, the hold comes back at once. */
+    a.focus(nbt::gui::HoldBlank, 0, now + 10);
+    a.focus(nbt::gui::HoldParent, 1, now + 20);
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &aa, false, who, answer) == (FOCUS | POLL) && answer == nbt::gui::AnswerNone);
+    a.focus(nbt::gui::HoldParent, 0, now + 30);
+    a.focus(nbt::gui::HoldBlank, 1, now + 40);
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &aa, false, who, answer) == POLL);
+    /* peek: the favourites bar; iDrive leaving meanwhile is not enforced nor aside. */
+    peek.sequence = 8;
+    a.focus(nbt::gui::HoldBlank, 0, now + 10);
+    for (int i = 0; i < 8; ++i) {
+        now += nbt::gui::kHoldPollMs;
+        CHECK(a.poll(now, &peek, false, who, answer) == POLL && answer == nbt::gui::AnswerNone);
+    }
+    a.focus(nbt::gui::HoldBlank, 1, now + 10);
+    /* MENU: iDrive leaves for its own screen: aside, and no re-hold. */
+    aa.sequence = 9;
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &aa, false, who, answer) == POLL);
+    a.focus(nbt::gui::HoldBlank, 0, now + 10);
+    unsigned polls = 0;
+    do {
+        now += nbt::gui::kHoldPollMs;
+        CHECK(a.poll(now, &aa, false, who, answer) == POLL && ++polls <= 3);
+    } while (answer == nbt::gui::AnswerNone);
+    CHECK(answer == nbt::gui::AnswerAside && !a.active() && polls >= 2);
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &aa, false, who, answer) == 0 && answer == nbt::gui::AnswerNone);
+    /* A new request holds again; release releases. */
+    aa.sequence = 10;
+    CHECK(a.poll(now, &aa, false, who, answer) == (PARENT | POLL) && a.active());
+    a.focus(nbt::gui::HoldParent, 1, now + 10);
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &aa, false, who, answer) == (FOCUS | POLL));
+    nbt::gui::AppRequest release = request("android-auto", 11, NBT_HOLD_RELEASE);
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &release, false, who, answer) == nbt::gui::HoldRelease && !a.active());
+    a.focus(nbt::gui::HoldParent, 0, now);
+    /* A stale request (its host ended): released, without an answer. */
+    aa.sequence = 12;
+    CHECK(a.poll(now, &aa, false, who, answer) == (PARENT | POLL));
+    a.focus(nbt::gui::HoldParent, 1, now + 10);
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, NULL, false, who, answer) == nbt::gui::HoldRelease &&
+          answer == nbt::gui::AnswerNone);
+    a.focus(nbt::gui::HoldParent, 0, now);
+    /* The manager's window takes it: aside, no release event. */
+    aa.sequence = 13;
+    CHECK(a.poll(now, &aa, false, who, answer) == (PARENT | POLL));
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &aa, true, who, answer) == 0 && answer == nbt::gui::AnswerAside &&
+          !a.active());
+    CHECK(a.poll(now, &aa, false, who, answer) == 0); /* told aside: waits for a new request */
+    /* Another application takes it: aside for the first, hold for the second. */
+    aa.sequence = 14;
+    CHECK(a.poll(now, &aa, false, who, answer) == (PARENT | POLL));
+    nbt::gui::AppRequest other = request("demo", 1, NBT_HOLD_HOLD);
+    now += nbt::gui::kHoldPollMs;
+    CHECK(a.poll(now, &other, false, who, answer) == (PARENT | POLL) &&
+          answer == nbt::gui::AnswerAside && !strcmp(who, "android-auto") && a.active() &&
+          !strcmp(a.app(), "demo"));
+}
+
+/* The wire lines and files of bridge 1.6. */
+static void test_bridge_files(void) {
+    char line[NBT_HOLD_LINE_MAX + 1], app[NBT_HOLD_APP_MAX + 1], value[NBT_CDS_VALUE_MAX + 1];
+    uint64_t ms = 0, seq = 0;
+    nbt_hold_word word;
+    nbt_hold_state state;
+    CHECK(nbt_hold_request_format(42, NBT_HOLD_PEEK, line, sizeof(line)) == 8 &&
+          !strcmp(line, "42 peek\n"));
+    CHECK(!nbt_hold_request_parse(line, 8, &seq, &word) && seq == 42 && word == NBT_HOLD_PEEK);
+    const char *badRequests[] = {"42 peek",
+                                 "042 hold\n",
+                                 "42 hold \n",
+                                 "42  hold\n",
+                                 "hold\n",
+                                 "42 held\n",
+                                 "18446744073709551616 hold\n"};
+    for (unsigned i = 0; i < sizeof(badRequests) / sizeof(badRequests[0]); ++i) {
+        CHECK(nbt_hold_request_parse(badRequests[i], strlen(badRequests[i]), &seq, &word));
+    }
+    CHECK(nbt_hold_request_parse("1 hold\n\0", 8, &seq, &word));
+    CHECK(nbt_hold_relay_format(1000, 7, "android-auto", NBT_HOLD_HOLD, line, sizeof(line)) > 0 &&
+          !strcmp(line, "1000 7 android-auto hold\n"));
+    CHECK(!nbt_hold_relay_parse(line, strlen(line), &ms, &seq, app, &word) && ms == 1000 &&
+          seq == 7 && !strcmp(app, "android-auto") && word == NBT_HOLD_HOLD);
+    CHECK(nbt_hold_relay_format(1, 1, "../x", NBT_HOLD_HOLD, line, sizeof(line)) < 0);
+    CHECK(nbt_hold_relay_parse("1 1 a/b hold\n", 13, &ms, &seq, app, &word));
+    CHECK(nbt_hold_state_format(3, NBT_HOLD_ASIDE, line, sizeof(line)) > 0 &&
+          !strcmp(line, "3 aside\n") && !nbt_hold_state_parse(line, 8, &seq, &state) &&
+          state == NBT_HOLD_ASIDE);
+    CHECK(nbt_cds_value_format(5, "{\"gear\":2}", line, sizeof(line)) > 0 &&
+          !nbt_cds_value_parse(line, strlen(line), &seq, value) && seq == 5 &&
+          !strcmp(value, "{\"gear\":2}"));
+    CHECK(nbt_cds_value_parse("5 a\tb\n", 6, &seq, value) &&
+          nbt_cds_value_format(1, "a\nb", line, sizeof(line)) < 0);
+    unsigned short utf16[] = {'{', '"', 'a', '"', ':', '1', '}', 0}, wide[] = {'a', 0x263a, 0};
+    CHECK(nbt::gui::carDataAscii(utf16, value) && !strcmp(value, "{\"a\":1}") &&
+          !nbt::gui::carDataAscii(wide, value));
+
+    /* Files in a private directory: relay, answer, records, freshness. */
+    char dir[] = "/tmp/nbt-hold-files-XXXXXX";
+    CHECK(mkdtemp(dir) != NULL);
+    char relay[128], names[NBT_CDS_POLICY_MAX + 1], path[160], text[NBT_NET_POLICY_MAX + 1];
+    snprintf(relay, sizeof(relay), "%s/nbt-bridge1-hmi", dir);
+    nbt::gui::AppRequest r;
+    CHECK(!nbt::gui::appHoldRelayWrite(relay, 10000, 3, "android-auto", NBT_HOLD_HOLD));
+    CHECK(nbt::gui::appHoldRelayRead(relay, 10000 + NBT_HOLD_FRESH_MS, r) && r.sequence == 3 &&
+          !strcmp(r.app, "android-auto") && r.word == NBT_HOLD_HOLD);
+    CHECK(!nbt::gui::appHoldRelayRead(relay, 10001 + NBT_HOLD_FRESH_MS, r)); /* stale */
+    CHECK(!nbt::gui::appHoldRelayRead(relay, 9999, r));                      /* from the future */
+    CHECK(!nbt::gui::appHoldAnswerWrite(dir, "android-auto", 4, nbt::gui::AnswerHeld));
+    CHECK(!nbt::gui::appHoldAnswerPath(dir, "android-auto", path, sizeof(path)) &&
+          nbt::gui::shmemReadLine(path, line, sizeof(line)) == 7 && !memcmp(line, "4 held\n", 7));
+    CHECK(nbt::gui::appHoldAnswerWrite(dir, "a/b", 4, nbt::gui::AnswerHeld) == -1);
+    CHECK(
+        !nbt::gui::carDataWantWrite(dir, "android-auto", 20000, "driving.gear,sensors.PDCStatus"));
+    CHECK(nbt::gui::carDataWantWrite(dir, "android-auto", 20000, "gear") == -1);
+    CHECK(!nbt::gui::carDataWantPath(dir, "android-auto", path, sizeof(path)) &&
+          nbt::gui::carDataWantRead(path, 21000, names) &&
+          !strcmp(names, "driving.gear,sensors.PDCStatus") &&
+          !nbt::gui::carDataWantRead(path, 20001 + NBT_HOLD_FRESH_MS, names));
+    CHECK(nbt::gui::carDataWantEntry("nbt-bridge1-android-auto.want") &&
+          !nbt::gui::carDataWantEntry("nbt-bridge1-cds-driving.gear") &&
+          !nbt::gui::carDataWantEntry("nbt-bridge1-a.b.want") &&
+          !nbt::gui::carDataWantEntry(".want"));
+    CHECK(!nbt::gui::carDataValuePath(dir, "driving.gear", path, sizeof(path)) &&
+          strstr(path, "/nbt-bridge1-cds-driving.gear") &&
+          nbt::gui::carDataValuePath(dir, "../x", path, sizeof(path)) == -1);
+    CHECK(!nbt::gui::netWfd0InUse(dir, 30000));
+    CHECK(!nbt::gui::netRecordWrite(dir, "android-auto", 30000, "tcp:5277@uap0"));
+    CHECK(!nbt::gui::netWfd0InUse(dir, 30000)); /* uap0 only */
+    CHECK(!nbt::gui::netRecordWrite(dir, "demo", 30000, "tcp:5277@uap0+wfd0"));
+    CHECK(nbt::gui::netWfd0InUse(dir, 30500) &&
+          !nbt::gui::netWfd0InUse(dir, 30001 + NBT_HOLD_FRESH_MS));
+    CHECK(!nbt::gui::appRecordPath(dir, "demo", "net", path, sizeof(path)) &&
+          nbt::gui::appRecordRead(path, 30000, text, sizeof(text)) &&
+          !strcmp(text, "tcp:5277@uap0+wfd0"));
+    char command[64];
+    snprintf(command, sizeof(command), "rm -rf %s", dir);
+    CHECK(system(command) == 0);
+}
+
 int main(void) {
     test_back_is_held_and_exit_releases();
     test_hard_key_steps_aside();
@@ -261,5 +442,7 @@ int main(void) {
     test_signal_file();
     test_liveness();
     test_shmem_hardening();
+    test_application_hold();
+    test_bridge_files();
     return 0;
 }

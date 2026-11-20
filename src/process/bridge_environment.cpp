@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/bridge_environment.hpp"
+#include "nbt/gui/hmi_hold.hpp"
 #include "nbt/log.h"
 #include "nbt/storage/files_root.hpp"
 #include <errno.h>
@@ -20,7 +21,8 @@ bool filesDir(const char *app, char *out, size_t size) {
     return true;
 }
 size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridge_version &grant,
-                         const char *launch) {
+                         const char *launch, const nbt_fs *fs, const char *app,
+                         const nbt_bridge_requirement *bridge) {
     if (grant.major) {
         snprintf(out->text[count], sizeof(out->text[0]), "NBT_BRIDGE=%u.%u", grant.major,
                  grant.minor);
@@ -34,13 +36,33 @@ size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridg
     static const char *const channels[][2] = {{"status", "NBT_STATUS_FD=5"},
                                               {"most", "NBT_MOST_FD=6"},
                                               {"gamepad", "NBT_GAMEPAD_FD=7"},
-                                              {"controller", "NBT_CONTROLLER_FD=8"}};
-    for (unsigned i = 0; launch && !strcmp(launch, "user") && i < 4; ++i) {
+                                              {"controller", "NBT_CONTROLLER_FD=8"},
+                                              {"hold", "NBT_HOLD_FD=9"}};
+    const bool user = launch && !strcmp(launch, "user");
+    for (unsigned i = 0; user && i < 5; ++i) {
         if (nbt_bridge_cap_has(grant.caps, channels[i][0])) {
             strcpy(out->text[count], channels[i][1]);
             out->list[count] = out->text[count];
             ++count;
         }
+    }
+    const char *dir = nbt_fs_bridge_dir(fs);
+    char path[200]; // /dev/shmem/nbt-bridge1-<48>.hmi, well within an entry
+    if (user && app && dir && nbt_bridge_cap_has(grant.caps, "hold") &&
+        !nbt::gui::appHoldAnswerPath(dir, app, path, sizeof(path))) {
+        snprintf(out->text[count], sizeof(out->text[0]), "NBT_HOLD_STATE=%s", path);
+        out->list[count] = out->text[count];
+        ++count;
+    }
+    if (user && dir && nbt_bridge_cap_has(grant.caps, "car-data")) {
+        snprintf(out->text[count], sizeof(out->text[0]), "NBT_CDS_DIR=%s", dir);
+        out->list[count] = out->text[count];
+        ++count;
+    }
+    if (user && bridge && bridge->net[0] && nbt_bridge_cap_has(grant.caps, "net")) {
+        snprintf(out->text[count], sizeof(out->text[0]), "NBT_NET=%s", bridge->net);
+        out->list[count] = out->text[count];
+        ++count;
     }
     return count;
 }

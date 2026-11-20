@@ -23,5 +23,12 @@ int nbt_firewall_close(void);
 int nbt_firewall_close_label(const char *label);
 int nbt_firewall_open_label(const char *interface_name, uint32_t address, uint16_t port,
                             const char *label);
+/* An application's rules (capability `net`, docs/app-bridge.md): label
+ * "nbt-app-<app>", TCP to any address of `interface_name` on `port`; an
+ * application may have several. Added without removing others. */
+int nbt_firewall_app_add(const char *app, const char *interface_name, uint16_t port);
+/* Removes the application's rules, or with `app` NULL every application's
+ * (leftovers after a crash). Returns the number removed, or -1 with errno. */
+int nbt_firewall_app_close(const char *app);
 
 #endif

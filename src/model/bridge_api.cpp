@@ -22,26 +22,7 @@ const char *nextCapName(const char *p, char name[NBT_BRIDGE_NAME_MAX + 1]) {
 }
 
 bool validRequirement(const nbt_bridge_requirement *v) {
-    char name[NBT_BRIDGE_NAME_MAX + 1];
-    if (!v || !memchr(v->uses, 0, sizeof(v->uses)) ||
-        !memchr(v->optional, 0, sizeof(v->optional)) || !nbt_bridge_caps_valid(v->uses) ||
-        !nbt_bridge_caps_valid(v->optional) || !memchr(v->most, 0, sizeof(v->most))) {
-        return false;
-    }
-    if (!v->major) {
-        return !v->minor && !v->uses[0] && !v->optional[0] && !v->most[0];
-    }
-    for (const char *p = v->optional; *p;) {
-        p = nextCapName(p, name);
-        if (nbt_bridge_cap_has(v->uses, name)) {
-            return false;
-        }
-    }
-    if (nbt_bridge_cap_has(v->uses, "most") || nbt_bridge_cap_has(v->optional, "most")) {
-        return v->most[0] != 0 && nbt_most_policy_parse(v->most, NULL) == 0 &&
-               !(v->major == 1 && v->minor < 2 && strstr(v->most, "sub:"));
-    }
-    return !v->most[0];
+    return nbt_bridge_requirement_valid(v) != 0;
 }
 
 int failCheck(char *error, unsigned size, const char *message) {
@@ -142,9 +123,10 @@ void nbt_bridge_current(nbt_bridge_provider *out) {
     memset(out, 0, sizeof(*out));
     out->count = 1;
     out->versions[0].major = 1;
-    out->versions[0].minor = 5;
+    out->versions[0].minor = 6;
     out->versions[0].oldest = NBT_BRIDGE_OLDEST_MINOR;
-    static const char kCaps[] = "show,status,live-settings,most,gamepad,controller,files";
+    static const char kCaps[] =
+        "show,status,live-settings,most,gamepad,controller,files,hold,car-data,net";
     memcpy(out->versions[0].caps, kCaps, sizeof(kCaps));
 }
 
@@ -202,6 +184,14 @@ int nbt_bridge_check(const nbt_bridge_requirement *need, const nbt_bridge_provid
     if (need->files[0] && !nbt_bridge_cap_has(served->caps, "files")) {
         return nbt::model::failCheck(error, size,
                                      "declares files; this manager does not serve files");
+    }
+    if (need->cds[0] && !nbt_bridge_cap_has(served->caps, "car-data")) {
+        return nbt::model::failCheck(error, size,
+                                     "declares car data; this manager does not serve car-data");
+    }
+    if (need->net[0] && !nbt_bridge_cap_has(served->caps, "net")) {
+        return nbt::model::failCheck(error, size,
+                                     "declares network rules; this manager does not serve net");
     }
     for (const char *p = need->uses; *p;) {
         p = nbt::model::nextCapName(p, name);

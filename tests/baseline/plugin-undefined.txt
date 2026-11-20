@@ -26,6 +26,7 @@
          U _slogfd
          U clock_gettime
          U close
+         U closedir
          U devctl
          U dlsym
          U environ
@@ -42,6 +43,7 @@
          U memcpy
          U memset
          U open
+         U opendir
          U pipe
          U pthread_atfork
          U pthread_attr_destroy
@@ -58,16 +60,19 @@
          U pthread_once
          U pthread_self
          U read
+         U readdir
          U sigemptyset
          U sigfillset
          U snprintf
          U spawn
+         U strchr
          U strcmp
          U strlen
          U strncmp
          U strrchr
          U strspn
          U strstr
+         U unlink
          U vsnprintf
          U waitpid
          U write

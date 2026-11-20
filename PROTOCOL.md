@@ -192,13 +192,16 @@ bridge-optional=show
 
 `bridge` names the required major and minimum minor. Required capabilities must
 be implemented; optional capabilities are granted only when available. The
-current bridge is **1.5 with `show,status,live-settings,most,gamepad,controller,files`**, so the example grants `show`.
+current bridge is **1.6 with `show,status,live-settings,most,gamepad,controller,files,hold,car-data,net`**, so the example grants `show`.
 This manager runs bridge 1.5 and later only (`NBT_BRIDGE_OLDEST_MINOR`): an
 application declaring an older minor is disabled until updated (below).
 An application declaring `most` adds a fourth field, `bridge-most=<policy>`, the
 MOST functions it may use ([MOST bridge](docs/most-bridge.md)). One declaring
 `files` (bridge 1.5 or later) adds `bridge-files=<policy>` after it, the files it
-accepts ([files bridge](docs/files-bridge.md)).
+accepts ([files bridge](docs/files-bridge.md)). Bridge 1.6 adds, in that order,
+`bridge-cds=<names>` with `car-data` (the iDrive car data it reads) and
+`bridge-net=<rules>` with `net` (the TCP ports it may receive on); `hold` has
+no field ([the bridge contract](docs/app-bridge.md), components 5-7).
 Without these fields an application gets no bridge. All three fields are
 required together, with canonical version numbers and bounded, unique,
 disjoint capability lists. See [the bridge contract](docs/app-bridge.md) for
@@ -210,7 +213,9 @@ messages. It rechecks before installation. Installed requirements are part of
 `NBTSTATE2` and its recovery journal (`NBTJ2`), paired with the executable across
 confirmation and rollback. A MOST policy makes them `NBTSTATE3`/`NBTJ3`, which add
 `bridge-most=` (`old_`/`new_` prefixed in the journal) after `bridge-optional=`;
-a files policy makes them `NBTSTATE4`/`NBTJ4`, which add `bridge-files=` last.
+a files policy makes them `NBTSTATE4`/`NBTJ4`, which add `bridge-files=`; a
+car-data or network policy makes them `NBTSTATE5`/`NBTJ5`, which add
+`bridge-cds=` and `bridge-net=` last.
 Each version is written exactly when needed and a record of another version is
 rejected, so an older manager never misreads a policy. No-bridge apps keep the
 existing record formats.

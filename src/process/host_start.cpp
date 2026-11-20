@@ -34,6 +34,7 @@ int prepareHostStart(nbt_fs *fs, const char *app, int lease, HostStart *out, cha
     char available[NBT_BRIDGE_CAPS_MAX + 1];
     char detail[128];
     out->canShow = out->canStatus = false;
+    out->grantCaps[0] = 0;
     detail[0] = 0;
     errno = 0;
     int result = nbt_tx_recover(fs, app, detail, sizeof(detail));
@@ -75,6 +76,7 @@ int prepareHostStart(nbt_fs *fs, const char *app, int lease, HostStart *out, cha
     }
     out->canShow = nbt_bridge_cap_has(grant.caps, "show");
     out->canStatus = nbt_bridge_cap_has(grant.caps, "status");
+    memcpy(out->grantCaps, grant.caps, sizeof(out->grantCaps));
     return 0;
 }
 

@@ -97,6 +97,9 @@ how the manager provides each part.
 | Gamepad | car -> app | `gamepad`: states on `NBT_GAMEPAD_FD=7` ([gamepad-bridge.md](gamepad-bridge.md)) |
 | Controller input | car -> app | `controller`: decoded states on `NBT_CONTROLLER_FD=8` (4); raw messages remain possible through `most` |
 | Files | user -> app | `files`: the folder `NBT_FILES_DIR`, filled from the phone or a USB stick under the signed `bridge-files` policy ([files-bridge.md](files-bridge.md)) |
+| Focus hold | app <-> manager | `hold` (1.6): requests on `NBT_HOLD_FD=9`, answers in the file `NBT_HOLD_STATE` (5) |
+| Car data | car -> app | `car-data` (1.6): the iDrive car data named in the signed `bridge-cds` list, one file per name in `NBT_CDS_DIR` (6) |
+| Network | phone -> app | `net` (1.6): the signed `bridge-net` rules let in through the packet filter while it runs; `NBT_NET` (7) |
 
 Every name, path and format here belongs to one interface version; see
 "Versioning and dependencies".
@@ -220,9 +223,17 @@ otherwise lag behind the executable after a crash. A MOST policy makes them
 valid for no-bridge applications; a successful update may remove a dependency.
 The offline bundle tool also preserves signed bridge requirements.
 
+Bridge 1.6 adds two more signed lines after `bridge-files`, each present
+exactly when its capability is declared: `bridge-cds=<name>,...` (`car-data`,
+1-16 dotted iDrive car-data names, `include/nbt/cds_policy.h`) and
+`bridge-net=tcp:<port>@<interface>[+<interface>],...` (`net`, 1-4 ports on
+`uap0` and/or `wfd0`, `include/nbt/net_policy.h`); `tools/package.py
+--bridge-cds --bridge-net`. A record or journal with either is `NBTSTATE5`/`NBTJ5`
+(a release before 1.6 refuses it rather than drop the policy).
+
 Manager releases may contain up to two `bridge=<major>.<minor>|<capabilities>`
 lines after `compat`, ordered by increasing major. The packager defaults to
-`bridge=1.5|show,status,live-settings,most,gamepad,controller,files` (`tools/bridge.py`); repeated `--bridge` overrides are for a publisher describing the
+`bridge=1.6|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net` (`tools/bridge.py`); repeated `--bridge` overrides are for a publisher describing the
 actual worker, and `--no-bridge` describes a legacy provider. Absent lines mean
 no bridge. C++ and Rust verifiers enforce the same bounds and syntax.
 The publisher must keep the metadata and `nbt_bridge_current()` implementation
@@ -421,6 +432,63 @@ The favourite keys reach the manager when the MOST server delivers 0x15.0C.C02 t
 a client registered for it, as it does to iDrive's own proxy; the debug log shows
 the messages received.
 
+### 5. Focus hold (capability `hold`, bridge 1.6)
+
+For an application that places its own surface on the panel (Android Auto):
+while it asks, iDrive is held on the plugin's inert state, as for the
+manager's window, so the knob and the hard keys do not drive iDrive's menus
+underneath ([bridge-design.md](bridge-design.md)).
+
+- **Request.** A user launch granted `hold` gets `NBT_HOLD_FD=9`, a fresh
+  private file of its host (`/dev/shmem/nbt-bridge1-<app>.hold`). The
+  application rewrites one line there, `<sequence> hold|peek|release`
+  (`include/nbt/bridge_hold.h`): `hold` while it is on screen, `peek` while
+  iDrive's own favourites bar is shown over it (the hold stays, nothing is
+  re-asserted), `release` when it leaves the screen.
+- **Relay.** The host relays the request, once the child is ready, as
+  `<its monotonic ms> <sequence> <app> <word>` in `/dev/shmem/nbt-bridge1-hmi`,
+  refreshed every second; a line older than 3 s is a host that ended. The
+  child's end relays `release`.
+- **Answer.** The plugin (`AppHold`, `src/gui/hmi_hold.cpp`) holds as the
+  entry does (event 52 to the parent, 50 to the blank state), holds again
+  after BACK, and writes `<sequence> held|aside` to the file named by
+  `NBT_HOLD_STATE` (`/dev/shmem/nbt-bridge1-<app>.hmi`). `aside` when iDrive
+  leaves the blank state for 0.5 s (MENU, NAV, MEDIA, a warning, a camera),
+  when the manager's window opens (it keeps priority) or another application
+  holds: the application then leaves the screen, and only a new request (a
+  new sequence) holds again. The 3 s stuck-focus guard drops it too.
+
+### 6. Car data (capability `car-data`, bridge 1.6)
+
+- **Declaration.** The signed `bridge-cds` list names the iDrive car-data
+  properties the application reads (`driving.gear`, `sensors.PDCStatus`, ...;
+  [car-data-properties.tsv](car-data-properties.tsv)).
+- **Subscription.** While a granted application runs, its host keeps
+  `/dev/shmem/nbt-bridge1-<app>.want`, `<ms> <names>`, refreshed every
+  second. Every second the plugin (`plugin/car_data.cpp`) subscribes to the
+  union of the fresh lists (at most 32 names; the plugin's own three are
+  shared), unsubscribes the rest, and removes a value file before
+  subscribing, so no value from an earlier run is read as current.
+- **Values.** Each value the car gives, as text (UTF-16 to printable ASCII,
+  at most 200 bytes, else left out and logged), is written to
+  `<NBT_CDS_DIR>/nbt-bridge1-cds-<name>` as `<sequence> <value>`. Values are
+  iDrive's own JSON (`{"gear":2}`); reading them is the application's job.
+
+### 7. Network (capability `net`, bridge 1.6)
+
+- **Declaration.** The signed `bridge-net` rules: TCP ports, each on the
+  CarPlay hotspot (`uap0`) and/or the Wi-Fi Direct group (`wfd0`).
+- **Rules.** Before a granted user launch the host inserts one rule per port
+  and interface at the head of the running packet filter
+  (`nbt_firewall_app_add`, label `nbt-app-<app>`, any destination address),
+  removes them when the child ends, and removes its own leftovers first. The
+  application gets `NBT_NET=<the rules>` only when all were opened (it may
+  then leave the filter alone; NBT-AAD's `NBT_KEEP_PF=1`).
+- **Wi-Fi Direct.** While it runs the host keeps
+  `/dev/shmem/nbt-bridge1-<app>.net`; a fresh one with a `wfd0` rule keeps
+  the group on when a phone session ends (`wifi_direct_controller.cpp`), as
+  standalone NBT-AAD's own setting does.
+
 ## Design notes
 
 - Shared-memory names are flat (`nbt-bridge1-...`), without subdirectories in
@@ -439,5 +507,5 @@ the messages received.
 The manager itself reads two car-data names through its plugin,
 `driving.speedActual` and `hmi.graphicalContext`, with change subscriptions plus
 one-second asynchronous reads and bounded UTF-16 parsing, for the phone's wake
-gate ([phone-access.md](phone-access.md)). This is not the `car-data` capability,
-which bridge 1.5 does not provide.
+gate ([phone-access.md](phone-access.md)). Applications granted `car-data` that
+name them get their values from the same subscriptions (component 6).

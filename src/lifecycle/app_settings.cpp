@@ -263,7 +263,7 @@ int nbt_app_environment_build(nbt_fs *fs, const char *app, const char *launch,
         snprintf(out->files_dir, sizeof(out->files_dir), "NBT_FILES_DIR=%s", path);
         out->list[count++] = out->files_dir;
     }
-    count = nbt::process::bridgeEnvironment(out, count, grant, launch);
+    count = nbt::process::bridgeEnvironment(out, count, grant, launch, fs, app, bridge);
     if (launch) {
         const int n = snprintf(out->text[count], sizeof(out->text[0]), "NBT_LAUNCH=%s", launch);
         if (n < 0 || n >= static_cast<int>(sizeof(out->text[0]))) {

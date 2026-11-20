@@ -41,10 +41,11 @@ static int change_ticket(int fd, uint32_t *ticket) {
     return 0;
 }
 
-/* Removes the first rule of ours: 1 removed, 0 none left, -1 error. The scan
- * runs under the change ticket: if the ruleset changes meanwhile, the read
- * ticket differs or the removal is refused (EINVAL, EBUSY). */
-static int remove_one(int fd, const char *label) {
+/* Removes the first rule of ours (`label` exactly, or any label starting with
+ * it when `prefix`): 1 removed, 0 none left, -1 error. The scan runs under the
+ * change ticket: if the ruleset changes meanwhile, the read ticket differs or
+ * the removal is refused (EINVAL, EBUSY). */
+static int remove_one(int fd, const char *label, int prefix) {
     struct pfioc_rule pr;
     uint32_t ticket, count, i;
     if (change_ticket(fd, &ticket)) {
@@ -68,7 +69,8 @@ static int remove_one(int fd, const char *label) {
         if (ioctl(fd, DIOCGETRULE, &pr)) {
             return -1;
         }
-        if (!strncmp(pr.rule.label, label, sizeof(pr.rule.label))) {
+        if (prefix ? !strncmp(pr.rule.label, label, strlen(label))
+                   : !strncmp(pr.rule.label, label, sizeof(pr.rule.label))) {
             memset(&pr, 0, sizeof(pr));
             pr.action = PF_CHANGE_REMOVE;
             pr.ticket = ticket;
@@ -80,10 +82,10 @@ static int remove_one(int fd, const char *label) {
     return 0;
 }
 
-static int remove_all(int fd, const char *label) {
+static int remove_all(int fd, const char *label, int prefix) {
     unsigned removed = 0;
     for (;;) {
-        int result = remove_one(fd, label);
+        int result = remove_one(fd, label, prefix);
         if (result < 0) {
             return -1;
         }
@@ -106,7 +108,7 @@ int nbt_firewall_close_label(const char *label) {
     if (fd < 0) {
         return -1;
     }
-    result = remove_all(fd, label);
+    result = remove_all(fd, label, 0);
     saved = errno;
     close(fd);
     errno = saved;
@@ -129,7 +131,7 @@ int nbt_firewall_open_label(const char *interface_name, uint32_t address, uint16
     if (fd < 0) {
         return -1;
     }
-    if (remove_all(fd, label) < 0) {
+    if (remove_all(fd, label, 0) < 0) {
         goto done;
     }
     /* An empty address pool, required by every rule change. */
@@ -161,6 +163,79 @@ int nbt_firewall_open_label(const char *interface_name, uint32_t address, uint16
         result = 0;
     }
 done:
+    saved = errno;
+    close(fd);
+    errno = saved;
+    return result;
+}
+
+/* One rule for an application: any destination address on the interface. */
+static int add_app_rule(int fd, const char *interface_name, uint16_t port, const char *label) {
+    struct pfioc_pooladdr pool;
+    struct pfioc_rule pr;
+    struct pf_rule *rule = &pr.rule;
+    uint32_t ticket;
+    memset(&pool, 0, sizeof(pool));
+    if (ioctl(fd, DIOCBEGINADDRS, &pool) || change_ticket(fd, &ticket)) {
+        return -1;
+    }
+    memset(&pr, 0, sizeof(pr));
+    pr.action = PF_CHANGE_ADD_HEAD;
+    pr.ticket = ticket;
+    pr.pool_ticket = pool.ticket;
+    rule->action = PF_PASS;
+    rule->direction = PF_IN;
+    rule->quick = 1;
+    rule->af = AF_INET;
+    rule->proto = IPPROTO_TCP;
+    memcpy(rule->ifname, interface_name, strlen(interface_name) + 1);
+    rule->src.addr.type = PF_ADDR_ADDRMASK; /* any: zero address and mask */
+    rule->dst.addr.type = PF_ADDR_ADDRMASK;
+    rule->dst.port_op = PF_OP_EQ;
+    rule->dst.port[0] = htons(port);
+    rule->keep_state = PF_STATE_NORMAL;
+    rule->flags = TH_SYN;
+    rule->flagset = TH_SYN | TH_ACK;
+    memcpy(rule->label, label, strlen(label) + 1);
+    return ioctl(fd, DIOCCHANGERULE, &pr) ? -1 : 0;
+}
+
+static int app_label(const char *app, char *out, size_t size) {
+    const int n = app ? snprintf(out, size, "nbt-app-%s", app) : snprintf(out, size, "nbt-app-");
+    return n < 0 || (size_t)n >= size || (app && !*app) ? -1 : 0;
+}
+
+int nbt_firewall_app_add(const char *app, const char *interface_name, uint16_t port) {
+    char label[PF_RULE_LABEL_SIZE];
+    int fd, result, saved;
+    if (!app || app_label(app, label, sizeof(label)) || !interface_name || !*interface_name ||
+        strlen(interface_name) >= IFNAMSIZ || !port) {
+        errno = EINVAL;
+        return -1;
+    }
+    fd = pf_device();
+    if (fd < 0) {
+        return -1;
+    }
+    result = add_app_rule(fd, interface_name, port, label);
+    saved = errno;
+    close(fd);
+    errno = saved;
+    return result;
+}
+
+int nbt_firewall_app_close(const char *app) {
+    char label[PF_RULE_LABEL_SIZE];
+    int fd, result, saved;
+    if (app_label(app, label, sizeof(label))) {
+        errno = EINVAL;
+        return -1;
+    }
+    fd = pf_device();
+    if (fd < 0) {
+        return -1;
+    }
+    result = remove_all(fd, label, app == NULL);
     saved = errno;
     close(fd);
     errno = saved;
@@ -204,6 +279,25 @@ int nbt_firewall_open_label(const char *interface_name, uint32_t address, uint16
 
 int nbt_firewall_close_label(const char *label) {
     note(label && !strcmp(label, "nbt-door") ? "close door" : "close");
+    return 0;
+}
+
+int nbt_firewall_app_add(const char *app, const char *interface_name, uint16_t port) {
+    char line[96];
+    if (!app || !*app || !interface_name || !*interface_name || strlen(interface_name) >= 16 ||
+        !port) {
+        errno = EINVAL;
+        return -1;
+    }
+    snprintf(line, sizeof(line), "app open %s %s %u", app, interface_name, (unsigned)port);
+    note(line);
+    return 0;
+}
+
+int nbt_firewall_app_close(const char *app) {
+    char line[80];
+    snprintf(line, sizeof(line), "app close %s", app ? app : "*");
+    note(line);
     return 0;
 }
 
