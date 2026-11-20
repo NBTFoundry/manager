@@ -12,6 +12,7 @@
 #       permissions:
 #         contents: write
 #         packages: read
+#       secrets: inherit
 #       with:
 #         sdk-ref: <NBTFoundry/sdk commit>
 #         build: make qnx qnx-check
@@ -20,7 +21,9 @@
 # The caller's release/package.args describes the package (tools/package.py @FILE).
 # The apps key comes from the caller's "release" environment (secret APPS_SIGNING_KEY,
 # base64 of the PEM) and must be the pair of this repository's release/apps-public.pem,
-# the key the manager trusts. Each job holds only what it needs:
+# the key the manager trusts. A called workflow sees the caller's environment secrets
+# only with "secrets: inherit"; keep no repository-level secrets in the caller, since
+# inherit passes those too. Each job holds only what it needs:
 #   build    private QNX image, no secret; produces the unsigned executable
 #   sign     the release environment; runs only tools/package.py from this workflow's
 #            commit, never build output
