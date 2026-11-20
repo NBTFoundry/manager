@@ -282,26 +282,31 @@ can only see it as a raw value (`car-data-raw`).
 NBT-AAD's own plugin launches `/opt/aa/nbt-aad`, reads `/opt/aa/nbt-aad.env`,
 and recognizes persistent options under `/var/opt/aa` (some with manual flags
 under `/opt/aa`); its firewall helper changes the OEM firewall configuration.
-Ordinary manager updates touch none of these. Moving it under the manager takes
-changes in NBT-AAD's code, for its author to make or agree to (PolyForm
-Noncommercial): a rebuilt release kept in NBT-AAD's repository, packaged and
-signed for the manager.
+Ordinary manager updates touch none of these.
 
-- Lifecycle: `--ready-fd`/`--lease-fd`, readiness and heartbeats, the
-  managed executable and data paths.
-- `NBT_LAUNCH=check`: during an update's 30-second health check, start but
-  do not take the screen or the controller (the phone may connect meanwhile).
-- Use only the bridge for the car: declare `bridge=1.1` with
-  `bridge-uses=show,status,most,car-data,hold`,
-  `bridge-optional=live-settings` and its MOST policy
-  ([most-bridge.md](most-bridge.md)); handle `SIGUSR1` as its current `show`;
-  write the status file instead of its state file; read MOST through
-  `NBT_MOST_FD` instead of its own DSI client and the documented car
-  fields instead of its plugin's car data; request and release the hold.
-- Its 7 checkboxes become declared settings. `nbt-aad.env` options and its
-  persistent values move to `NBT_DATA_DIR`. Autostart moves to component 6.
-- Its plugin is retired by an explicit setup step, after the rebuilt
-  release runs healthy (the legacy plugin must not launch the managed
+`NBTFoundry/nf-android-auto` packages it for the manager without changing it
+(PolyForm Noncommercial; no NBT-AAD code enters the manager): NBT-AAD's daemon
+is pinned as a submodule and appended to an SDK adapter, which the manager
+starts like any application and which drives the daemon through its control
+port and records. NBT-AAD's iDrive plugin is retired; what it did becomes
+generic bridge capabilities, none of which names Android Auto. The few changes
+the daemon needs (its folders from `NBT_DATA_DIR`, ...) go to NBT-AAD as pull
+requests. The adapter's view of the daemon is in that repository's
+`docs/upstream-interface.md`; the list below is what the bridge still needs.
+
+- Done in the adapter, on bridge 1.0: lifecycle and heartbeats, the health
+  check (`nbt-aad --license`, nothing else touched), `show`, the status label,
+  twelve declared settings given to the daemon as its `NBT_*` variables and
+  flag files in `NBT_DATA_DIR`. The daemon keeps its own MOST client.
+- Bridge 1.6, all generic: car data as a signed allowlist of iDrive car-data
+  names the plugin relays as the car gives them (`bridge-cds`), so a new
+  signal NBT-AAD wants needs no manager release; the focus hold for an
+  application that places its own surface (`hold`, with `aside` back); a
+  signed firewall rule the host adds and removes (`bridge-net`), replacing
+  the daemon's `pfctl -d` and `src/worker/android_auto_wifi.cpp`'s reading of
+  `/opt/aa`. Autostart and the favourite entry as designed above.
+- Its plugin is retired by an explicit setup step, after the managed
+  package runs healthy (the legacy plugin must not launch the managed
   executable). No compatibility symlinks are used.
 - A migration reads only recognized legacy sources, each with a fixed allowlist,
   regular-file and ownership checks and size limits: `/opt/aa/nbt-aad.env`
