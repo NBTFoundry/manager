@@ -133,7 +133,10 @@ so the GUI polls its progress once a second and other installs wait.
   with the head unit's zlib (`libz.so.2`, which iDrive's own programs load)
   and checked against their sizes and CRC-32s: into a game folder named after
   the archive when one of them is of a `folders=` extension, else as files one
-  by one. Zip64, encrypted and multi-disk archives are left out.
+  by one. Zip64, encrypted and multi-disk archives are left out. An
+  application that declares `zip` itself (an emulator reading its own
+  archives: arcade romsets) gets each archive as a file, copied whole and
+  never opened, as any other declared type.
 - A folder below the stick's top holding a file of a `folders=` extension is
   one match too: its accepted files (not its subfolders, matched on their own)
   arrive as a game folder of its name. Any other folder's files match one by
