@@ -84,8 +84,15 @@ void buildMainMenu(const UiController &ui, UiView *v) {
         addLine(v, ui.captureNote);
     }
     addText(v, ui.appCount ? T_MENU_HINT : T_NO_APPS);
-    if (ui.holding && ui.holdIndex < ui.appCount && ui.clockMs >= ui.holdMs &&
-        ui.clockMs - ui.holdMs >= kHoldShowMs) {
+    if (ui.trialSinceMs && !ui.holding) { // a manager update being checked (setup_ui.hpp)
+        const uint64_t spent = ui.clockMs > ui.trialSinceMs ? ui.clockMs - ui.trialSinceMs : 0;
+        v->modal.shown = 1;
+        textf(v->modal.title, sizeof(v->modal.title), T_UPDATING_MANAGER);
+        textf(v->modal.text, sizeof(v->modal.text), T_CHECKING_MANAGER, ui.version);
+        v->modal.progress =
+            spent >= kAppHealthMs ? 99 : static_cast<int>(spent * 100u / kAppHealthMs);
+    } else if (ui.holding && ui.holdIndex < ui.appCount && ui.clockMs >= ui.holdMs &&
+               ui.clockMs - ui.holdMs >= kHoldShowMs) {
         const uint64_t held = ui.clockMs - ui.holdMs;
         v->modal.shown = 1;
         textf(v->modal.title, sizeof(v->modal.title), T_APP_SETTINGS, ui.apps[ui.holdIndex]);

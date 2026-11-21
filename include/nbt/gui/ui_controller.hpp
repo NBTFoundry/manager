@@ -262,6 +262,7 @@ public:
     int pairRequested = 0;  // Settings > Pair a phone: open the Wi-Fi code once the session is up
     int setupDue = 1;       // SETUP once the list shows; again while an update is on trial
     uint64_t setupAtMs = 0; // not before
+    uint64_t trialSinceMs = 0; // this manager runs on trial since (SETUP "trial"), 0: not
     int faultStop = 0;
     char quarantinedApp[kIdMax + 1] = {};
     char stopNote[kTextMax + 1] = {};          // "Stopping <app>" while that is the message shown

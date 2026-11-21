@@ -931,6 +931,10 @@ static void test_setup_and_idrive_restart(void) {
     CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "SETUP"));
     CHECK(request.timeoutMs >= 60000u && view(&ui).busy);
     CHECK(ui.reply("SETUP\ttrial", now) == 0 && ui.screen == nbt::gui::Apps);
+    /* On trial: the list shows the check in a modal, its progress over the health check. */
+    UiView checking = view(&ui);
+    CHECK(checking.modal.shown && !strcmp(checking.modal.title, "Updating NBT Manager") &&
+          strstr(checking.modal.text, "Checking version") && checking.modal.progress == 0);
     now += nbt::gui::kPollMs;
     CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "RUNNING status"));
     CHECK(ui.reply("RUNNING\t0", now) == 0);
@@ -939,9 +943,15 @@ static void test_setup_and_idrive_restart(void) {
                                                                 : "STATUS\t0\t-\t-\t-\t0\t-\tIdle",
                        now) == 0);
     }
-    now += nbt::gui::kSetupRetryMs;
+    now += nbt::gui::kTrialPollMs;
+    ui.clockMs = now;
+    CHECK(view(&ui).modal.shown && view(&ui).modal.progress > 0 && view(&ui).modal.progress < 100);
+    CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "SETUP"));
+    CHECK(ui.reply("SETUP\ttrial", now) == 0 && ui.setupDue);
+    now += nbt::gui::kTrialPollMs;
     CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "SETUP"));
     CHECK(ui.reply("SETUP\tboth", now) == 0 && ui.screen == nbt::gui::RestartIdrive);
+    CHECK(!ui.trialSinceMs && !view(&ui).modal.shown);
     UiView v = view(&ui);
     CHECK(!strcmp(v.title, "Restart head unit?") && v.focus == 0 && v.itemCount == 2 &&
           !strcmp(v.items[0], "Later") && !strcmp(v.items[1], "Restart head unit"));
