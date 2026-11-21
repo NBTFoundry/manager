@@ -37,6 +37,8 @@ class PhoneFilesTests(unittest.TestCase):
         self.install('plain', 'bridge=1.5\nbridge-uses=show\nbridge-optional=\n')
         self.install('psx', 'bridge=1.5\nbridge-uses=show,files\nbridge-optional=\n'
                             'bridge-files=cue,bin,chd|1|4|folders=cue\n')
+        self.install('arcade', 'bridge=1.5\nbridge-uses=show,files\nbridge-optional=\n'
+                               'bridge-files=zip,7z|1|4\n')
         for path in [self.root, *self.root.rglob('*')]:
             path.chmod(0o700 if path.is_dir() else 0o600)
         self.parent, child = socket.socketpair()
@@ -353,6 +355,30 @@ class PhoneFilesTests(unittest.TestCase):
         self.assertEqual(self.command('FILES IMPORT snes all'), 'OK')
         self.assertEqual(self.usb(until=('imported', 'failed'))[1], 'imported')
         self.assertEqual(self.stored(), ['Super Mario World.sfc'])
+
+    def test_archives_an_application_declares_are_stored_as_they_are(self):
+        # An emulator that reads archives itself (arcade romsets: one zip per
+        # game, its ROM files of no declared type) gets each archive whole.
+        self.zip('umass0/Arcade/mslug.zip', {'201-p1.p1': b'\x01' * 4000, '201-s1.s1': b'\x02' * 300})
+        self.zip('umass0/neogeo.zip', {'sp-s2.sp1': b'\x03' * 500})
+        self.stick({'umass0/Arcade/kof98.7z': b'7z\xbc\xaf\x27\x1c' + b'\x04' * 100})
+        archives = {name: (self.mounts / 'umass0' / path).read_bytes() for name, path in
+                    (('mslug.zip', 'Arcade/mslug.zip'), ('neogeo.zip', 'neogeo.zip'),
+                     ('kof98.7z', 'Arcade/kof98.7z'))}
+        self.assertEqual(self.command('FILES SCAN arcade'), 'OK')
+        fields = self.usb_of('arcade', ('scanned', 'failed'))
+        self.assertEqual(fields[6:7] + fields[7::3], ['3', 'kof98.7z', 'mslug.zip', 'neogeo.zip'], fields)
+        self.assertEqual(fields[8::3], [str(len(archives[n])) for n in ('kof98.7z', 'mslug.zip', 'neogeo.zip')])
+        self.assertEqual(self.command('FILES IMPORT arcade all'), 'OK')
+        self.assertEqual(self.usb_of('arcade', ('imported', 'failed'))[1:3], ['imported', '-'])
+        games = self.files / 'files/arcade'
+        self.assertEqual(sorted(p.name for p in games.iterdir()), sorted(archives))
+        for name, data in archives.items():
+            self.assertEqual((games / name).read_bytes(), data)
+        # From the phone too.
+        self.phone.pair(self.command, self.host)
+        self.assertEqual(self.send('arcade', 'sf2.zip', b'PK\5\6' + bytes(18)), (200, b'OK\n'))
+        self.assertTrue((games / 'sf2.zip').is_file())
 
     def test_a_game_folder_counts_against_the_quota(self):
         self.stick({f'umass0/Big/disc{i}.bin': b'\x22' * (900 * 1024) for i in range(5)})
