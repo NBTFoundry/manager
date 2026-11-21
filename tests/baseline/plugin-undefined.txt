@@ -45,6 +45,7 @@
          U open
          U opendir
          U pipe
+         U pread
          U pthread_atfork
          U pthread_attr_destroy
          U pthread_attr_init
@@ -59,6 +60,7 @@
          U pthread_mutex_unlock
          U pthread_once
          U pthread_self
+         U pwrite
          U read
          U readdir
          U sigemptyset
