@@ -10,6 +10,7 @@
 #include "nbt/fs.h"
 #include "nbt/gui/phone_wake.hpp"
 #include "nbt/log.h"
+#include "nbt/process/runner_path.hpp"
 #include "nbt/process/sandbox_limits.hpp"
 #include "nbt/worker/shortcut_dispatch.hpp"
 #include "nbt/worker/storage_report.hpp"
@@ -67,6 +68,7 @@ core::Status Daemon::initialize(const char *root, const char *self) {
 #else
     (void)nbt_app_host_set_self(self, NULL);
 #endif
+    process::setRunnerBeside(self); // the health check of a runner application
     if (nbt_log_open(root_.legacy(), "worker") > 0) {
         nbt_logf("start");
         logStorage(root);
@@ -199,6 +201,7 @@ int hostMain(const char *root, int argc, char **argv) {
     }
     (void)nbt_log_open(rootObject.legacy(), "host");
     process::setAppExecWrapper(argv[0]); // the car's limits wrapper is this binary
+    process::setRunnerBeside(argv[0]);   // and nbt-runner is beside it
 #ifdef __QNX__
     if (!process::appExecWrapper()) {
         nbt_logf("host %s: no absolute path to itself; the application starts without limits",

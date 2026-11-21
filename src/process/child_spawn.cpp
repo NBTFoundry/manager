@@ -27,10 +27,10 @@ static void buildTestArgs(char *argv[16], unsigned &argc, const char **executabl
 #endif
 
 void buildProcessArgv(char *argv[16], char *path, nbt_fs_path_kind kind, const char *slot,
-                      const char **executable) {
+                      const char **executable, const char *runner) {
     unsigned argc = 0;
-    *executable = path;
-    argv[argc++] = path;
+    *executable = runner ? runner : path;
+    argv[argc++] = runner ? const_cast<char *>(runner) : path;
 #ifdef NBT_TESTING
     if (kind == NBT_FS_MANAGER_SLOT_GUI) {
         buildTestArgs(argv, argc, executable);
@@ -47,6 +47,10 @@ void buildProcessArgv(char *argv[16], char *path, nbt_fs_path_kind kind, const c
     if (kind == NBT_FS_MANAGER_SLOT_GUI) {
         argv[argc++] = const_cast<char *>("--worker-fd");
         argv[argc++] = const_cast<char *>("5");
+    }
+    if (runner) {
+        argv[argc++] = const_cast<char *>("--nbt-payload");
+        argv[argc++] = path;
     }
     argv[argc] = NULL;
 }

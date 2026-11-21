@@ -50,7 +50,7 @@ are bounded to 16 bits (major is nonzero); comma-separated capability names
 are unique, 1-24 lowercase letter/digit/hyphen characters starting with a
 letter, at most 255 bytes per list. An empty list uses a trailing `|`.
 `tools/package_release.py` defaults to `tools/bridge.py`'s `CURRENT`,
-`bridge=1.5|show,status,live-settings,most,gamepad,controller,files`. The lines
+`bridge=1.7|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner`. The lines
 cannot state the oldest minor the worker runs (1.5): the worker carries it
 (docs/app-bridge.md, "Versioning and dependencies").
 Repeated `--bridge '1.0|...'` overrides describe the actual built worker;

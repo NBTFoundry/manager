@@ -267,5 +267,44 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(target.read_bytes(), b"preserve")
 
 
+    def test_runner_declared_exactly_when_the_payload_has_the_nbt_note(self):
+        """Built without the QNX SDP: bridge 1.7, runner required."""
+        def payload(mode, elf_type):
+            note = struct.pack("<III", 4, 12, 1) + b"NBT\0" + struct.pack("<III", 1, 1, mode)
+            header = bytearray(52)
+            header[:7] = b"\x7fELF\x01\x01\x01"
+            struct.pack_into("<HHI", header, 16, elf_type, 40, 1)
+            struct.pack_into("<I", header, 28, 52)
+            struct.pack_into("<HHH", header, 40, 52, 32, 1)
+            phdr = struct.pack("<IIIIIIII", 4, 84, 0, 0, len(note), len(note), 4, 4)
+            return bytes(header) + phdr + note + b"code"
+        module, guest = self.path / "app.so", self.path / "app.guest"
+        module.write_bytes(payload(1, 3))
+        guest.write_bytes(payload(2, 2))
+        base = ["--app", "test", "--version", "v1", "--sequence", "1", "--compat", "demo-1",
+                "--key", self.path / "key.pem"]
+        for number, (source, extra, ok, message) in enumerate((
+                (module, ["--bridge", "1.7", "--bridge-uses", "runner"], True, b""),
+                (guest, ["--bridge", "1.7", "--bridge-uses", "runner,status"], True, b""),
+                (module, [], False, b"declare --bridge 1.7 --bridge-uses runner"),
+                (guest, ["--bridge", "1.6", "--bridge-uses", "status"], False, b"NBT ABI note (a guest)"),
+                (module, ["--bridge", "1.6", "--bridge-uses", "runner"], False, b"runner requires bridge 1.7"),
+                (module, ["--bridge", "1.7", "--bridge-optional", "runner"], False, b"never optional"),
+                (self.path / "app", ["--bridge", "1.7", "--bridge-uses", "runner"], False, b"no NBT ABI note"))):
+            with self.subTest(number=number):
+                output = self.path / f"runner-{number}.nbt"
+                result = run("python3", PACK, *base, *extra, "--output", output, source)
+                self.assertEqual(result.returncode == 0, ok, result.stderr)
+                self.assertIn(message, result.stderr)
+                if ok:
+                    self.assertIn(b"bridge-uses=runner", output.read_bytes()[:2048])
+        # A note whose mode does not match the ELF type is no note.
+        mismatch = self.path / "mismatch.so"
+        mismatch.write_bytes(payload(1, 2))
+        result = run("python3", PACK, *base, "--bridge", "1.7", "--bridge-uses", "runner",
+                     "--output", self.path / "mismatch.nbt", mismatch)
+        self.assertNotEqual(result.returncode, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

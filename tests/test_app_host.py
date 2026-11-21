@@ -51,6 +51,19 @@ def show_holder(path, byte=1):
         os.close(fd)
 
 
+def payload_with_note(mode=1, abi=(1, 1)):
+    """An ARM ELF image carrying the SDK's NBT ABI note: a module (ET_DYN) or a
+    guest (ET_EXEC) for nbt-runner."""
+    note = struct.pack("<III", 4, 12, 1) + b"NBT\0" + struct.pack("<III", abi[0], abi[1], mode)
+    header = bytearray(52)
+    header[:7] = b"\x7fELF\x01\x01\x01"
+    struct.pack_into("<HHI", header, 16, 3 if mode == 1 else 2, 40, 1)
+    struct.pack_into("<I", header, 28, 52)        # e_phoff
+    struct.pack_into("<HHH", header, 40, 52, 32, 1)  # e_ehsize, e_phentsize, e_phnum
+    phdr = struct.pack("<IIIIIIII", 4, 84, 0, 0, len(note), len(note), 4, 4)
+    return bytes(header) + phdr + note + b"payload"
+
+
 class AppHostTests(unittest.TestCase):
     """Running applications outlive the worker in detached hosts."""
 
@@ -192,6 +205,57 @@ event("exit")
     def events(self):
         return self.trace.read_text().splitlines()
 
+
+    def test_a_payload_with_the_nbt_note_starts_through_the_runner(self):
+        # Built without the QNX SDP: the release's nbt-runner starts it with
+        # --nbt-payload, after the bridge arguments (docs/app-bridge.md, runner).
+        self.trace = self.root / "app-events"
+        self.trace.write_text("")
+        runner = Path(self.tmp.name) / "runner"
+        runner.write_text(r"""#!/usr/bin/python3
+import fcntl, os, signal, sys, time
+stopping = False
+def stop(number, frame):
+    global stopping
+    stopping = True
+signal.signal(signal.SIGTERM, stop)
+fcntl.lockf(4, fcntl.LOCK_SH | fcntl.LOCK_NB)
+with open(@LOG@, "a") as output:
+    output.write("argv=" + " ".join(sys.argv[1:]) + "\n")
+    output.write("caps=" + os.environ.get("NBT_BRIDGE_CAPS", "absent") + "\n")
+while not stopping:
+    os.write(3, b"R")
+    time.sleep(0.2)
+""".replace("@LOG@", repr(str(self.trace))))
+        runner.chmod(0o700)
+        active = self.root / "apps/test/bin/app"
+        active.write_bytes(payload_with_note())
+        active.chmod(0o700)
+        (self.root / "state/test/installed").write_text(
+            "NBTSTATE2\nsequence=00000000000000000001\nhighwater=00000000000000000001\n"
+            f"version=v1\nsha256={hashlib.sha256(active.read_bytes()).hexdigest()}\n"
+            "bridge=1.7\nbridge-uses=runner\nbridge-optional=\n")
+        with mock.patch.dict(os.environ, {"NBT_TEST_RUNNER": str(runner)}):
+            _, command = self.worker()
+            self.assertEqual(command("START test"), "OK")
+            self.wait_for(lambda: "caps=runner" in self.events())
+        self.assertIn(f"argv=--ready-fd 3 --lease-fd 4 --nbt-payload {active}", self.events())
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: not lock_holder(self.lease))
+
+    def test_a_payload_with_the_nbt_note_needs_a_runner(self):
+        active = self.root / "apps/test/bin/app"
+        active.write_bytes(payload_with_note(mode=2))
+        active.chmod(0o700)
+        (self.root / "state/test/installed").write_text(
+            "NBTSTATE2\nsequence=00000000000000000001\nhighwater=00000000000000000001\n"
+            f"version=v1\nsha256={hashlib.sha256(active.read_bytes()).hexdigest()}\n"
+            "bridge=1.7\nbridge-uses=runner\nbridge-optional=\n")
+        with mock.patch.dict(os.environ, {"NBT_TEST_RUNNER": str(Path(self.tmp.name) / "missing")}):
+            _, command = self.worker()
+            command("START test")
+            self.wait_for(lambda: (self.root / "state/test/output.log").exists() and
+                          b"cannot start the application" in (self.root / "state/test/output.log").read_bytes())
 
     def test_status_grant_readiness_worker_restart_and_fresh_instance(self):
         self.traced_app(uses="show,status", ready_delay=0.8)
@@ -335,7 +399,7 @@ event("exit")
         self.wait_for(lambda: show_holder(self.host_lock))
         host, application = lock_holder(self.host_lock), lock_holder(self.lease)
         self.assertEqual(show_holder(self.host_lock), host)
-        self.assertIn("bridge=1.6", self.events())
+        self.assertIn("bridge=1.7", self.events())
         self.assertIn("caps=show", self.events())
         # The one application surface, held by this host for its life.
         self.assertIn("surface=1291", self.events())

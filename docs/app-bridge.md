@@ -26,10 +26,13 @@ The current provider is **bridge 1.5 with
 | `gamepad` (wired USB gamepad) | 1.3 | [gamepad-bridge.md](gamepad-bridge.md) |
 | `controller` (decoded iDrive controller) | 1.4 | [4](#4-controller-input-capability-controller-bridge-14) |
 | `files` (a folder of the user's files) | 1.5 | [files-bridge.md](files-bridge.md) |
+| `hold` (iDrive held behind the application) | 1.6 | [5](#5-focus-hold-capability-hold-bridge-16) |
+| `car-data` (iDrive car data) | 1.6 | [6](#6-car-data-capability-car-data-bridge-16) |
+| `net` (packet-filter rules) | 1.6 | [7](#7-network-capability-net-bridge-16) |
+| `runner` (built without the QNX SDP) | 1.7 | [8](#8-applications-built-without-the-qnx-sdp-capability-runner-bridge-17) |
 
-Car data, a focus hold requested by the application, automatic start and a
-favourite entry are designed in [bridge-design.md](bridge-design.md); bridge 1.5
-does not provide them.
+A favourite entry is designed in [bridge-design.md](bridge-design.md); no bridge
+version provides it yet.
 
 Capabilities are host-tested (signed requirements, dependency checks, durable
 records, launch grants, `SIGUSR1` show requests, live menu labels through
@@ -100,6 +103,7 @@ how the manager provides each part.
 | Focus hold | app <-> manager | `hold` (1.6): requests on `NBT_HOLD_FD=9`, answers in the file `NBT_HOLD_STATE` (5) |
 | Car data | car -> app | `car-data` (1.6): the iDrive car data named in the signed `bridge-cds` list, one file per name in `NBT_CDS_DIR` (6) |
 | Network | phone -> app | `net` (1.6): the signed `bridge-net` rules let in through the packet filter while it runs; `NBT_NET` (7) |
+| Runner | manager -> app | `runner` (1.7): a payload with the SDK's NBT ABI note runs under the release's `nbt-runner` (8) |
 
 Every name, path and format here belongs to one interface version; see
 "Versioning and dependencies".
@@ -492,6 +496,31 @@ underneath ([bridge-design.md](bridge-design.md)).
   `/dev/shmem/nbt-bridge1-<app>.net`; a fresh one with a `wfd0` rule keeps
   the group on when a phone session ends (`wifi_direct_controller.cpp`), as
   standalone NBT-AAD's own setting does.
+
+### 8. Applications built without the QNX SDP (capability `runner`, bridge 1.7)
+
+- **Payload.** A module (ARM `ET_DYN`) or a guest (ARM `ET_EXEC`) built with
+  the SDK's open toolchain, carrying its NBT ABI note (`.note.nbt`: ABI major,
+  minor, mode; the SDK's `docs/native-apps.md`). No QNX file is in it.
+- **Declaration.** `bridge=1.7` and `runner` in `bridge-uses`, never optional:
+  without the runner the payload cannot run, so a manager that lacks it
+  refuses the package ("needs bridge 1.7"). `tools/package.py` requires the
+  declaration exactly when the payload has the note, with the note's mode
+  matching the ELF type.
+- **Start.** The manager release carries `nbt-runner` (`NBTRLS3` component
+  `runner`, staged as `manager/slots/<n>/runner`). For an installed payload
+  with the note, the host and the worker's health check start the runner of
+  their own slot instead of the payload, with the same descriptors,
+  environment and limits, and the payload's path last:
+  `runner --ready-fd 3 --lease-fd 4 --nbt-payload apps/<app>/bin/app`.
+  The runner takes the bridge as any application and runs the module in its
+  process or the guest as its child. A manager without a runner fails the
+  start (`cannot start the application`).
+- **Versions.** The runner refuses a payload built for another ABI major or a
+  newer minor before running anything (`needs runtime X.Y; this runner has
+  A.B` in the application log), so the install's health check fails cleanly.
+  ABI minors only add host functions; a payload keeps working across manager
+  updates.
 
 ## Design notes
 

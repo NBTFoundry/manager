@@ -127,6 +127,9 @@ as described in `README.md`.
 | Reject on the review screen | Upload discarded; the phone shows "Cancelled in iDrive." | `command CANCEL`, `state idle: Session closed` |
 | Watch the phone during each of the above | It follows: "Verified. Review and approve it in iDrive.", "Installing: ...", then "Installed." or "Failed: ..." | — |
 | Let a verified session reach 10 minutes | The phone shows "Session expired. Scan the code again." | `state idle: Session expired` |
+| Update the manager to an `NBTRLS3` release (installer, once) | `manager/slots/<n>/runner` beside `gui` and `worker` | `nbt-verify-release` prints `format=NBTRLS3` |
+| Install an application built without the QNX SDP (a module, then a guest) | Health check passes; it runs as before | application log: `runner` lines, then the application's own |
+| Its log after a start | The runner names the payload and its ABI; no `needs runtime` line | `nbt-runner ... app` stage, `application ended, status 0` at stop |
 
 ## 7. Interruption and recovery
 

@@ -26,6 +26,7 @@
 #include "nbt/most_policy.h"
 #include "nbt/net_policy.h"
 #include "nbt/package/package_verifier.hpp"
+#include "nbt/package/payload_note.hpp"
 #include "nbt/package/release_verifier.hpp"
 #include "nbt/settings.h"
 #include "nbt/storage/starter_config.hpp"
@@ -85,7 +86,8 @@ enum Target {
     CdsPolicy,
     NetPolicy,
     BridgeHold,
-    ZipArchiveTarget
+    ZipArchiveTarget,
+    PayloadNoteTarget
 };
 
 struct TargetName {
@@ -124,7 +126,8 @@ const TargetName kTargets[] = {{"gamepad-wire", GamepadWire},
                                {"cds-policy", CdsPolicy},
                                {"net-policy", NetPolicy},
                                {"bridge-hold", BridgeHold},
-                               {"zip-archive", ZipArchiveTarget}};
+                               {"zip-archive", ZipArchiveTarget},
+                               {"payload-note", PayloadNoteTarget}};
 
 class Mutator {
 public:
@@ -362,9 +365,17 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
         addSeed(&out, packageManifest());
         addSeed(&out, "app=test\n");
         break;
-    case ReleaseManifest:
+    case ReleaseManifest: {
         addSeed(&out, releaseManifest());
+        // NBTRLS3: named components after the fixed roles.
+        std::string named = releaseManifest();
+        for (const char *name : {"runner", "later_data"}) {
+            named +=
+                std::string(name) + "_size=52\n" + name + "_sha256=" + std::string(64, 'a') + "\n";
+        }
+        addSeed(&out, named);
         break;
+    }
     case SettingsSchema:
         addSeed(&out, "NBTSETTINGS1\nsetting=mode|Mode|on|on,off\n");
         break;
@@ -464,6 +475,29 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
         out.push_back(zipSeed(0));
         out.push_back(zipSeed(8));
         break;
+    case PayloadNoteTarget: {
+        // An ARM ET_DYN image with the NBT ABI note of a module.
+        std::vector<uint8_t> image(124, 0);
+        const uint8_t head[] = {0x7f, 'E', 'L', 'F', 1, 1, 1};
+        memcpy(&image[0], head, sizeof(head));
+        image[16] = 3;
+        image[18] = 40;
+        image[28] = 52; // e_phoff
+        image[42] = 32; // e_phentsize
+        image[44] = 1;  // e_phnum
+        image[52] = 4;  // PT_NOTE
+        image[56] = 84; // p_offset
+        image[68] = 28; // p_filesz
+        image[84] = 4;  // namesz
+        image[88] = 12; // descsz
+        image[92] = 1;  // type
+        memcpy(&image[96], "NBT", 4);
+        image[100] = 1; // ABI 1.1, module
+        image[104] = 1;
+        image[108] = 1;
+        out.push_back(image);
+        break;
+    }
     case BridgeHold:
         addSeed(&out, "1700000000000 start android-auto\n");
         addSeed(&out, "12 hold\n");
@@ -721,6 +755,14 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
         nbt::gui::ShortcutRecord shortcut; // the App shortcut record: parsed formats back
         if (nbt::gui::shortcutRecordParse(line, input.size(), shortcut) &&
             nbt::gui::shortcutRecordFormat(shortcut, out, sizeof(out)) < 0) {
+            abort();
+        }
+        break;
+    }
+    case PayloadNoteTarget: {
+        nbt::package::PayloadNote note;
+        if (nbt::package::parsePayloadNote(input.empty() ? NULL : &input[0], input.size(), &note) &&
+            note.mode != nbt::package::kPayloadModule && note.mode != nbt::package::kPayloadGuest) {
             abort();
         }
         break;

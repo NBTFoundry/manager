@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/process_group.hpp"
 
+#include "nbt/package/payload_note.hpp"
 #include "nbt/process/child_spawn.hpp"
 #include "nbt/process/mapped_channels.hpp"
+#include "nbt/process/runner_path.hpp"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -112,8 +114,22 @@ int ProcessGroup::start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, cons
     if (active < 0) {
         return -1;
     }
-    closeIfOpen(active);
-    buildProcessArgv(argv, path, kind, slot, &executable);
+    {
+        // Built without the QNX SDP (bridge capability runner): the release's
+        // nbt-runner runs it, and checks the note's ABI before anything else.
+        package::PayloadNote note;
+        const char *runner = NULL;
+        if (kind == NBT_FS_ACTIVE && package::readPayloadNote(active, &note)) {
+            runner = runnerPath();
+            if (!runner || access(runner, X_OK)) {
+                closeIfOpen(active);
+                errno = ENOEXEC; // this manager has no runner
+                return -1;
+            }
+        }
+        closeIfOpen(active);
+        buildProcessArgv(argv, path, kind, slot, &executable, runner);
+    }
     lease = nbt_fs_open(fs, NBT_FS_LEASE, app, NULL, NBT_FS_OPEN_LOCK);
     if (lease < 0 || pipe(pipefds)) {
         goto fail;

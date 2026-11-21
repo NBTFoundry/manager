@@ -121,7 +121,7 @@ class TransactionTests(unittest.TestCase):
         return run(PROBE, self.root, "test", command, env=env)
 
     def test_bridge_dependency_rejection_precedes_executable_changes(self):
-        for args, reason in ((["--bridge", "1.7"], b"needs bridge 1.7"),
+        for args, reason in ((["--bridge", "1.8"], b"needs bridge 1.8"),
                              (["--bridge", "2.0"], b"does not serve"),
                              (["--bridge", "1.5", "--bridge-uses", "future"], b"not implemented"),
                              # older than this manager runs: an update must declare 1.5
@@ -148,7 +148,7 @@ class TransactionTests(unittest.TestCase):
         self.assertEqual(self.command("begin").returncode, 0)
         env = self.command("candidate-env")
         self.assertEqual(env.returncode, 0, env.stderr)
-        self.assertIn(b"NBT_BRIDGE=1.6\nNBT_BRIDGE_CAPS=show,status\n", env.stdout)
+        self.assertIn(b"NBT_BRIDGE=1.7\nNBT_BRIDGE_CAPS=show,status\n", env.stdout)
         self.assertNotIn(b"NBT_STATUS_FD=", env.stdout)  # candidate has no user status channel
         self.assertNotIn(b"NBT_BRIDGE=", self.command("env").stdout)  # previous executable's record
         self.assertEqual(self.command("confirm", fault="confirmed").returncode, 91)
@@ -156,7 +156,7 @@ class TransactionTests(unittest.TestCase):
         expected = (self.state / "installed").read_bytes()
         self.assertTrue(expected.startswith(b"NBTSTATE2\n"))
         self.assertIn(b"bridge-optional=show,status\n", expected)
-        self.assertIn(b"NBT_BRIDGE=1.6\n", self.command("env").stdout)
+        self.assertIn(b"NBT_BRIDGE=1.7\n", self.command("env").stdout)
         # A failed candidate without the bridge must restore the declaration
         # with the executable, including after a restart in recovery itself.
         self.make_upload(self.old, 3)

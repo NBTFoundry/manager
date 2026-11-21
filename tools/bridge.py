@@ -4,7 +4,7 @@ import re
 
 VERSION = re.compile(r"([1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{0,23}\Z")
-CURRENT = ("1.6|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net",)  # nbt_bridge_current
+CURRENT = ("1.7|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner",)  # nbt_bridge_current
 # One rule of a MOST policy (src/model/most_policy.cpp, docs/most-bridge.md).
 MOST_RULE = re.compile(r"(?:rx:\*\.\*\.\*|(?:rx|tx):[0-9A-F]{2}\.(?:\*|[0-9A-F]{2})\.(?:\*|[0-9A-F]{3})"
                        r"|ctl:[0-9A-F]{2}\.[0-9A-F]{2}|sub:[0-9A-F]{2}\.[0-9A-F]{2}\.[0-9A-F]{3})\Z")
@@ -119,6 +119,11 @@ def requirement(ver, uses, optional, most="", files="", cds="", net=""):
         raise ValueError("a network policy (--bridge-net) is required exactly when net is declared")
     if (cds or net) and major == 1 and minor < 6:
         raise ValueError("car-data and net require bridge 1.6")
+    # A payload built without the QNX SDP cannot run without the runner.
+    if "runner" in wanted:
+        raise ValueError("runner is required (--bridge-uses), never optional")
+    if "runner" in required and major == 1 and minor < 7:
+        raise ValueError("runner requires bridge 1.7")
     text = f"bridge={ver}\nbridge-uses={uses}\nbridge-optional={optional}\n"
     text += f"bridge-most={most_policy(most)}\n" if most else ""
     text += f"bridge-files={files_policy(files)}\n" if files else ""

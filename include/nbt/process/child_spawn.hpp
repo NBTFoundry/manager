@@ -26,8 +26,10 @@ struct ChildSandbox {
 };
 
 ChildSandbox defaultAppSandbox();
+/* `runner`: nbt-runner starts `path` (a payload with the NBT ABI note) as
+ * --nbt-payload, after the bridge arguments. */
 void buildProcessArgv(char *argv[16], char *path, nbt_fs_path_kind kind, const char *slot,
-                      const char **executable);
+                      const char **executable, const char *runner = NULL);
 
 /* Starts `path` the way NBT-AAD's iDrive app starts its daemon on QNX: spawn()
  * with a descriptor map (the child's descriptor i is the caller's fds[i]; -1

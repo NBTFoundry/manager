@@ -326,7 +326,7 @@ static void cds_net_declarations(void) {
     assert(strstr(text, "new_bridge-cds=driving.gear,sensors.PDCStatus\n"
                         "new_bridge-net=tcp:5277@uap0+wfd0\n"));
     nbt_bridge_current(&provider);
-    assert(provider.versions[0].minor == 6);
+    assert(provider.versions[0].minor == 7);
     assert(!nbt_bridge_check(&need, &provider, NULL, &grant, error, sizeof(error)) &&
            !strcmp(grant.caps, "status,hold,car-data,net"));
     memset(&old, 0, sizeof(old));
@@ -391,10 +391,23 @@ int main(void) {
     assert(!nbt_bridge_caps_valid(text));
     nbt_bridge_current(&provider);
     assert(provider.count == 1 && provider.versions[0].major == 1 &&
-           provider.versions[0].minor == 6 &&
+           provider.versions[0].minor == 7 &&
            provider.versions[0].oldest == NBT_BRIDGE_OLDEST_MINOR &&
-           !strcmp(provider.versions[0].caps,
-                   "show,status,live-settings,most,gamepad,controller,files,hold,car-data,net"));
+           !strcmp(provider.versions[0].caps, "show,status,live-settings,most,gamepad,controller,"
+                                              "files,hold,car-data,net,runner"));
+    /* Bridge 1.7: an application built without the QNX SDP requires runner. */
+    memset(&need, 0, sizeof(need));
+    need.major = 1;
+    need.minor = 7;
+    strcpy(need.uses, "runner,status");
+    assert(!nbt_bridge_check(&need, &provider, NULL, &grant, error, sizeof(error)) &&
+           !strcmp(grant.caps, "runner,status"));
+    {
+        nbt_bridge_provider older;
+        memset(&older, 0, sizeof(older));
+        assert(!nbt_bridge_provider_add(&older, "1.6|status,hold"));
+        assert(nbt_bridge_check(&need, &older, NULL, NULL, error, sizeof(error)));
+    }
     /* Older than the oldest version this manager runs: disabled until updated,
      * with the reason. No bridge at all still runs, with no grant. */
     memset(&need, 0, sizeof(need));

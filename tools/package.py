@@ -27,6 +27,42 @@ def file_argument(line):
     return [] if not line.strip() or line.lstrip().startswith("#") else [line]
 
 
+NOTE_READ = 65536
+
+
+def nbt_note(data):
+    """(abi_major, abi_minor, mode) of the SDK's NBT ABI note in an ELF32 ARM
+    image, the mode matching the ELF type (a module ET_DYN, a guest ET_EXEC),
+    or None: the SDK's rules (tools/nbt_elf.py, src/payload.c) and the
+    manager's (src/package/payload_note.cpp)."""
+    if len(data) < 52 or data[:4] != b"\x7fELF" or data[4] != 1 or data[5] != 1 or data[18:20] != b"\x28\x00":
+        return None
+    elf_type = struct.unpack_from("<H", data, 16)[0]
+    phoff, = struct.unpack_from("<I", data, 28)
+    phentsize, phnum = struct.unpack_from("<HH", data, 42)
+    if phentsize < 32 or not 0 < phnum <= 64 or phoff + phnum * phentsize > len(data):
+        return None
+    for i in range(phnum):
+        p_type, p_offset, _, _, p_filesz = struct.unpack_from("<IIIII", data, phoff + i * phentsize)
+        end = p_offset + p_filesz
+        if p_type != 4 or end > len(data):
+            continue
+        pos = p_offset
+        while pos + 12 <= end:
+            namesz, descsz, ntype = struct.unpack_from("<III", data, pos)
+            if namesz > 64 or descsz > 1024:
+                break
+            desc = pos + 12 + ((namesz + 3) & ~3)
+            following = desc + ((descsz + 3) & ~3)
+            if following > end:
+                break
+            if namesz == 4 and data[pos + 12:pos + 16] == b"NBT\0" and ntype == 1 and descsz >= 12:
+                note = struct.unpack_from("<III", data, desc)
+                return note if (note[2], elf_type) in ((1, 3), (2, 2)) else None
+            pos = following
+    return None
+
+
 def main():
     # @FILE reads arguments from FILE, one per line: an application keeps its
     # package description (app, compatibility, bridge, settings) in one file that
@@ -84,6 +120,7 @@ def main():
         digest = hashlib.sha256()
         size = 0
         first = b""
+        head = b""  # notes sit near the start
         while True:
             block = source.read(65536)
             if not block:
@@ -93,11 +130,21 @@ def main():
                 parser.error("executable exceeds 64 MiB")
             if len(first) < 52:
                 first = (first + block)[:52]
+            if len(head) < NOTE_READ:
+                head = (head + block)[:NOTE_READ]
             digest.update(block)
             payload.write(block)
         if (len(first) < 52 or first[:7] != b"\x7fELF\x01\x01\x01" or
                 first[18:20] != b"\x28\x00" or first[16:18] not in (b"\x02\x00", b"\x03\x00")):
             parser.error("executable must be a 32-bit little-endian ARM ELF")
+        # Built without the QNX SDP: only a manager with the runner runs it.
+        runner = "runner" in (args.bridge_uses or "").split(",")
+        note = nbt_note(head)
+        if note and not runner:
+            parser.error("the payload carries the NBT ABI note (a %s): declare --bridge 1.7 --bridge-uses runner"
+                         % ("module" if note[2] == 1 else "guest"))
+        if runner and not note:
+            parser.error("runner declared, but the payload has no NBT ABI note (build it as a module or guest)")
         manifest = (f"app={args.app}\npackage={secrets.token_hex(16)}\n"
                     f"version={args.version}\nsequence={args.sequence}\n"
                     f"platform=qnx6.5-armv7le\ncompat={args.compat}\n"
