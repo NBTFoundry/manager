@@ -13,7 +13,7 @@ repositories call, for their packages. It holds:
   (`QNX_SCREEN_LIBDIR`), `libAppFramework.A.so` and `libCoreFramework.A.so`
   (`RHMI_LIBDIR`);
 - Ubuntu 24.04 with i386 libc and zlib for the 32-bit QNX host tools, and
-  `g++`/`libssl-dev` for the host verifier.
+  `g++`, `libssl-dev` and `zlib1g-dev` for the host verifier.
 
 None of these files is in this repository. The image is unlinked from any repository
 and private; its package settings grant read access under "Manage Actions access" to

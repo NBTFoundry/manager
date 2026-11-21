@@ -35,7 +35,7 @@ jobs:
       packages: read
     container:
       # ci/qnx/README.md: built from a local toolchain by ci/qnx/build-image.sh.
-      image: ghcr.io/nbtfoundry/qnx65-build@sha256:83bbc5a6f91966bf0e9f36c3c8a49e11911d22c7d1ae14a03516c928664fcac4
+      image: ghcr.io/nbtfoundry/qnx65-build@sha256:81fc29356c899e7ad915baed174df4f9ae218f5b5b6deb5fd32cdf2a3738c04b
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

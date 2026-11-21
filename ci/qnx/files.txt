@@ -54,6 +54,8 @@ sdk/target/qnx6/armle-v7/usr/lib/libGLESv2.so
 sdk/target/qnx6/armle-v7/usr/lib/libGLESv2.so.1
 sdk/target/qnx6/armle-v7/usr/lib/libcrypto.so
 sdk/target/qnx6/armle-v7/usr/lib/libcrypto.so.1
+sdk/target/qnx6/armle-v7/usr/lib/libz.so
+sdk/target/qnx6/armle-v7/usr/lib/libz.so.2
 sdk/target/qnx6/usr/include/EGL/egl.h
 sdk/target/qnx6/usr/include/EGL/eglplatform.h
 sdk/target/qnx6/usr/include/GLES2/gl2.h
@@ -329,3 +331,5 @@ sdk/target/qnx6/usr/include/xtgmath.h
 sdk/target/qnx6/usr/include/xwcc.h
 sdk/target/qnx6/usr/include/ymath.h
 sdk/target/qnx6/usr/include/yvals.h
+sdk/target/qnx6/usr/include/zconf.h
+sdk/target/qnx6/usr/include/zlib.h

@@ -77,7 +77,7 @@ jobs:
     container:
       # ci/qnx/README.md; the same image as release.yml. No image (qnx: false):
       # the job runs on the runner itself.
-      image: ${{ inputs.qnx && 'ghcr.io/nbtfoundry/qnx65-build@sha256:83bbc5a6f91966bf0e9f36c3c8a49e11911d22c7d1ae14a03516c928664fcac4' || '' }}
+      image: ${{ inputs.qnx && 'ghcr.io/nbtfoundry/qnx65-build@sha256:81fc29356c899e7ad915baed174df4f9ae218f5b5b6deb5fd32cdf2a3738c04b' || '' }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -241,7 +241,7 @@ jobs:
       - name: Build nbt-verify
         working-directory: manager
         run: |
-          sudo apt-get install -y --no-install-recommends libssl-dev >/dev/null
+          sudo apt-get install -y --no-install-recommends libssl-dev zlib1g-dev >/dev/null
           git -c url.https://github.com/.insteadOf=git@github.com: submodule update --init --depth 1 third_party/lvgl
           make -j"$(nproc)" "$PWD/build/nbt-verify"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2

@@ -8,7 +8,7 @@ FROM ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451
 RUN dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-      ca-certificates git make g++ python3 openssl libssl-dev libc6:i386 zlib1g:i386 \
+      ca-certificates git make g++ python3 openssl libssl-dev zlib1g-dev libc6:i386 zlib1g:i386 \
  && rm -rf /var/lib/apt/lists/*
 
 # qnx/: the files of ci/qnx/files.txt. car/screen: the head unit's libscreen and
