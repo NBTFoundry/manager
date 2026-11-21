@@ -12,6 +12,12 @@ void advanceHold(UiController &ui, uint64_t nowMs);
 /* OPTION: on the main menu, the focused application's settings (the manager's
  * on Settings); 1 when a request was queued, 0 elsewhere or while busy. */
 int optionKey(UiController &ui);
+/* What the main menu tells in a dialog, closed with the push or BACK: the
+ * message, else the notice, else a capture note not closed yet; NULL for none
+ * (or while the manager update's own dialog shows). Starting and stopping show
+ * on the application's row instead (view_builder.cpp). */
+const char *menuNote(const UiController &ui);
+void closeMenuNote(UiController &ui);
 } // namespace gui
 } // namespace nbt
 #endif

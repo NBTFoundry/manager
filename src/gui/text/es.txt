@@ -2,6 +2,8 @@
 
 # Main menu
 running = en ejecución
+row_starting = iniciando
+row_stopping = deteniéndose
 settings = Ajustes
 no_apps = No hay aplicaciones instaladas
 menu_hint = Pulsa: iniciar, mantén: detener; OPTION: ajustes

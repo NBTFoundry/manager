@@ -25,8 +25,10 @@ void updateUiStatus(UiController &ui) {
         return;
     }
     const bool ours = ui.app[0] && !strcmp(s.app, ui.app);
-    // "Stopping <app>" is still the message shown: the outcome replaces it.
-    const bool stopShown = ui.stopNote[0] && !strcmp(ui.message, ui.stopNote);
+    // "Stopping <app>" is still the message shown (Settings) or the stop came
+    // from the menu (its row says it): the outcome replaces it.
+    const bool stopShown = ui.stopNote[0] && (!strcmp(ui.message, ui.stopNote) ||
+                                              (ui.screen == Apps && !ui.message[0]));
     switch (ui.screen) {
     case Apps:
     case Settings:
@@ -38,8 +40,10 @@ void updateUiStatus(UiController &ui) {
                 textf(ui.message, sizeof(ui.message), T_CANNOT_STOP, ui.target);
             }
         } else if (!strcmp(s.message, "Application stopped")) {
-            if (ui.screen == Settings || stopShown) {
+            if (ui.screen == Settings) {
                 textf(ui.message, sizeof(ui.message), T_APP_STOPPED, ui.target);
+            } else if (stopShown) {
+                ui.message[0] = 0; // on the menu, its row no longer says "running"
             }
         } else {
             return;

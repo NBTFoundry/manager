@@ -19,8 +19,38 @@ void advanceHold(UiController &ui, uint64_t nowMs) {
     strcpy(ui.target, ui.apps[ui.holdIndex]);
     ui.faultStop = 0;
     ui.queued = R_STOP;
-    textf(ui.message, sizeof(ui.message), T_STOPPING_APP, ui.target);
-    memcpy(ui.stopNote, ui.message, sizeof(ui.stopNote));
+    ui.message[0] = 0; // its row says "stopping"; stopNote marks a stop from the menu
+    textf(ui.stopNote, sizeof(ui.stopNote), T_STOPPING_APP, ui.target);
+}
+
+namespace {
+// "Stopping <app>" left from Settings: the row says it.
+bool stopMessage(const UiController &ui) {
+    return ui.stopNote[0] && !strcmp(ui.message, ui.stopNote);
+}
+} // namespace
+
+const char *menuNote(const UiController &ui) {
+    if (ui.trialSinceMs) {
+        return NULL;
+    }
+    if (ui.message[0] && !stopMessage(ui)) {
+        return ui.message;
+    }
+    if (ui.notice[0]) {
+        return ui.notice;
+    }
+    return ui.captureNote[0] && strcmp(ui.captureNote, ui.captureSeen) ? ui.captureNote : NULL;
+}
+
+void closeMenuNote(UiController &ui) {
+    if (ui.message[0] && !stopMessage(ui)) {
+        ui.message[0] = 0;
+    } else if (ui.notice[0]) {
+        ui.notice[0] = 0;
+    } else {
+        memcpy(ui.captureSeen, ui.captureNote, sizeof(ui.captureSeen));
+    }
 }
 
 int optionKey(UiController &ui) {

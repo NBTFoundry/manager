@@ -5,6 +5,8 @@
 
 # Main menu
 running = running
+row_starting = starting
+row_stopping = stopping
 settings = Settings
 no_apps = No applications installed
 menu_hint = Push to start, hold to stop; OPTION for settings

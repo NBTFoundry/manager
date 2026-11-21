@@ -90,7 +90,7 @@ void shortcutStartPoll(UiController &ui, uint64_t nowMs) {
     snprintf(ui.target, sizeof(ui.target), "%s", record.app);
     nbt_logf("App shortcut: starting %s", ui.target);
     ui.queued = R_START;
-    textf(ui.message, sizeof(ui.message), T_STARTING_APP, ui.target);
+    ui.message[0] = 0; // its row says "starting"
 }
 
 } // namespace gui

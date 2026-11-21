@@ -3,6 +3,8 @@
 
 # Main menu
 running = 运行中
+row_starting = 正在启动
+row_stopping = 正在停止
 settings = 设置
 no_apps = 未安装应用
 menu_hint = 按下启动，长按停止；OPTION 打开设置

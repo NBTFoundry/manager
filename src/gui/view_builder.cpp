@@ -3,6 +3,7 @@
 #include "nbt/gui/autostart_ui.hpp"
 #include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
+#include "nbt/gui/menu_keys.hpp"
 #include "nbt/gui/phone_ui.hpp"
 #include "nbt/gui/shortcut_ui.hpp"
 
@@ -65,7 +66,15 @@ void buildMainMenu(const UiController &ui, UiView *v) {
     ViewBuilder::formatText(v->title, sizeof(v->title), "NBT App Manager %s", ui.version);
     for (size_t i = 0; i < ui.appCount; ++i) {
         char label[kItemTextMax + 1];
-        const char *note = ui.running[i] ? (ui.appStatus[i][0] ? ui.appStatus[i] : text(T_RUNNING))
+        // What happens to it shows on its row, so the list never moves.
+        const bool aimed = !strcmp(ui.target, ui.apps[i]);
+        const bool stopping =
+            aimed && (ui.stopping || ui.queued == R_STOP || ui.outstanding == R_STOP);
+        const bool starting = aimed && (ui.queued == R_START || ui.outstanding == R_START);
+        const char *note = stopping   ? text(T_ROW_STOPPING)
+                           : starting ? text(T_ROW_STARTING)
+                           : ui.running[i]
+                               ? (ui.appStatus[i][0] ? ui.appStatus[i] : text(T_RUNNING))
                            : ui.needsUpdate[i] ? text(T_NEEDS_UPDATE)
                                                : NULL;
         if (note) {
@@ -74,16 +83,8 @@ void buildMainMenu(const UiController &ui, UiView *v) {
         addItem(v, note ? label : ui.apps[i]);
     }
     addAction(v, text(T_SETTINGS)); // a paired phone sends packages while this menu shows
-    if (ui.message[0]) {
-        addLine(v, ui.message);
-    }
-    if (ui.notice[0]) {
-        addLine(v, ui.notice);
-    }
-    if (ui.captureNote[0]) {
-        addLine(v, ui.captureNote);
-    }
-    addText(v, ui.appCount ? T_MENU_HINT : T_NO_APPS);
+    addText(v, ui.appCount ? T_MENU_HINT : T_NO_APPS); // the one line: messages are dialogs
+    const char *note = menuNote(ui);
     if (ui.trialSinceMs && !ui.holding) { // a manager update being checked (setup_ui.hpp)
         const uint64_t spent = ui.clockMs > ui.trialSinceMs ? ui.clockMs - ui.trialSinceMs : 0;
         v->modal.shown = 1;
@@ -99,6 +100,12 @@ void buildMainMenu(const UiController &ui, UiView *v) {
         textf(v->modal.title, sizeof(v->modal.title), T_STOP_APP, ui.apps[ui.holdIndex]);
         textf(v->modal.text, sizeof(v->modal.text), T_KEEP_HOLDING);
         v->modal.progress = held >= kHoldMs ? 100 : static_cast<int>(held * 100u / kHoldMs);
+    } else if (note) {
+        v->modal.shown = 1;
+        ViewBuilder::formatText(v->modal.title, sizeof(v->modal.title), "NBT App Manager");
+        ViewBuilder::formatText(v->modal.text, sizeof(v->modal.text), "%s", note);
+        ViewBuilder::formatText(v->modal.items[0], sizeof(v->modal.items[0]), "%s", text(T_OK));
+        v->modal.itemCount = 1;
     }
 }
 

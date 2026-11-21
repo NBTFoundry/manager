@@ -3,6 +3,8 @@
 
 # Main menu
 running = 実行中
+row_starting = 起動中
+row_stopping = 停止中
 settings = 設定
 no_apps = アプリはインストールされていません
 menu_hint = 押して起動、長押しで停止、OPTIONで設定

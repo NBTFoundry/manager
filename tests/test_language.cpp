@@ -216,10 +216,11 @@ static int answer(UiController &ui, const char *expected, const char *reply) {
         exit(1);
     }
     const int result = ui.reply(reply, now);
-    while (!result && (ui.queued == nbt::gui::R_PHONE_STATUS ||
+    while (!result && (ui.queued == nbt::gui::R_PHONE_STATUS || ui.queued == nbt::gui::R_SETUP ||
                        (ui.queued == nbt::gui::R_STATUS && ui.screen == nbt::gui::Apps))) {
         CHECK(ui.nextRequest(now, r) == 1);
         CHECK(ui.reply(!strcmp(r.command, "PHONE STATUS") ? "PHONE\tnone"
+                       : !strcmp(r.command, "SETUP")      ? "SETUP\tcurrent"
                                                           : "STATUS\t0\t-\t-\t-\t0\t-\tIdle",
                        now) == 0);
     }

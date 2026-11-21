@@ -2,6 +2,8 @@
 
 # Main menu
 running = in esecuzione
+row_starting = in avvio
+row_stopping = in arresto
 settings = Impostazioni
 no_apps = Nessuna applicazione installata
 menu_hint = Premi: avvia, tieni premuto: arresta; OPTION: impostazioni

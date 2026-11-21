@@ -323,9 +323,10 @@ class ManagerUiTests(unittest.TestCase):
         try:
             view = self.send("select")
             # The application starts without the screen (in the background):
-            # the manager stays open and lists it running.
+            # the manager stays open and lists it running; nothing moves the list.
             self.assertEqual(view.exit, 0, view.text())
-            self.assertIn("Application started", view.lines)
+            self.assertEqual(view.lines, ["Push to start, hold to stop; OPTION for settings"])
+            self.assertFalse(view.modal_title)
             deadline = time.monotonic() + 8
             while not self.lock_holder(self.root / "state/test/lease") and time.monotonic() < deadline:
                 time.sleep(0.05)
@@ -344,7 +345,9 @@ class ManagerUiTests(unittest.TestCase):
             self.assertEqual(view.items[0], "test  (running)")
             view = self.send("select")
             self.assertEqual(view.exit, 0, view.text())
-            self.assertIn("test is already running", view.lines)
+            self.assertEqual((view.modal_text, view.modal_items), ("test is already running", ["OK"]))
+            view = self.send("select")  # OK
+            self.assertFalse(view.modal_title)
             # OPTION opens its settings: Start with the car, App shortcut, then
             # stopping it.
             view = self.send("option")
@@ -383,10 +386,10 @@ class ManagerUiTests(unittest.TestCase):
             self.assertEqual((view.title, view.items), ("Uninstall test?", ["No", "Yes, uninstall"]))
             view = self.send("down", "select")
             for _ in range(10):
-                if view.screen == APPS and "test uninstalled" in view.lines:
+                if view.screen == APPS and view.modal_text == "test uninstalled":
                     break
                 view = self.send("poll")
-            self.assertIn("test uninstalled", view.lines)
+            self.assertEqual(view.modal_text, "test uninstalled")
             self.assertEqual(view.items[0], "Settings")
             for path in ("apps/test", "state/test", "data/test", "trust/apps/test.conf"):
                 self.assertFalse((self.root / path).exists(), path)

@@ -235,7 +235,8 @@ public:
     char message[kTextMax + 1];
     char detail[2 * kTextMax + 2]; // the worker's reason, shown on up to two lines
     char notice[kTextMax + 1];
-    char captureNote[kTextMax + 1]; // CaptureWatch: when iDrive gets the keys too
+    char captureNote[kTextMax + 1];      // CaptureWatch: when iDrive gets the keys too
+    char captureSeen[kTextMax + 1] = {}; // the capture note last closed on the main menu
     int queued;
     int outstanding;
     int fatal;

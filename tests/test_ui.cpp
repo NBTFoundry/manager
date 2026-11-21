@@ -64,15 +64,15 @@ static int replyUi(UiController *ui, const char *reply, uint64_t now) {
         return -1;
     }
     const int result = ui->reply(reply, now);
-    while (!result && (ui->queued == nbt::gui::R_PHONE_STATUS ||
+    while (!result && (ui->queued == nbt::gui::R_PHONE_STATUS || ui->queued == nbt::gui::R_SETUP ||
                        (ui->queued == nbt::gui::R_STATUS && ui->screen == nbt::gui::Apps))) {
         Request background;
         if (ui->nextRequest(now, background) != 1) {
             return -1;
         }
-        if (ui->reply(!strcmp(background.command, "PHONE STATUS")
-                          ? "PHONE\tnone"
-                          : "STATUS\t0\t-\t-\t-\t0\t-\tIdle",
+        if (ui->reply(!strcmp(background.command, "PHONE STATUS") ? "PHONE\tnone"
+                      : !strcmp(background.command, "SETUP")      ? "SETUP\tcurrent"
+                                                             : "STATUS\t0\t-\t-\t-\t0\t-\tIdle",
                       now)) {
             return -1;
         }
@@ -204,7 +204,7 @@ static int view_contains(const UiController *ui, const char *needle) {
             return 1;
         }
     }
-    return 0;
+    return v.modal.shown && (strstr(v.modal.title, needle) || strstr(v.modal.text, needle));
 }
 
 static void press(UiController *ui, Key key, int expected) {
@@ -466,6 +466,7 @@ static void test_application_needing_an_update(void) {
     exchange(&ui, "START demo", "ERR incompatible");
     CHECK(!wantsExit(&ui) && view_contains(&ui, "demo needs an update for this manager"));
     exchange(&ui, "RUNNING status", "RUNNING\t0");
+    press(&ui, nbt::gui::KeySelect, 1); /* OK closes the dialog */
     options(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart+update");
     CHECK(ui.screen == nbt::gui::Settings && ui.settingsUpdate);
     CHECK(view_contains(&ui, "demo needs an update for this manager") &&
@@ -491,14 +492,15 @@ static void test_push_starts(void) {
     idle(&ui); /* nothing until the release */
     CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 1 && !ui.holding);
     CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 0);
+    /* Its row says it starts; no line above the list moves it. */
+    CHECK(!strcmp(view(&ui).items[1], "test  (starting)") && view(&ui).lineCount == 1);
     exchange(&ui, "START test", "OK");
     /* Started without the screen (in the background): the manager stays on its
-     * list, says so and reads which applications run. */
-    CHECK(!wantsExit(&ui) && ui.screen == nbt::gui::Apps &&
-          view_contains(&ui, "Application started"));
+     * list, its row showing it running once read, nothing else. */
+    CHECK(!wantsExit(&ui) && ui.screen == nbt::gui::Apps && !view(&ui).modal.shown);
     CHECK(!ui.takeHandover());
     exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
-    CHECK(!wantsExit(&ui) && !ui.takeAppEnded());
+    CHECK(!wantsExit(&ui) && !ui.takeAppEnded() && !strcmp(view(&ui).items[1], "test  (running)"));
 
     loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t0");
     press(&ui, nbt::gui::KeySelect, 1);
@@ -508,14 +510,24 @@ static void test_push_starts(void) {
     CHECK(ui.screen == nbt::gui::Apps && view(&ui).progress == -1);
     CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 1);
     exchange(&ui, "START demo", "ERR start");
-    CHECK(!wantsExit(&ui) && view_contains(&ui, "Cannot start demo"));
+    /* A failure is a dialog over the list: OK (the push or BACK) closes it and
+     * starts nothing; the other keys wait for it. */
+    UiView v = view(&ui);
+    CHECK(!wantsExit(&ui) && v.modal.shown && !strcmp(v.modal.text, "Cannot start demo") &&
+          v.modal.itemCount == 1 && !strcmp(v.modal.items[0], "OK") && v.lineCount == 1);
     exchange(&ui, "RUNNING status", "RUNNING\t0");
+    press(&ui, nbt::gui::KeyDown, 0);
+    press(&ui, nbt::gui::KeyOption, 0);
+    press(&ui, nbt::gui::KeySelect, 1);
+    CHECK(!view(&ui).modal.shown && releaseUi(&ui, nbt::gui::KeySelect) == 0 && !ui.queued);
     press(&ui, nbt::gui::KeySelect, 1);
     CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 1);
     exchange(&ui, "START demo", "ERR running");
     CHECK(!wantsExit(&ui) && view_contains(&ui, "demo is already running"));
     exchange(&ui, "RUNNING status", "RUNNING\t1\tdemo");
     CHECK(!wantsExit(&ui) && view_contains(&ui, "demo is already running"));
+    press(&ui, nbt::gui::KeyBack, 1); /* BACK closes the dialog, not the manager */
+    CHECK(!wantsExit(&ui) && !view(&ui).modal.shown);
     /* Moving away cancels a hold; other keys and releases do nothing. */
     press(&ui, nbt::gui::KeySelect, 1);
     press(&ui, nbt::gui::KeyDown, 1);
@@ -559,11 +571,16 @@ static void test_hold_stops_and_option_opens_settings(void) {
     CHECK(!strcmp(v.title, "NBT App Manager dev") && v.focus == 1 && v.itemCount == 3);
     now = pressed + nbt::gui::kHoldMs;
     exchange(&ui, "STOP test", "OK");
-    CHECK(ui.screen == nbt::gui::Apps && view_contains(&ui, "Stopping test"));
+    /* Its row says it stops; no line moves the list, no dialog. */
+    v = view(&ui);
+    CHECK(ui.screen == nbt::gui::Apps && !strcmp(v.items[1], "test  (stopping)") &&
+          v.lineCount == 1 && !v.modal.shown);
     CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 0 && !ui.queued); /* starts nothing */
     poll_status(&ui, "STATUS\t0\ttest\tv1\t-\t0\t-\tApplication stopped");
-    CHECK(ui.screen == nbt::gui::Apps && view_contains(&ui, "test stopped"));
-    exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
+    CHECK(ui.screen == nbt::gui::Apps && !view_contains(&ui, "test stopped") &&
+          !view(&ui).modal.shown);
+    exchange(&ui, "RUNNING status", "RUNNING\t1\ttest"); /* the fixture runs it again */
+    CHECK(!strcmp(view(&ui).items[1], "test  (running)"));
     /* OPTION opens the focused application's settings. */
     press(&ui, nbt::gui::KeyOption, 1);
     exchange(&ui, "SETTINGS test live", TEST_SETTINGS);
@@ -723,7 +740,8 @@ static void test_uninstall(void) {
     exchange(&ui, "RUNNING status", "RUNNING\t0");
     v = view(&ui);
     CHECK(ui.appCount == 1 && !strcmp(v.items[0], "test") &&
-          view_contains(&ui, "demo uninstalled"));
+          view_contains(&ui, "demo uninstalled") && v.modal.shown);
+    press(&ui, nbt::gui::KeySelect, 1); /* OK */
     /* The manager's own settings offer no Uninstall. */
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
@@ -753,9 +771,11 @@ static void test_stop_failures(void) {
     exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
     options(&ui, "SETTINGS test live", "ERR settings");
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 0 &&
-          view_contains(&ui, "Cannot read test settings"));
+          view_contains(&ui, "Cannot read test settings") && view(&ui).modal.shown);
     exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
     idle(&ui);
+    press(&ui, nbt::gui::KeyDown, 0); /* the dialog first */
+    press(&ui, nbt::gui::KeyBack, 1);
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "SETTINGS manager live", "ERR settings");
@@ -902,6 +922,10 @@ static void test_pairing_exits(void) {
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 1 && !ui.hasWifi());
     exchange(&ui, "CANCEL", "OK");
+    /* What ended it is a dialog: BACK closes it, then the manager. */
+    CHECK(view(&ui).modal.shown);
+    press(&ui, nbt::gui::KeyBack, 1);
+    CHECK(!wantsExit(&ui) && !view(&ui).modal.shown);
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(wantsExit(&ui));
 }
@@ -936,15 +960,26 @@ static void test_pairing_wifi(void) {
 static void test_setup_and_idrive_restart(void) {
     UiController ui;
     Request request;
-    loaded(&ui, "APPS\t1\ttest", "RUNNING\t0");
-    now += nbt::gui::kPollMs;
+    CHECK(initUi(&ui, "lo", 0) == 0);
+    exchange(&ui, "LIST", "APPS\t1\ttest");
+    CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "RUNNING status"));
+    CHECK(ui.reply("RUNNING\t0", now) == 0 && ui.screen == nbt::gui::Apps);
+    /* SETUP at once, before any other request: the menu is busy until it answers. */
+    CHECK(ui.queued == nbt::gui::R_SETUP && view(&ui).busy);
+    press(&ui, nbt::gui::KeySelect, 0);
     CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "SETUP"));
     CHECK(request.timeoutMs >= 60000u && view(&ui).busy);
     CHECK(ui.reply("SETUP\ttrial", now) == 0 && ui.screen == nbt::gui::Apps);
-    /* On trial: the list shows the check in a modal, its progress over the health check. */
+    /* On trial: the list shows the check in a modal, its progress over the health check,
+     * and holds the menu: no key does anything. */
     UiView checking = view(&ui);
     CHECK(checking.modal.shown && !strcmp(checking.modal.title, "Updating NBT Manager") &&
           strstr(checking.modal.text, "Checking version") && checking.modal.progress == 0);
+    press(&ui, nbt::gui::KeyDown, 0);
+    press(&ui, nbt::gui::KeySelect, 0);
+    press(&ui, nbt::gui::KeyOption, 0);
+    press(&ui, nbt::gui::KeyBack, 0);
+    CHECK(!wantsExit(&ui) && !ui.queued && ui.focus == 0);
     now += nbt::gui::kPollMs;
     CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "RUNNING status"));
     CHECK(ui.reply("RUNNING\t0", now) == 0);
@@ -1141,16 +1176,18 @@ static void test_errors_and_misuse(void) {
     CHECK(initUi(&ui, "averyveryverylongif", 0) == -1);
     CHECK(initUi(&ui, "lo", 65536) == -1);
     CHECK(initUi(&ui, "lo", 0) == 0);
-    /* A host notice shows on the main menu until cleared. */
+    /* A host notice is a dialog on the main menu until closed. */
     setNotice(&ui, "Controller config invalid; defaults used");
     exchange(&ui, "LIST", "APPS\t1\ttest");
     exchange(&ui, "RUNNING status", "RUNNING\t0");
-    CHECK(view_contains(&ui, "Controller config invalid"));
+    CHECK(view_contains(&ui, "Controller config invalid") && view(&ui).modal.shown &&
+          view(&ui).lineCount == 1);
+    press(&ui, nbt::gui::KeySelect, 1); /* OK */
+    CHECK(!view(&ui).modal.shown && !ui.notice[0]);
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
     CHECK(ui.screen == nbt::gui::Settings && !view_contains(&ui, "Controller config"));
-    setNotice(&ui, NULL);
     press(&ui, nbt::gui::KeyBack, 1);
     exchange(&ui, "RUNNING status", "RUNNING\t0");
     CHECK(ui.screen == nbt::gui::Apps && !view_contains(&ui, "Controller config"));
@@ -1232,6 +1269,7 @@ static void test_app_settings(void) {
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 1 &&
           view_contains(&ui, "Cannot read test settings"));
     exchange(&ui, "RUNNING status", "RUNNING\t0");
+    press(&ui, nbt::gui::KeySelect, 1); /* OK closes its dialog */
     /* The manager's own settings, through the worker's reserved name. */
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
@@ -1590,6 +1628,7 @@ static void test_quarantine_unblock_and_abort_app(void) {
     exchange(&ui, "START test", "ERR quarantined");
     CHECK(view_contains(&ui, "test blocked after faults"));
     exchange(&ui, "RUNNING status", "RUNNING\t0");
+    press(&ui, nbt::gui::KeySelect, 1); /* OK closes its dialog */
 
     /* OPTION opens Settings with Unblock test before Uninstall test (after Start with the car). */
     options(&ui, "SETTINGS test live", "SETTINGS\t0\tlive");
@@ -1607,11 +1646,13 @@ static void test_quarantine_unblock_and_abort_app(void) {
     ui.go(nbt::gui::Apps);
     strcpy(ui.target, "test");
     ui.abortApp(nbt::gui::T_STOPPING_APP);
+    CHECK(!strcmp(view(&ui).items[0], "test  (stopping)") && !view(&ui).modal.shown);
     exchange(&ui, "STOP test fault", "OK");
     CHECK(ui.stopping == 1 && ui.screen == nbt::gui::Apps);
     exchange(&ui, "STATUS", "STATUS\t0\t-\t-\t-\t0\t-\tApplication stopped");
-    CHECK(ui.stopping == 0 && view_contains(&ui, "test stopped"));
+    CHECK(ui.stopping == 0 && !view_contains(&ui, "test stopped") && !view(&ui).modal.shown);
     exchange(&ui, "RUNNING status", "RUNNING\t0");
+    CHECK(!strcmp(view(&ui).items[0], "test"));
 }
 
 /* Settings > Files: stored files by page, a deletion, a USB scan and import. */

@@ -6,6 +6,7 @@
 #include "nbt/core/system.hpp"
 #include "nbt/gui/phone_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
+#include "nbt/gui/setup_ui.hpp"
 #include "nbt/gui/view_builder.hpp"
 #include "nbt/gui/worker_client.hpp"
 #include "nbt/log.h"
@@ -59,7 +60,9 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
             focus = itemCount() - 1;
         }
         if (screen == Apps && !queued && !holding) {
-            queued = R_PHONE_STATUS;
+            // SETUP first, so a manager on trial shows its check at once, the
+            // menu busy until the answer (setup_ui.hpp).
+            queued = setupNow(*this, nowMs) ? R_SETUP : R_PHONE_STATUS;
         }
         return 0;
     case R_SESSION:
@@ -103,7 +106,7 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
             // Started without the screen (it runs in the background): the
             // manager stays open, its list showing the application running.
             // A start with the car never comes here (the worker's --autostart).
-            textf(message, sizeof(message), T_W_APP_STARTED);
+            message[0] = 0; // its row shows it running
             queued = R_RUNNING;
             return 0;
         }
@@ -233,9 +236,11 @@ void UiController::abortApp(TextId why) {
     handover = 0;
     const size_t i = appIndex(target);
     mainMenu(i < appCount ? i : 0);
-    textf(message, sizeof(message), why, target);
-    if (why == T_STOPPING_APP) {
-        memcpy(stopNote, message, sizeof(stopNote));
+    if (why == T_STOPPING_APP) { // its row says "stopping"
+        message[0] = 0;
+        textf(stopNote, sizeof(stopNote), why, target);
+    } else {
+        textf(message, sizeof(message), why, target);
     }
     if (target[0] && !stopping) {
         faultStop = 1;

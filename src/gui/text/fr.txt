@@ -2,6 +2,8 @@
 
 # Main menu
 running = en cours
+row_starting = démarrage
+row_stopping = arrêt en cours
 settings = Réglages
 no_apps = Aucune application installée
 menu_hint = Appuyer : lancer, maintenir : arrêter ; OPTION : réglages

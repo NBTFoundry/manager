@@ -27,6 +27,17 @@ bool polling(const UiController &ui) {
 } // namespace
 
 int UiController::press(Key key) {
+    if (screen == Apps && trialSinceMs) {
+        return 0; // a manager update being checked: its dialog holds the menu
+    }
+    if (screen == Apps && menuNote(*this)) { // its dialog: the push or BACK closes it
+        if (key != KeySelect && key != KeyBack) {
+            return 0;
+        }
+        closeMenuNote(*this);
+        holding = 0;
+        return 1;
+    }
     if (key == KeyOption) {
         return optionKey(*this);
     }
@@ -198,7 +209,7 @@ int UiController::release(Key key) {
     }
     strcpy(target, apps[holdIndex]);
     queued = R_START;
-    textf(message, sizeof(message), T_STARTING_APP, target);
+    message[0] = 0; // its row says "starting"
     return 1;
 }
 

@@ -8,6 +8,8 @@ namespace gui {
 
 enum TextId {
     T_RUNNING,
+    T_ROW_STARTING,
+    T_ROW_STOPPING,
     T_SETTINGS,
     T_NO_APPS,
     T_MENU_HINT,

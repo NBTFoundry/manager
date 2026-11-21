@@ -2,6 +2,8 @@
 
 # Main menu
 running = läuft
+row_starting = startet
+row_stopping = wird beendet
 settings = Einstellungen
 no_apps = Keine Anwendungen installiert
 menu_hint = Drücken: starten, halten: beenden; OPTION: Einstellungen

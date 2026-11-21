@@ -67,11 +67,12 @@ Commands do not wait for an application to exit, so the control channel stays re
 
 First setup writes the stable launcher (`manager/nbt-manager-launcher`) and the
 iDrive plugin (`Plugins/NbtManager`) once; a manager update stages only the GUI
-and worker in a slot. Once its list shows, the GUI sends `SETUP`, and again every
-1.5 s while the update is on trial (`SETUP\ttrial`), its list showing the check
-in a modal with its progress over the launcher's 10 s health check; the
-restart question, or "NBT Manager <version> is ready", follows in the same
-sitting. The worker compares both, file by file by
+and worker in a slot. As soon as its list is read, the GUI sends `SETUP` before
+any other request (the menu busy until it answers), and again every 1.5 s while
+the update is on trial (`SETUP\ttrial`), its list showing the check in a modal
+with its progress over the launcher's 10 s health check, the menu taking no
+key meanwhile; the restart question, or "NBT Manager <version> is ready" (a
+dialog), follows in the same sitting. The worker compares both, file by file by
 SHA-256, with the active release, verified against the installed manager key.
 When all match (an update that changed only the GUI and worker; the build is
 reproducible, so an unchanged plugin keeps its checksums) nothing is written or
