@@ -8,8 +8,14 @@ description: Get and read logs from the car after a test or a problem - an appli
 The user usually drops files in the kit folder (workspace `CLAUDE.md`). Ask
 for what is missing, saying how to get it:
 
+The user has only the phone in the car: ask for phone paths. With the Wi-Fi
+ENET adapter, one file holds nearly everything: phone app, **Install NBT
+Manager on a car** › Connect › More tools › **Collect everything** › Share
+(installer `core/src/collect.rs`).
+
 | Log | How the user gets it | What it holds |
 | --- | --- | --- |
+| Collect everything (`collect-<time>.txt`) | phone app over the ENET adapter, as above (or the Windows installer's Test tools) | the debug log, `sloginfo`, every application's log, `audioconn -l`, `pidin arg`, the process manager's overview, the capture shim's state, `ls -lR` of the manager's folders and `/dev/shmem` |
 | An application's log (`state/<app>/output.log`, 64 KiB) | phone app: the application's page, **Show log**, **Share** | its output; how it started and ended (`ended by signal 11 (SIGSEGV, ...)`, `stopped: no heartbeat ('R' on fd 3) for 3 s`); crash lines `[tag] FATAL sig=... pc=...` and `pc in <object>+0x...` |
 | iDrive system log (`sloginfo`, a few minutes) | phone app: the car's page, **iDrive log**; desktop installer: **Save to this computer** (Head unit system log); SSH `sloginfo` | QNX and iDrive messages, `run fault pid ...` dumps, the watchdog |
 | NBT Manager's debug log (`debug-<n>.log`) | the debug log switched on before the test; the installer's **Save to this computer**, or the phone app | `<seconds> <process>[pid] <event>` lines of GUI, worker, host, launcher, plugin |
