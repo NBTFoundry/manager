@@ -24,6 +24,7 @@
 #define USBD_USB_STATUS_MASK 0x00ffffffu
 #define USBD_STATUS_CMP 0x01000000u
 #define USBD_STATUS_TIMEOUT 0x04000000u
+#define USBD_TIME_INFINITY 0xffffffffu
 struct usbd_connection {
     int unused;
 };

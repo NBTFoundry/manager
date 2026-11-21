@@ -236,7 +236,8 @@ int usbd_select_interface(usbd_device *, uint8_t iface, uint8_t value) {
 }
 int usbd_io(usbd_urb *u, usbd_pipe *p, void (*cb)(usbd_urb *, usbd_pipe *, void *), void *ctx,
             uint32_t timeout) {
-    assert(live && timeout == 250);
+    // Control and output transfers time out; a pad's input read waits for a report.
+    assert(live && timeout == (p == &controlPipe || p == &pipes[1] ? 250 : USBD_TIME_INFINITY));
     u->status = USBD_STATUS_CMP;
     if (p == &controlPipe) {
         assert(!cb && allocated >= 2);

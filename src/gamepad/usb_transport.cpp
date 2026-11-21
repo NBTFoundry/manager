@@ -255,6 +255,8 @@ private:
         }
         if (s->attached_ && same(s->active_, *i)) {
             s->removed_ = true;
+            nbt_logf("gamepad: USB %04x:%04x removed", static_cast<unsigned>(i->ident.vendor),
+                     static_cast<unsigned>(i->ident.device));
         }
         for (unsigned n = 0; n < s->count_;) {
             if (same(s->candidates_[n], *i)) {

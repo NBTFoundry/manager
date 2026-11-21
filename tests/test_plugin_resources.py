@@ -74,6 +74,20 @@ class PluginResourcesTest(unittest.TestCase):
         self.assertEqual(menu.find("hmiStates/hmiState").get("id"),
                          menu.find("models/raPreviewModel").get("previewState"))
 
+    def test_shortcut_actions_are_declared_in_the_first_entry(self):
+        # iDrive delivered no App shortcut press while each action was declared
+        # only in its own pluginApp (dev126); NBT-AAD's working favourite entry
+        # uses an action its first pluginApp also declares.
+        apps = ET.parse(ROOT / "plugin/NbtManager.xml").getroot().findall("pluginApp")
+        first = re.search(r"kFirstAction = (\d+);", (ROOT / "plugin/shortcut.cpp").read_text()).group(1)
+        self.assertEqual(len(apps), 4)
+        for n, app in enumerate(apps[1:]):
+            action = app.find("entryButton").get("action")
+            self.assertEqual(int(action), int(first) + n)
+            self.assertIsNotNone(app.find("actions/raAction[@id='%s']" % action))
+            self.assertIsNotNone(apps[0].find("actions/raAction[@id='%s']" % action))
+            self.assertIsNotNone(app.find("entryButton/properties/property[@id='55']"))
+
 
 if __name__ == "__main__":
     unittest.main()

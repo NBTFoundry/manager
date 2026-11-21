@@ -100,7 +100,13 @@ Only one controller is active. The first supported arrival is kept until it is
 removed; other supported pads wait. A pad that fails to open is retried after 2 s,
 doubling up to 60 s, and is told apart from other pads on its port by vendor and
 product. USB work runs on the service thread with asynchronous interrupt input and
-bounded, timed output; the GUI and host loops never attach or transfer.
+bounded, timed output; the GUI and host loops never attach or transfer. The
+input read has no timeout (`USBD_TIME_INFINITY`, as NBT-AAD's USB link): it ends
+with a report, the pad's removal or the teardown's abort. With a 250 ms timeout
+an idle Xbox pad, which reports only changes, was dropped and opened again
+every half second on the car (dev126). A read that ends otherwise logs its
+status (`gamepad: USB vvvv:pppp read ended (status=0x...)`), and a removal
+`gamepad: USB vvvv:pppp removed`.
 
 **Library.** At its first connection the service loads the head unit's
 `/lib/libusbdi.so.2` with `dlopen` and uses it when all 20 entry points it calls

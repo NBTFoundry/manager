@@ -5,7 +5,10 @@ This PluginApp registers one `App Manager` menu entry, and three entries
 **App shortcut 1-3** that open the application the manager assigns to each
 (an application's settings page, **App shortcut**; `include/nbt/manager_settings.h`).
 They carry fixed UUIDs (property 55), so iDrive stores them on favourite
-buttons; changing an assignment never touches iDrive. A press spawns the
+buttons; changing an assignment never touches iDrive. Their actions (3-5) are
+declared in the App Manager's pluginApp as well, as NBT-AAD's favourite entry
+does: declared only in their own, iDrive delivered no press (dev126). Their
+names are the fixed texts of the plugin's text database. A press spawns the
 launcher with `--shortcut<n>`; its worker brings a running application back
 or writes `/dev/shmem/nbt-manager.shortcut` ("open", "start <app>"), and the
 plugin then opens the manager as for its own entry (`plugin/shortcut.cpp`,

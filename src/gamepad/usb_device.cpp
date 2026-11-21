@@ -147,8 +147,12 @@ bool UsbDevice::submit() {
         done_ = false;
         pending_ = true;
     }
+    // No timeout: an Xbox pad reports only changes, and on the car (dev126) one
+    // left idle was dropped and opened again every half second. A read ends
+    // with a report, the pad's removal or cancel()'s abort, as NBT-AAD's USB
+    // link reads on the car.
     if (usbdi().setup_interrupt(read_, URB_DIR_IN | URB_SHORT_XFER_OK, input_, packetSize_) ||
-        usbdi().io(read_, in_, &completed, this, 250)) {
+        usbdi().io(read_, in_, &completed, this, USBD_TIME_INFINITY)) {
         core::LockGuard lock(mutex_);
         pending_ = false;
         return false;
@@ -165,20 +169,26 @@ int UsbDevice::poll(uint8_t out[64], size_t &size) {
     }
     uint32_t status = 0, length = 0;
     if (usbdi().urb_status(read_, &status, &length)) {
+        nbt_logf("gamepad: USB %04x:%04x read status unavailable", vendor_, product_);
         return -1;
     }
     int result = 0;
-    if ((status & USBD_URB_STATUS_MASK) == USBD_STATUS_CMP && !(status & USBD_USB_STATUS_MASK)) {
-        if (length > packetSize_) {
-            return -1;
-        }
+    if ((status & USBD_URB_STATUS_MASK) == USBD_STATUS_CMP && !(status & USBD_USB_STATUS_MASK) &&
+        length <= packetSize_) {
         memcpy(out, input_, length);
         size = length;
         result = 1;
     } else if ((status & USBD_URB_STATUS_MASK) != USBD_STATUS_TIMEOUT) {
+        // The car never said why a pad was dropped (dev126).
+        nbt_logf("gamepad: USB %04x:%04x read ended (status=0x%08x len=%u)", vendor_, product_,
+                 status, length);
         return -1;
     }
-    return submit() ? result : -1;
+    if (!submit()) {
+        nbt_logf("gamepad: USB %04x:%04x read submit failed", vendor_, product_);
+        return -1;
+    }
+    return result;
 }
 bool UsbDevice::waitWrite(uint64_t timeoutMs) {
     uint64_t now = 0;

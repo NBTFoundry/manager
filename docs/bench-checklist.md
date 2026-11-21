@@ -191,6 +191,7 @@ After "Restart iDrive" for the plugin with the three entries:
 | Action | Expected |
 | --- | --- |
 | Media list | **App shortcut 1**, **2** and **3** after **App Manager**, with its icon and preview |
+| Choose **App shortcut 1** in the Media list | `App shortcut 1 pressed` in the debug log (dev126: no press reached the plugin while actions 3-5 were declared only in their own entries) |
 | Highlight **App shortcut 1**, hold a favourite button | iDrive stores it (no "unable to save") |
 | The button with nothing assigned | The manager opens (`App shortcut 1 pressed`, `shortcut 1: the manager opens`) |
 | An application's page: **App shortcut** pressed once | The row reads 1; the note names iDrive's entry; `manager/shortcuts` holds it on line 1 |

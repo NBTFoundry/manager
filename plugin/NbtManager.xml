@@ -8,7 +8,10 @@
         <property id="55" value="dc34102a-5f22-47f7-a511-b60e0d9f3a35"/>
       </properties>
     </entryButton>
-    <actions><raAction id="2"/></actions>
+    <!-- 3-5 are the App shortcut entries' actions, declared here as well: on the car (dev126) iDrive never
+         delivered them while they were declared only in their own pluginApp, and NBT-AAD's favourite entry,
+         which works, uses an action its first pluginApp also declares. -->
+    <actions><raAction id="2"/><raAction id="3"/><raAction id="4"/><raAction id="5"/></actions>
     <models>
       <textIdModel id="3" textId="1"><synonyms/></textIdModel>
       <imageIdModel id="4" imageId="55001"/>
@@ -72,11 +75,11 @@
       </hmiState>
     </hmiStates>
   </pluginApp>
-  <!-- App shortcut 1-3 (raActions 3-5): one-press entries, after App Manager, each opening the application the
-       manager assigns to it (nbt/manager_settings.h; worker/shortcut_dispatch.hpp). Property 55 is its UUID: iDrive
-       stores only plugin entries with one on a favourite button (as NBT-AAD's "Open Android Auto"). Keep the UUIDs:
-       a new one orphans the buttons already stored. Their states come after the App Manager's (14 and 15 keep
-       their numbers). -->
+  <!-- App shortcut 1-3 (raActions 3-5, also declared in the App Manager's pluginApp): one-press entries, after
+       App Manager, each opening the application the manager assigns to it (nbt/manager_settings.h;
+       worker/shortcut_dispatch.hpp). Property 55 is its UUID: iDrive stores only plugin entries with one on a
+       favourite button (as NBT-AAD's "Open Android Auto"). Keep the UUIDs: a new one orphans the buttons already
+       stored. Their states come after the App Manager's (14 and 15 keep their numbers). -->
   <pluginApp applicationType="Custom" applicationWeight="197" entryButtonFocusID="32755" insertAfterFocusID="32754" insertStateID="20" text="App shortcut 1">
     <comment/>
     <entryButton action="3" id="101" model="103" imageModel="104" previewModel="113">
