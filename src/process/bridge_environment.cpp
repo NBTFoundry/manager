@@ -66,10 +66,14 @@ size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridg
         ++count;
     }
     // The manager's native_audio setting: the SDK's audio route, and an
-    // application's own player, build this connection instead of their default.
+    // application's own player, build this connection instead of their default,
+    // and play into the io-amp input its source plays.
     if (user && fs && nbt_manager_native_audio(const_cast<nbt_fs *>(fs))) {
         snprintf(out->text[count], sizeof(out->text[0]), "NBT_AUDIO_CONN=0x%x",
                  NBT_NATIVE_AUDIO_MEDIA_CONN);
+        out->list[count] = out->text[count];
+        ++count;
+        strcpy(out->text[count], "NBT_AUDIO_A2I=" NBT_NATIVE_AUDIO_MEDIA_INPUT);
         out->list[count] = out->text[count];
         ++count;
     }

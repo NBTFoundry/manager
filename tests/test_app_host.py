@@ -1072,9 +1072,11 @@ event("exit")
 
     def test_native_audio_media_names_the_connection(self):
         """The manager's native_audio setting: `media` gives a user launch
-        NBT_AUDIO_CONN=0x1d0 (the browser as an entertainment source);
-        `interrupt`, the default, leaves the application's own default."""
-        self.script_app("print('conn=' + os.environ.get('NBT_AUDIO_CONN', 'absent'), flush=True)\n"
+        NBT_AUDIO_CONN=0x1d0 (the media player's online stream source) and
+        NBT_AUDIO_A2I=input_stereo_0 (the io-amp input it plays); `interrupt`,
+        the default, leaves the application's own default."""
+        self.script_app("print('conn=' + os.environ.get('NBT_AUDIO_CONN', 'absent') + ' input=' + "
+                        "os.environ.get('NBT_AUDIO_A2I', 'absent'), flush=True)\n"
                         "os.write(3, b'R')\n"
                         "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
         _, command = self.worker()
@@ -1084,13 +1086,13 @@ event("exit")
         self.assertEqual((self.root / "manager/native-audio").read_text(), "media\n")
         self.assertIn(row % "media", command("SETTINGS manager"))
         self.assertEqual(command("START test"), "OK")
-        self.wait_for(lambda: "conn=0x1d0" in self.app_log())
+        self.wait_for(lambda: "conn=0x1d0 input=input_stereo_0" in self.app_log())
         self.assertEqual(command("STOP test"), "OK")
         self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
         self.assertNotEqual(command("SET manager native_audio browser"), "OK")
         self.assertEqual(command("SET manager native_audio interrupt"), "OK")
         self.assertEqual(command("START test"), "OK")
-        self.wait_for(lambda: "conn=absent" in self.app_log())
+        self.wait_for(lambda: "conn=absent input=absent" in self.app_log())
         self.assertEqual(command("STOP test"), "OK")
         self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
         self.assertEqual(command("QUIT"), "OK")

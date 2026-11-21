@@ -104,7 +104,7 @@ how the manager provides each part.
 | Car data | car -> app | `car-data` (1.6): the iDrive car data named in the signed `bridge-cds` list, one file per name in `NBT_CDS_DIR` (6) |
 | Network | phone -> app | `net` (1.6): the signed `bridge-net` rules let in through the packet filter while it runs; `NBT_NET` (7) |
 | Runner | manager -> app | `runner` (1.7): a payload with the SDK's NBT ABI note runs under the release's `nbt-runner` (8) |
-| Audio connection | manager -> app | `NBT_AUDIO_CONN=0x1d0` for a user launch while the manager's `native_audio` setting is `media` (PROTOCOL.md, "Manager settings"); no capability: an application that plays sound builds that connection instead of its default (the SDK's audio route does) |
+| Audio connection | manager -> app | `NBT_AUDIO_CONN=0x1d0` and `NBT_AUDIO_A2I=input_stereo_0` for a user launch while the manager's `native_audio` setting is `media` (PROTOCOL.md, "Manager settings"); no capability: an application that plays sound builds that connection instead of its default and plays into that io-amp input (the SDK's audio route and audio output do) |
 
 Every name, path and format here belongs to one interface version; see
 "Versioning and dependencies".

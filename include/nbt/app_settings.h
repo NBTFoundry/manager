@@ -44,11 +44,12 @@ int nbt_app_settings_set(nbt_fs *fs, const char *app, const char *key, const cha
 /* text is indexed like list, whose first entries may point elsewhere: the
  * HMI's runtime variables (at most 5), data dir, settings file, files dir, then
  * bridge (2), status, MOST, gamepad, controller, hold (2), car data, network,
- * audio connection, launch and the settings: at most NBT_SETTINGS_MAX + 20
- * entries. A host adds NBT_SURFACE in `surface`, then the NULL. */
+ * audio connection and input, launch and the settings: at most
+ * NBT_SETTINGS_MAX + 21 entries. A host adds NBT_SURFACE in `surface`, then
+ * the NULL. */
 typedef struct {
-    char text[NBT_SETTINGS_MAX + 20][NBT_APP_ENV_TEXT_MAX];
-    char *list[NBT_SETTINGS_MAX + 22];
+    char text[NBT_SETTINGS_MAX + 21][NBT_APP_ENV_TEXT_MAX];
+    char *list[NBT_SETTINGS_MAX + 23];
     char data_dir[NBT_PATH_MAX + 16];
     char settings_file[NBT_PATH_MAX + 20];
     char files_dir[NBT_PATH_MAX + 16];

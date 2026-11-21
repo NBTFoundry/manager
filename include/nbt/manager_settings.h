@@ -36,11 +36,17 @@
  *                 browser source 0xb8 (eSRC_BROWSER), an interrupting source
  *                 the car never turns below volume 25; media gives user
  *                 launches NBT_AUDIO_CONN=0x1d0 (eSRC_BON_BROWSER_ENT, the
- *                 browser as an entertainment source, expected to follow the
- *                 car's volume). Both are in the car's `audioconn -l`. */
+ *                 media player's online stream source, an entertainment
+ *                 source that follows the car's volume to 0) and
+ *                 NBT_AUDIO_A2I=input_stereo_0, the io-amp input that source
+ *                 plays (the SDK writes it through A2I). Both connections are
+ *                 in the car's `audioconn -l`. */
 
-/* The connection a user launch gets with native_audio media. */
+/* What a user launch gets with native_audio media: the connection, and the
+ * io-amp input its source plays (the media player's), which the SDK's audio
+ * output then writes through A2I instead of the browser's libasound input. */
 #define NBT_NATIVE_AUDIO_MEDIA_CONN 0x1d0u
+#define NBT_NATIVE_AUDIO_MEDIA_INPUT "input_stereo_0"
 
 #include "nbt/fs.h"
 #include "nbt/package.h"
