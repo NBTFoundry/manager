@@ -140,6 +140,20 @@ class PhoneFilesTests(unittest.TestCase):
         self.assertEqual(self.stored(), ['one.sfc', 'two.smc'])
         self.assertFalse(any((self.files / 'staging').iterdir()))
 
+    def test_utf8_names_are_stored_and_listed(self):
+        self.phone.pair(self.command, self.host)
+        self.assertEqual(self.send('snes', 'Pokémon ポケモン.sfc', b'x'), (200, b'OK\n'))
+        _, rows = self.listing()
+        self.assertEqual([row[0] for row in rows], ['Pokémon ポケモン.sfc'])
+        self.assertEqual(self.stored(), ['Pokémon ポケモン.sfc'])
+        page = self.command('FILES snes first').split('\t')
+        self.assertEqual(page[6:8], ['Pokémon ポケモン.sfc', '1'])
+        # Latin-1, a C1 control: not UTF-8 characters a name may hold.
+        for name in (b'caf\xe9.sfc', b'c1\xc2\x85.sfc'):
+            status, reply = self.post('/v1/files/put', b'snes\t' + name + b'\t1\t' +
+                                      hashlib.sha256(b'x').hexdigest().encode() + b'\n')
+            self.assertEqual(status, 400, (name, reply))
+
     def test_the_bytes_must_be_the_ones_announced(self):
         self.phone.pair(self.command, self.host)
         # Data without an announcement, or of another length: refused at the header.
@@ -203,13 +217,17 @@ class PhoneFilesTests(unittest.TestCase):
 
     def test_a_stick_is_scanned_and_imported_on_the_car(self):
         one, two = os.urandom(100 * 1024), os.urandom(50 * 1024)
+        # Three levels: the stick's top and two levels of folders.
         self.stick({'umass01200t7/ROMS/Game One.sfc': one,
-                    'umass01200t7/ROMS/nested/a/Two.SMC': two,
-                    'umass01200t7/ROMS/nested/a/b/too-deep.sfc': b'deep',
+                    'umass01200t7/ROMS/nested/Two.SMC': two,
+                    'umass01200t7/ROMS/nested/a/too-deep.sfc': b'deep',
                     'umass01200t7/.Trashes/hidden.sfc': b'hidden',
                     'umass01200t7/ROMS/readme.txt': b'text',
-                    'umass01200t7/ROMS/Jeu été.sfc': b'fr',  # é: two bytes a name may not hold
+                    'umass01200t7/ROMS/Jeu été.sfc': b'fr',  # UTF-8: kept
                     'other/not-a-stick.sfc': b'other'})
+        # A byte that is no UTF-8 character becomes '_'.
+        with open(os.fsencode(self.mounts / 'umass01200t7/ROMS') + b'/Bad\xff.sfc', 'wb') as f:
+            f.write(b'bad')
         (self.mounts / 'umass01200t7/ROMS/link.sfc').symlink_to(self.mounts / 'other/not-a-stick.sfc')
         (self.mounts / 'umass01200t7/ROMS/linked').symlink_to(self.mounts / 'other')
         self.assertEqual(self.command('FILES IMPORT snes all'), 'ERR invalid-command')  # no scan yet
@@ -217,21 +235,22 @@ class PhoneFilesTests(unittest.TestCase):
         fields = self.usb(until=('scanned', 'failed'))
         self.assertEqual(fields[1:3], ['scanned', '-'], fields)
         names = fields[7::3]
-        self.assertEqual(names, ['Game One.sfc', 'Jeu __t__.sfc', 'Two.SMC'])
-        self.assertEqual(fields[6:8], ['3', 'Game One.sfc'])
+        self.assertEqual(names, ['Bad_.sfc', 'Game One.sfc', 'Jeu été.sfc', 'Two.SMC'])
+        self.assertEqual(fields[6:8], ['4', 'Bad_.sfc'])
         self.assertEqual(self.command('FILES IMPORT snes all'), 'OK')
         fields = self.usb(until=('imported', 'failed'))
-        self.assertEqual(fields[1:6], ['imported', '-', '3', '3', '100'], fields)
-        self.assertEqual(fields[9::3], ['1', '1', '1'])
+        self.assertEqual(fields[1:6], ['imported', '-', '4', '4', '100'], fields)
+        self.assertEqual(fields[9::3], ['1', '1', '1', '1'])
         self.assertEqual((self.files / 'files/snes/Game One.sfc').read_bytes(), one)
         self.assertEqual((self.files / 'files/snes/Two.SMC').read_bytes(), two)
         self.assertFalse(any((self.files / 'staging').iterdir()))
         # The stored files, by page, and one deleted by its index.
         page = self.command('FILES snes first').split('\t')
-        self.assertEqual(page[1:3], ['3', str(len(one) + len(two) + 2)])
-        self.assertEqual(page[6::2], ['Game One.sfc', 'Jeu __t__.sfc', 'Two.SMC'])
-        self.assertEqual(self.command('FILES DELETE snes 1'), 'OK')
-        self.assertEqual(self.stored(), ['Game One.sfc', 'Two.SMC'])
+        self.assertEqual(page[1:3], ['4', str(len(one) + len(two) + 2 + 3)])
+        self.assertEqual(page[6::2], ['Bad_.sfc', 'Game One.sfc', 'Jeu été.sfc', 'Two.SMC'])
+        self.assertEqual((self.files / 'files/snes/Jeu été.sfc').read_bytes(), b'fr')
+        self.assertEqual(self.command('FILES DELETE snes 2'), 'OK')
+        self.assertEqual(self.stored(), ['Bad_.sfc', 'Game One.sfc', 'Two.SMC'])
         self.assertEqual(self.command('FILES DELETE snes 9'), 'ERR invalid-command')
         self.assertEqual(self.command('FILES DELETE plain 0'), 'ERR invalid-command')
         self.assertEqual(self.command('FILES SCAN plain'), 'ERR app')

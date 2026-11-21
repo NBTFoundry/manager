@@ -225,8 +225,10 @@ core::Status WorkerClient::request(const char *command, core::Span<char> reply,
                 reply[used] = 0;
                 return core::Status();
             }
+            // Bytes from 0x80 on carry the UTF-8 of file names (FILES, FILES USB), checked
+            // where they are parsed; other control bytes than a tab are refused.
             if ((static_cast<unsigned char>(byte) < 32 && byte != '\t') ||
-                static_cast<unsigned char>(byte) > 126) {
+                static_cast<unsigned char>(byte) == 127) {
                 return fail(EPROTO);
             }
             reply[used++] = byte;

@@ -67,7 +67,7 @@ bool parsePage(FilesState &f, const char *reply) {
     const unsigned shown = static_cast<unsigned>(n - 6) / 2;
     for (unsigned i = 0; i < shown; ++i) {
         uint64_t size = 0;
-        if (!nbt_files_name_valid(field[6 + 2 * i]) ||
+        if (!nbt_files_listed_name_valid(field[6 + 2 * i]) ||
             !number(field[7 + 2 * i], UINT64_MAX, &size)) {
             return false;
         }
@@ -108,7 +108,7 @@ bool parseUsb(FilesState &f, const char *reply) {
     const unsigned shown = static_cast<unsigned>(n - 7) / 3;
     for (unsigned i = 0; i < shown; ++i) {
         uint64_t size = 0, stored = 0;
-        if (!nbt_files_name_valid(field[7 + 3 * i]) ||
+        if (!nbt_files_listed_name_valid(field[7 + 3 * i]) ||
             !number(field[8 + 3 * i], UINT64_MAX, &size) || !number(field[9 + 3 * i], 1, &stored)) {
             return false;
         }

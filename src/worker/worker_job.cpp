@@ -54,7 +54,16 @@ bool WorkerJob::start(Task task, void *context) {
     sigset_t all, previous;
     sigfillset(&all);
     (void)pthread_sigmask(SIG_BLOCK, &all, &previous);
-    const int error = pthread_create(&thread_, NULL, run, this);
+    // An explicit stack: QNX's default is small, and a USB walk recurses.
+    pthread_attr_t attributes;
+    int error = pthread_attr_init(&attributes);
+    if (!error) {
+        error = pthread_attr_setstacksize(&attributes, kStackBytes);
+        if (!error) {
+            error = pthread_create(&thread_, &attributes, run, this);
+        }
+        (void)pthread_attr_destroy(&attributes);
+    }
     (void)pthread_sigmask(SIG_SETMASK, &previous, NULL);
     if (error) {
         core::LockGuard guard(mutex_);

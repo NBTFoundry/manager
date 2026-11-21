@@ -153,16 +153,30 @@ static void files_policies(void) {
     assert(!nbt_files_listed_name_valid("a/b/") && !nbt_files_listed_name_valid("/") &&
            !nbt_files_listed_name_valid(".hidden/") && !nbt_files_listed_name_valid("x"));
     assert(nbt_files_folder_valid("Tekken 3") && !nbt_files_folder_valid("a/b") &&
-           !nbt_files_folder_valid("end."));
+           !nbt_files_folder_valid("end.") && nbt_files_folder_valid("Pok\xc3\xa9mon") &&
+           !nbt_files_folder_valid("Pok\xe9mon"));
+    assert(nbt_files_listed_name_valid("Pok\xc3\xa9mon/") &&
+           nbt_files_char_length("\xc3\xa9", 2) == 2 && nbt_files_char_length("\xc3\xa9", 1) == 0 &&
+           nbt_files_char_length("/", 1) == 0);
     assert(nbt_files_policy_file_bytes(&policy) == UINT64_C(16) << 20);
-    const char *names[] = {"Super Game (E).sfc", "a.SMC", "x.y.fig", "1.swc"};
+    const char *names[] = {"Super Game (E).sfc",
+                           "a.SMC",
+                           "x.y.fig",
+                           "1.swc",
+                           "caf\xc3\xa9.sfc",
+                           "\xe3\x83\x9d\xe3\x82\xb1\xe3\x83\xa2\xe3\x83\xb3.sfc",
+                           "\xf0\x9f\x8e\xae.sfc"};
     for (i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
         assert(nbt_files_policy_accepts(&policy, names[i]));
     }
-    const char *refused[] = {"game.zip",        ".sfc",        "game.",    "game",    " game.sfc",
-                             "game.sfc ",       "a/b.sfc",     "a\\b.sfc", "a:b.sfc", "a*b.sfc",
-                             "a?b.sfc",         "a\"b.sfc",    "a<b.sfc",  "a|b.sfc", "a\tb.sfc",
-                             "caf\xc3\xa9.sfc", "game.sfc.zip"};
+    const char *refused[] = {"game.zip", ".sfc", "game.", "game", " game.sfc", "game.sfc ",
+                             "a/b.sfc", "a\\b.sfc", "a:b.sfc", "a*b.sfc", "a?b.sfc", "a\"b.sfc",
+                             "a<b.sfc", "a|b.sfc", "a\tb.sfc", "game.sfc.zip",
+                             // UTF-8 that is not a character a name may hold: a bare continuation
+                             // byte, a cut sequence, an overlong form, a surrogate, a C1 control,
+                             // beyond U+10FFFF, Latin-1.
+                             "a\x80.sfc", "a\xc3.sfc", "a\xc0\xaf.sfc", "a\xed\xa0\x80.sfc",
+                             "a\xc2\x85.sfc", "a\xf4\x90\x80\x80.sfc", "caf\xe9.sfc"};
     for (i = 0; i < sizeof(refused) / sizeof(refused[0]); ++i) {
         assert(!nbt_files_policy_accepts(&policy, refused[i]));
     }

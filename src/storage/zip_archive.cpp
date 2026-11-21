@@ -136,7 +136,8 @@ bool ZipArchive::open(const char *path) {
 }
 
 bool ZipArchive::central(uint64_t offset, uint64_t size, unsigned total) {
-    if (total > kEntriesMax || size > fileSize_ || offset > fileSize_ - size) {
+    if (total > kEntriesMax || size > kDirectoryMax || size > fileSize_ ||
+        offset > fileSize_ - size) {
         return false;
     }
     entries_ = new (std::nothrow) ZipEntry[total ? total : 1];

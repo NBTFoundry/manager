@@ -26,6 +26,8 @@ struct ZipEntry {
 class ZipArchive {
 public:
     static const unsigned kEntriesMax = 1024;
+    /* The most of a central directory read (1024 entries of 1 KiB). */
+    static const uint32_t kDirectoryMax = 1024 * 1024;
 
     ZipArchive();
     ~ZipArchive();

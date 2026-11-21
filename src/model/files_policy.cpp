@@ -72,8 +72,16 @@ bool parseExtensions(const char *p, size_t n, nbt_files_policy *policy) {
     return policy->count != 0;
 }
 
-bool forbidden(unsigned char c) {
-    return c < 32 || c > 126 || strchr("/\\:*?\"<>|", c) != NULL;
+/* Whether text[0, length) is made of characters a stored name may hold. */
+bool validChars(const char *text, size_t length) {
+    for (size_t i = 0; i < length;) {
+        const size_t n = nbt_files_char_length(text + i, length - i);
+        if (!n) {
+            return false;
+        }
+        i += n;
+    }
+    return true;
 }
 
 } // namespace
@@ -138,19 +146,53 @@ int nbt_files_policy_parse(const char *text, nbt_files_policy *out) {
     return 0;
 }
 
+size_t nbt_files_char_length(const char *s, size_t left) {
+    if (!s || !left) {
+        return 0;
+    }
+    const unsigned char c = static_cast<unsigned char>(s[0]);
+    if (c < 0x80) {
+        return c >= 32 && c <= 126 && !strchr("/\\:*?\"<>|", c) ? 1 : 0;
+    }
+    size_t n;
+    uint32_t point;
+    if (c >= 0xc2 && c <= 0xdf) {
+        n = 2;
+        point = c & 0x1fu;
+    } else if (c >= 0xe0 && c <= 0xef) {
+        n = 3;
+        point = c & 0x0fu;
+    } else if (c >= 0xf0 && c <= 0xf4) {
+        n = 4;
+        point = c & 0x07u;
+    } else {
+        return 0;
+    }
+    if (left < n) {
+        return 0;
+    }
+    for (size_t i = 1; i < n; ++i) {
+        const unsigned char b = static_cast<unsigned char>(s[i]);
+        if ((b & 0xc0u) != 0x80u) {
+            return 0;
+        }
+        point = (point << 6) | (b & 0x3fu);
+    }
+    static const uint32_t kLeast[5] = {0, 0, 0x80, 0x800, 0x10000};
+    const bool ok = point >= kLeast[n] && point >= 0xa0 && (point < 0xd800 || point > 0xdfff) &&
+                    point <= 0x10ffff;
+    return ok ? n : 0;
+}
+
 int nbt_files_name_valid(const char *name) {
     if (!name) {
         return 0;
     }
     const size_t length = nbt::model::boundedLength(name, NBT_FILES_NAME_MAX + 1);
     if (!length || length > NBT_FILES_NAME_MAX || name[0] == '.' || name[0] == ' ' ||
-        name[length - 1] == '.' || name[length - 1] == ' ') {
+        name[length - 1] == '.' || name[length - 1] == ' ' ||
+        !nbt::model::validChars(name, length)) {
         return 0;
-    }
-    for (size_t i = 0; i < length; ++i) {
-        if (nbt::model::forbidden(static_cast<unsigned char>(name[i]))) {
-            return 0;
-        }
     }
     const char *dot = strrchr(name, '.');
     return dot != NULL && dot != name && dot[1] != 0;
@@ -161,16 +203,9 @@ int nbt_files_folder_valid(const char *name) {
         return 0;
     }
     const size_t length = nbt::model::boundedLength(name, NBT_FILES_FOLDER_MAX + 1);
-    if (!length || length > NBT_FILES_FOLDER_MAX || name[0] == '.' || name[0] == ' ' ||
-        name[length - 1] == '.' || name[length - 1] == ' ') {
-        return 0;
-    }
-    for (size_t i = 0; i < length; ++i) {
-        if (nbt::model::forbidden(static_cast<unsigned char>(name[i]))) {
-            return 0;
-        }
-    }
-    return 1;
+    return length && length <= NBT_FILES_FOLDER_MAX && name[0] != '.' && name[0] != ' ' &&
+           name[length - 1] != '.' && name[length - 1] != ' ' &&
+           nbt::model::validChars(name, length);
 }
 
 int nbt_files_policy_marks_folder(const nbt_files_policy *policy, const char *name) {

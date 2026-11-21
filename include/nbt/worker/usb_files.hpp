@@ -8,9 +8,10 @@
  * meanwhile, and the matches once the task ended.
  *
  * Sticks are the /mnt/umass* folders (NBT_TEST_USB_MOUNTS in test builds),
- * walked to depth 4, at most 4096 entries in all, without following links or
- * entering hidden folders. A file matches when its name, made a valid stored
- * name (bytes it may not hold become '_'), has an extension the application
+ * walked three levels deep (the stick's top and two levels of folders below
+ * it), at most 4096 entries in all, without following links or entering
+ * hidden folders. A file matches when its name, made a valid stored name
+ * (UTF-8 characters kept, bytes it may not hold become '_'), has an extension the application
  * accepts. A .zip archive holding accepted files is one match: unpacked into
  * a game folder named after it when one of them makes a game folder
  * (`|folders=`, a cue sheet), else its files stored one by one. A folder below
@@ -50,7 +51,7 @@ public:
     enum class Phase { Idle, Scanning, Scanned, Importing, Imported, Failed };
     static const unsigned kMatches = 64;
     static const unsigned kEntriesMax = 4096;
-    static const unsigned kDepthMax = 4;
+    static const unsigned kDepthMax = 3;
     /* Every match (-1) or one. */
     static const int kAll = -1;
 
@@ -98,9 +99,10 @@ public:
         return reason_;
     }
 
-    /* `name` as a stored name: bytes a name may not hold become '_', leading
-     * and trailing dots and spaces go, a long name keeps its extension.
-     * False when nothing is left. */
+    /* `name` as a stored name: UTF-8 characters a name may hold are kept,
+     * every other byte becomes '_', leading and trailing dots and spaces go, a
+     * long name keeps its extension (cut between characters). False when
+     * nothing is left. */
     static bool storedName(const char *name, char out[NBT_FILES_NAME_MAX + 1]);
     /* The same for a game folder's name (no extension needed): at most
      * NBT_FILES_FOLDER_MAX bytes. */
@@ -108,6 +110,11 @@ public:
                                  char out[NBT_FILES_FOLDER_MAX + 1]);
 
 private:
+    /* name[0, length) with every byte outside a character a stored name may
+     * hold made '_', at most 255 bytes, into `clean`; its length. */
+    static size_t cleanName(const char *name, size_t length, char clean[256]);
+    /* The longest prefix of `text` of whole characters, at most `max` bytes. */
+    static size_t wholeChars(const char *text, size_t max);
     void walk(char *path, size_t length, unsigned depth, unsigned &entries);
     bool marksFolder(const char *path) const;
     int copy(UsbMatch &match);

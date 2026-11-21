@@ -27,10 +27,6 @@ const char *mountsFolder() {
     return "/mnt";
 }
 
-bool allowedByte(unsigned char c) {
-    return c >= 32 && c <= 126 && !strchr("/\\:*?\"<>|", c);
-}
-
 } // namespace
 
 UsbFiles::UsbFiles()
@@ -40,12 +36,7 @@ UsbFiles::UsbFiles()
 
 bool UsbFiles::storedName(const char *name, char out[NBT_FILES_NAME_MAX + 1]) {
     char clean[256];
-    size_t n = 0;
-    for (; name[n] && n < sizeof(clean) - 1; ++n) {
-        const unsigned char c = static_cast<unsigned char>(name[n]);
-        clean[n] = allowedByte(c) ? static_cast<char>(c) : '_';
-    }
-    clean[n] = 0;
+    size_t n = cleanName(name, strlen(name), clean);
     size_t start = 0;
     while (clean[start] == '.' || clean[start] == ' ') {
         ++start;
@@ -65,7 +56,7 @@ bool UsbFiles::storedName(const char *name, char out[NBT_FILES_NAME_MAX + 1]) {
         if (extension >= NBT_FILES_NAME_MAX) {
             return false;
         }
-        const size_t keep = NBT_FILES_NAME_MAX - extension;
+        const size_t keep = wholeChars(clean + start, NBT_FILES_NAME_MAX - extension);
         memcpy(out, clean + start, keep);
         memcpy(out + keep, dot, extension + 1);
     }

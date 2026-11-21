@@ -18,10 +18,6 @@ namespace nbt {
 namespace worker {
 namespace {
 
-bool allowedByte(unsigned char c) {
-    return c >= 32 && c <= 126 && !strchr("/\\:*?\"<>|", c);
-}
-
 /* The last '/' of path[0, length), or NULL. */
 const char *lastSlash(const char *path, size_t length) {
     for (size_t i = length; i-- > 0;) {
@@ -34,20 +30,49 @@ const char *lastSlash(const char *path, size_t length) {
 
 } // namespace
 
-bool UsbFiles::storedFolderName(const char *name, size_t length,
-                                char out[NBT_FILES_FOLDER_MAX + 1]) {
-    size_t start = 0, n = 0;
-    char clean[256];
-    for (; n < length && n < sizeof(clean) - 1; ++n) {
-        const unsigned char c = static_cast<unsigned char>(name[n]);
-        clean[n] = allowedByte(c) ? static_cast<char>(c) : '_';
+size_t UsbFiles::cleanName(const char *name, size_t length, char clean[256]) {
+    size_t n = 0;
+    for (size_t i = 0; i < length && name[i] && n < 255;) {
+        const size_t k = nbt_files_char_length(name + i, length - i);
+        if (!k) {
+            clean[n++] = '_';
+            ++i;
+            continue;
+        }
+        if (n + k > 255) {
+            break;
+        }
+        memcpy(clean + n, name + i, k);
+        n += k;
+        i += k;
     }
     clean[n] = 0;
+    return n;
+}
+
+size_t UsbFiles::wholeChars(const char *text, size_t max) {
+    size_t n = 0;
+    while (text[n]) {
+        const size_t k = nbt_files_char_length(text + n, 4);
+        const size_t step = k ? k : 1;
+        if (n + step > max) {
+            break;
+        }
+        n += step;
+    }
+    return n;
+}
+
+bool UsbFiles::storedFolderName(const char *name, size_t length,
+                                char out[NBT_FILES_FOLDER_MAX + 1]) {
+    size_t start = 0;
+    char clean[256];
+    size_t n = cleanName(name, length, clean);
     while (clean[start] == '.' || clean[start] == ' ') {
         ++start;
     }
     if (n - start > NBT_FILES_FOLDER_MAX) {
-        n = start + NBT_FILES_FOLDER_MAX;
+        n = start + wholeChars(clean + start, NBT_FILES_FOLDER_MAX);
     }
     while (n > start && (clean[n - 1] == '.' || clean[n - 1] == ' ')) {
         --n;

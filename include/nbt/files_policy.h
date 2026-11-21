@@ -43,9 +43,14 @@ typedef struct {
 
 /* 0 for a valid, canonical policy (`out` may be NULL to validate only). */
 int nbt_files_policy_parse(const char *text, nbt_files_policy *out);
-/* Whether `name` is a valid stored name: printable ASCII without
- * / \ : * ? " < > |, not starting with '.' or ' ', not ending with '.' or
- * ' ', with an extension after its last '.'. */
+/* The length (1-4) of the character at `s` (at most `left` bytes) when a
+ * stored name may hold it: printable ASCII but / \ : * ? " < > |, or a
+ * well-formed UTF-8 character from U+00A0 on (no surrogates, at most
+ * U+10FFFF); 0 otherwise. */
+size_t nbt_files_char_length(const char *s, size_t left);
+/* Whether `name` is a valid stored name: characters nbt_files_char_length
+ * takes, not starting with '.' or ' ', not ending with '.' or ' ', with an
+ * extension after its last '.'. */
 int nbt_files_name_valid(const char *name);
 /* Whether `name` is a valid folder name: a stored name's rules, at most
  * NBT_FILES_FOLDER_MAX bytes, no extension needed. */

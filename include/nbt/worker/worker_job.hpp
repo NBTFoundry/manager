@@ -12,6 +12,7 @@
 #include "nbt/core/mutex.hpp"
 
 #include <pthread.h>
+#include <stddef.h>
 #include <sys/select.h>
 
 namespace nbt {
@@ -19,6 +20,8 @@ namespace worker {
 
 class WorkerJob {
 public:
+    /* The job thread's stack. */
+    static const size_t kStackBytes = 256 * 1024;
     typedef void (*Task)(void *context);
 
     WorkerJob();

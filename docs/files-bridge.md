@@ -61,7 +61,10 @@ application never reads half a file. Uninstalling an application deletes its
 folder and staging files first, still under its locks; with the disk
 unavailable they stay, and a later install of the same application finds them.
 
-A stored name is 1 to 96 printable ASCII bytes without `/ \ : * ? " < > |`,
+A stored name is 1 to 96 bytes of printable ASCII without `/ \ : * ? " < > |`
+and well-formed UTF-8 characters from U+00A0 on (no surrogates, none beyond
+U+10FFFF: from manager dev130, with the SDK's `FileList` and the phone app of
+the same time; older ones keep to ASCII),
 not starting with a dot or a space, not ending with a dot or a space, with an
 extension after its last dot; its extension, in any case, must be one the
 application declared. At most 512 files per application (those in game folders
@@ -122,12 +125,16 @@ USB stick** scans the sticks and lists what matches: **Import all**, or one
 file. The worker does the work on its job thread (`src/worker/usb_files.cpp`),
 so the GUI polls its progress once a second and other installs wait.
 
-- Sticks are the `/mnt/umass*` folders (QNX's mass-storage mounts), walked to
-  a depth of 4 below the stick, at most 4096 entries in all and 64 matches,
-  without following links or entering hidden folders.
-- A file matches when its name, made a valid stored name (bytes it may not
-  hold become `_`; a long name keeps its extension), has an accepted
-  extension. Two files made the same name replace each other.
+- Sticks are the `/mnt/umass*` folders (QNX's mass-storage mounts), walked
+  three levels deep (the stick's top and two levels of folders below it:
+  `PSX/Game/Game.cue` is found, `Games/PSX/Game/Game.cue` is not), at most
+  4096 entries in all and 64 matches, without following links or entering
+  hidden folders. The walk runs on the job thread's own 256 KiB stack; a zip
+  archive's central directory is read only up to 1 MiB.
+- A file matches when its name, made a valid stored name (UTF-8 characters
+  kept, any other byte it may not hold becomes `_`; a long name keeps its
+  extension, cut between characters), has an accepted extension. Two files
+  made the same name replace each other.
 - A `.zip` archive holding accepted files is one match. Its accepted files
   (stored or deflated; their folders inside the archive ignored) are unpacked
   with the head unit's zlib (`libz.so.2`, which iDrive's own programs load)

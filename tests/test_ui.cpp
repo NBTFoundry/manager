@@ -1770,8 +1770,9 @@ static void test_files_screens(void) {
     CHECK(view_contains(&ui, "Importing 1 of 1") && v.progress == 40 && v.busy && ui.updating());
     now += nbt::gui::kPollMs;
     exchange(&ui, "FILES USB snes 0",
-             "USB\tfailed\tquota\t0\t1\t0\t2\tB.sfc\t512\t0\tC.smc\t2097152\t1");
+             "USB\tfailed\tquota\t0\t1\t0\t3\tB.sfc\t512\t0\tC.smc\t2097152\t1\tTekken 3/\t512\t0");
     CHECK(view_contains(&ui, "Import stopped: the space for this application is full"));
+    CHECK(ui.screen == nbt::gui::UsbFiles && view(&ui).itemCount == 4); /* a game folder lists */
     CHECK(!ui.updating());
     /* Back on the files, refreshed; a refused scan says why. */
     press(&ui, nbt::gui::KeyBack, 1);
@@ -1782,6 +1783,13 @@ static void test_files_screens(void) {
     CHECK(view_contains(&ui, "Import stopped: Busy; try again in a moment"));
     press(&ui, nbt::gui::KeyBack, 1);
     exchange(&ui, "FILES snes first", "FILES\t1\t512\t1073741824\t5000000000\t0\tB.sfc\t512");
+    /* Game folders ("<folder>/") and UTF-8 names list as they are. */
+    press(&ui, nbt::gui::KeyBack, 1);
+    CHECK(ui.screen == nbt::gui::Settings && ui.focus == ui.filesItem());
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "FILES snes first",
+             "FILES\t2\t1024\t1073741824\t5000000000\t0\tPok\xc3\xa9mon.sfc\t512\tTekken 3/\t512");
+    CHECK(ui.screen == nbt::gui::Files && view(&ui).itemCount == 3);
     /* Back to Settings, on the Files entry; a garbled listing is a protocol error. */
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Settings && ui.focus == ui.filesItem() && !ui.queued);
