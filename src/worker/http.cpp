@@ -143,7 +143,8 @@ ParseResult parseRequest(core::Span<const uint8_t> data, Request *request) {
     if (line != end - 2 || !(seen & 1)) {
         return Invalid;
     }
-    const bool get = request->route == Nonce || request->route == Apps || request->route == Status;
+    const bool get = request->route == Nonce || request->route == Apps ||
+                     request->route == Status || request->route == Manager;
     if ((request->method == Get) != get || (get && request->contentLength) ||
         (!get && !request->hasLength)) {
         return Invalid;

@@ -198,6 +198,33 @@ class ReleaseTests(unittest.TestCase):
             result = subprocess.run(command + ["installer"], env=environment, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b"does not match requested version and sequence", result.stderr)
+            # The step release (docs/manager-release.md): the same programs
+            # without the named components, one sequence below, in the format
+            # an older launcher reads.
+            environment["MANAGER_VERSION"] = "v2"
+            environment["MANAGER_STEP"] = "1"
+            result = subprocess.run(command + ["package"], env=environment, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(sorted(p.name for p in dist.iterdir()), ["manager-step.nbtr", "manager.nbtr"])
+            stepped = Path(temporary) / "step.nbtr"
+            packed = run("python3", PACK, "--version", "v2-step", "--sequence", "1", "--compat", "demo-1",
+                         "--key", self.root / "manager.pem", "--output", stepped,
+                         "--launcher", self.root / "launcher", "--gui", self.root / "gui",
+                         "--worker", self.root / "worker", "--plugin-dir", self.root / "plugin")
+            self.assertEqual(packed.returncode, 0, packed.stderr)
+            self.assertEqual((dist / "manager-step.nbtr").read_bytes(), stepped.read_bytes())
+            verified = self.verify((dist / "manager-step.nbtr").read_bytes())
+            self.assertIn(b"version=v2-step\nsequence=1\n", verified.stdout)
+            self.assertNotIn(b"format=NBTRLS3", verified.stdout)
+            # No step below sequence 1; without MANAGER_STEP an old step goes.
+            environment["MANAGER_SEQUENCE"] = "1"
+            result = subprocess.run(command + ["package"], env=environment, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(b"no step release", result.stderr)
+            del environment["MANAGER_STEP"]
+            result = subprocess.run(command + ["package"], env=environment, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(sorted(p.name for p in dist.iterdir()), ["manager.nbtr"])
 
     def test_v2_release_verification_and_capture_lib_copy(self):
         cap = self.root / "libnbt-capture.so"

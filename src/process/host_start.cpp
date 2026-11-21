@@ -4,6 +4,7 @@
 #include "nbt/bridge.h"
 #include "nbt/process/bridge_environment.hpp"
 #include "nbt/process/host_control.hpp"
+#include "nbt/process/runner_path.hpp"
 #include "nbt/util.h"
 
 #include <errno.h>
@@ -44,6 +45,7 @@ int prepareHostStart(nbt_fs *fs, const char *app, int lease, HostStart *out, cha
         return refuse(reason, size, error, recoverError, "recovery", detail);
     }
     nbt_bridge_current(&provider);
+    withoutMissingRunner(&provider);
     errno = 0;
     if (nbt_tx_installed(fs, app, &out->record)) {
         return refuse(reason, size, error, errno, "installed record unreadable", NULL);

@@ -85,13 +85,21 @@ def check():
         raise ValueError("MANAGER_PUBLIC_KEY does not match MANAGER_SIGNING_KEY")
 
 
-def verify(package, public, compatibility, build):
+def verify(package, public, compatibility, build, version, sequence):
     result = subprocess.run([str(build / "nbt-verify-release"), str(package), str(public),
                              compatibility], check=True, capture_output=True, text=True)
-    version, _, sequence, _, _ = configuration()
     if result.stdout.splitlines()[:2] != [f"version={version}", f"sequence={sequence}"]:
         raise ValueError("signed release does not match requested version and sequence")
     print(result.stdout, end="", flush=True)
+
+
+def step_of(version, sequence):
+    """The step release's version and sequence (docs/manager-release.md): just
+    below the release, so that it takes the car to a launcher that reads it."""
+    step = (f"{version}-step", str(int(sequence) - 1))
+    if not VERSION.fullmatch(step[0]) or int(step[1]) < 1:
+        raise ValueError("no step release for this version or sequence")
+    return step
 
 
 def package():
@@ -100,30 +108,45 @@ def package():
     # preserves the previous release; private keys are never copied.
     destination = dist_dir()
     build.mkdir(parents=True, exist_ok=True)
+    # MANAGER_STEP=1: also the step release, for managers that read releases
+    # only up to NBTRLS2: the same programs without the named components.
+    step = step_of(version, sequence) if os.environ.get("MANAGER_STEP") == "1" else None
     with tempfile.TemporaryDirectory(prefix="release-", dir=build) as temporary:
-        output = Path(temporary) / "manager.nbtr"
-        command = [
-            sys.executable, str(ROOT / "tools/package_release.py"),
-            "--launcher", str(build / "nbt-manager-launcher"),
-            "--gui", str(build / "nbt-manager-gui"),
-            "--worker", str(build / "nbt-managerd-qnx"),
-            "--plugin-dir", str(build / "NbtManager"),
-            "--key", required("MANAGER_SIGNING_KEY"), "--output", str(output),
-            "--version", version, "--sequence", sequence, "--compat", compatibility,
-        ]
-        capture = os.environ.get("MANAGER_CAPTURE_LIB", "")
-        if capture:
-            command.extend(["--capture-lib", capture])
+        def command(output, version, sequence):
+            arguments = [
+                sys.executable, str(ROOT / "tools/package_release.py"),
+                "--launcher", str(build / "nbt-manager-launcher"),
+                "--gui", str(build / "nbt-manager-gui"),
+                "--worker", str(build / "nbt-managerd-qnx"),
+                "--plugin-dir", str(build / "NbtManager"),
+                "--key", required("MANAGER_SIGNING_KEY"), "--output", str(output),
+                "--version", version, "--sequence", sequence, "--compat", compatibility,
+            ]
+            capture = os.environ.get("MANAGER_CAPTURE_LIB", "")
+            if capture:
+                arguments.extend(["--capture-lib", capture])
+            return arguments
         # nbt-runner (make qnx-runner): an NBTRLS3 component, so that
         # applications built without the QNX SDP run (docs/app-bridge.md, 8).
         runner = Path(os.environ.get("MANAGER_RUNNER", build / "nbt-runner"))
         if not runner.is_file():
             raise ValueError(f"missing {runner}: make qnx-runner")
-        command.extend(["--component", f"runner={runner}"])
-        subprocess.run(command, check=True)
-        verify(output, public, compatibility, build)
+        output = Path(temporary) / "manager.nbtr"
+        subprocess.run(command(output, version, sequence) + ["--component", f"runner={runner}"],
+                       check=True)
+        verify(output, public, compatibility, build, version, sequence)
+        if step:
+            stepped = Path(temporary) / "manager-step.nbtr"
+            subprocess.run(command(stepped, *step), check=True)
+            verify(stepped, public, compatibility, build, *step)
+            publish(stepped, destination / "manager-step.nbtr")
+        else:
+            (destination / "manager-step.nbtr").unlink(missing_ok=True)
         publish(output, destination / "manager.nbtr")
     print(f"Signed release: {destination / 'manager.nbtr'}", flush=True)
+    if step:
+        print(f"Step release ({step[0]}, sequence {step[1]}): {destination / 'manager-step.nbtr'}",
+              flush=True)
 
 
 def installer_dir():
@@ -135,9 +158,9 @@ def installer_dir():
 
 
 def installer():
-    _, compatibility, _, public, build = configuration()
+    version, compatibility, sequence, public, build = configuration()
     release = dist_dir() / "manager.nbtr"
-    verify(release, public, compatibility, build)
+    verify(release, public, compatibility, build, version, sequence)
     environment = dict(os.environ, NBT_MANAGER_RELEASE=str(release),
                        NBT_MANAGER_PUBLIC_KEY=str(public))
     # Rust's default `cc` linker may resolve to QNX after sourcing its SDK.

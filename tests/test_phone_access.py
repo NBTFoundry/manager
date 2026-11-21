@@ -202,6 +202,8 @@ class PhoneAccessTests(unittest.TestCase):
             self.assertEqual(self.phone.request(host, 'POST', '/v1/pair', b'x')[0], 403)
             # The door serves the logs too.
             self.assertEqual(self.phone.request(host, 'POST', '/v1/logs/app', b'missing\n')[0], 400)
+            # And the installed manager (none here).
+            self.assertEqual(self.phone.request(host, 'GET', '/v1/manager')[0], 503)
             self.assertEqual(self.command('SET manager phone_open on'), 'OK')
             self.assertEqual(self.phone.request(host, 'POST', '/v1/wake'), (202, b'WAKE\topening\n'))
             marker = self.root / 'state/manager/phone.wake'

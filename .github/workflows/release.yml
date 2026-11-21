@@ -154,12 +154,23 @@ jobs:
             --component runner=unsigned/nbt-runner \
             --key "$key" --output "signed/nbt-manager-$VERSION.nbtr" \
             --version "$VERSION" --sequence "$SEQUENCE" --compat "$MANAGER_COMPAT"
+          # The step release (docs/manager-release.md): the same programs
+          # without the named components, in NBTRLS2, one sequence below, for
+          # a manager that reads releases only up to NBTRLS2.
+          python3 tools/package_release.py --launcher unsigned/nbt-manager-launcher \
+            --gui unsigned/nbt-manager-gui --worker unsigned/nbt-managerd-qnx \
+            --plugin-dir unsigned/NbtManager --capture-lib unsigned/libnbt-capture.so \
+            --key "$key" --output "signed/nbt-manager-$VERSION-step.nbtr" \
+            --version "$VERSION-step" --sequence "$((SEQUENCE - 1))" --compat "$MANAGER_COMPAT"
           # No line of the private key may appear in the output.
           python3 -I - "$key" signed/*.nbtr <<'EOF'
           import sys
-          key, data = open(sys.argv[1], "rb").read(), open(sys.argv[2], "rb").read()
+          key = open(sys.argv[1], "rb").read()
           lines = [l for l in key.splitlines() if len(l) >= 40 and not l.startswith(b"-----")]
-          sys.exit("private key material in the release" if any(l in data for l in lines) else 0)
+          for path in sys.argv[2:]:
+              data = open(path, "rb").read()
+              if any(l in data for l in lines):
+                  sys.exit(f"private key material in {path}")
           EOF
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -176,6 +187,7 @@ jobs:
       contents: read
     outputs:
       sha256: ${{ steps.verify.outputs.sha256 }}
+      step-sha256: ${{ steps.verify.outputs.step-sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -191,13 +203,16 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
           SEQUENCE: ${{ needs.build.outputs.sequence }}
         run: |
-          release="signed/nbt-manager-$VERSION.nbtr"
           chmod +x verifier/nbt-verify-release
-          out="$(verifier/nbt-verify-release "$release" release/manager-public.pem "$MANAGER_COMPAT")"
-          echo "$out"
-          [[ "$(head -2 <<<"$out")" == "version=$VERSION"$'\n'"sequence=$SEQUENCE" ]] \
-            || { echo "::error::the signed release does not carry version $VERSION, sequence $SEQUENCE"; exit 1; }
-          echo "sha256=$(sha256sum "$release" | cut -d' ' -f1)" >>"$GITHUB_OUTPUT"
+          check() { # file, version, sequence, output name
+            out="$(verifier/nbt-verify-release "$1" release/manager-public.pem "$MANAGER_COMPAT")"
+            echo "$out"
+            [[ "$(head -2 <<<"$out")" == "version=$2"$'\n'"sequence=$3" ]] \
+              || { echo "::error::$1 does not carry version $2, sequence $3"; exit 1; }
+            echo "$4=$(sha256sum "$1" | cut -d' ' -f1)" >>"$GITHUB_OUTPUT"
+          }
+          check "signed/nbt-manager-$VERSION.nbtr" "$VERSION" "$SEQUENCE" sha256
+          check "signed/nbt-manager-$VERSION-step.nbtr" "$VERSION-step" "$((SEQUENCE - 1))" step-sha256
 
   publish:
     needs: [build, verify]
@@ -222,10 +237,12 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
           SEQUENCE: ${{ needs.build.outputs.sequence }}
           VERIFIED: ${{ needs.verify.outputs.sha256 }}
+          STEP_VERIFIED: ${{ needs.verify.outputs.step-sha256 }}
         run: |
-          release="dist/nbt-manager-$VERSION.nbtr"
-          [[ "$(sha256sum "$release" | cut -d' ' -f1)" == "$VERIFIED" ]] \
-            || { echo "::error::the release differs from the verified one"; exit 1; }
+          for pair in "nbt-manager-$VERSION.nbtr:$VERIFIED" "nbt-manager-$VERSION-step.nbtr:$STEP_VERIFIED"; do
+            [[ "$(sha256sum "dist/${pair%%:*}" | cut -d' ' -f1)" == "${pair##*:}" ]] \
+              || { echo "::error::${pair%%:*} differs from the verified one"; exit 1; }
+          done
           cp release/manager-public.pem dist/nbt-manager-public.pem
           (cd dist && sha256sum nbt-manager-*.nbtr nbt-manager-public.pem >SHA256SUMS)
           fingerprint="$(openssl pkey -pubin -in release/manager-public.pem -outform DER | sha256sum | cut -d' ' -f1)"
@@ -234,6 +251,8 @@ jobs:
 
           Signed with the manager key \`nbt-manager-public.pem\` (SHA-256 of its DER: \`$fingerprint\`), built from $GITHUB_SHA by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
           Install it with the desktop installer, or update a car's manager from the phone app.
+          A car whose NBT Manager reads releases only up to NBTRLS2 (0.1.x) updates from the phone to
+          \`nbt-manager-$VERSION-step.nbtr\` first; the phone app offers it when both are in its library.
           EOF
           prerelease=()
           [[ "$VERSION" == 0.* ]] && prerelease=(--prerelease)

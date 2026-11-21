@@ -105,6 +105,15 @@ At the next opening the launcher removes the request, stages the upload as
 `--stage-update` would, and runs it on trial; once confirmed, `SETUP` brings the
 launcher and the plugin to it.
 
+`GET /v1/manager` (worker and door) answers
+`MANAGER\t<version>\t<sequence>\t<formats>\n`: the active release's version and
+sequence, and the formats an upload can use now, `NBTRLS1` and those the stable
+launcher lists (`NBTRLS1,NBTRLS2,NBTRLS3`); 503 when the installed release
+cannot be verified. A manager without the route (404, or `400` before routes
+were added) reads releases only up to `NBTRLS2`. The phone app sends the newest
+release the car reads: a step release first when the newest is in a format the
+launcher does not list (docs/manager-release.md, "Step releases").
+
 ## Bringing a running application to the front
 
 A package opts in with `bridge=1.0` and `show` in `bridge-uses` or
@@ -619,6 +628,7 @@ connections, a 5-second header deadline, a 15-second inactivity timeout and a
 | `POST /v1/settings/read` | `app\n` | `SETTINGS\t<count>\n`, then `key\|label\|value\|choice,choice\n` per setting | Yes |
 | `POST /v1/settings/set` | `app\tkey\tvalue\n` | `OK\n`; declared choice applied under the app transaction lock, without a car prompt | Yes |
 | `POST /v1/autostart` | `app\n`, or `app\t<on\|off>\n` | `AUTOSTART\t<off\|on>\t<ready\|blocked>\n`, or `OK\n` once saved (the pause stays until a start by hand); 400 for anything but an installed application and `on`/`off`, 409 while it is being updated ("Autostart") | Yes |
+| `GET /v1/manager` | empty | `MANAGER\t<version>\t<sequence>\t<formats>\n` (see "Manager updates from a phone") | Yes |
 | `POST /v1/wake` | empty | `WAKE\t<opening\|open\|busy\|moving\|off>\n` | Only |
 | `POST /v1/pair` | below | HTTP 202 `PAIR\tpending\t<6 digits>\n`; local confirmation required | No |
 | `POST /v1/upload` | complete `.nbt` package | HTTP 202 `STATUS\twaiting\tChecking the package\n` while the worker verifies it on its job, then `verified` or `failed` through `/v1/status` (`STATUS\tverified\tReview and confirm on the car\n` when it was verified at once); HTTP 400 for an upload that is no application package | No |

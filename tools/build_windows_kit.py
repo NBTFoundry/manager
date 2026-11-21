@@ -67,10 +67,12 @@ def keypair(name):
     return private, public
 
 
-def next_sequence():
+def next_sequence(step):
+    """The kit's sequence; with a step release, two numbers: the step takes the
+    first (build_release.py, step_of)."""
     path = KEYS / "manager-sequence"
     current = int(path.read_text()) if path.exists() else 0
-    return current + 1, path
+    return current + (2 if step else 1), path
 
 
 def check_tools():
@@ -167,7 +169,8 @@ def main():
     # bundled with the manager (compiled into the worker). The existing
     # test-app key is reused, so packages signed before keep working.
     app_private, app_public = keypair("test-app")
-    sequence, sequence_file = next_sequence()
+    step = os.environ.get("MANAGER_STEP") == "1"
+    sequence, sequence_file = next_sequence(step)
     version = f"dev{sequence}"
 
     make = os.environ.get("MAKE", "make")
@@ -181,7 +184,8 @@ def main():
         raise ValueError("the worker does not carry the apps public key")
     # One release per kit. The installers' Update stages it with its own
     # launcher, so a car with an older launcher needs no older-format release
-    # first (docs/install-flow.md).
+    # first (docs/install-flow.md). From the phone it does: MANAGER_STEP=1 adds
+    # the step release (docs/manager-release.md, "Step releases").
     release_env = dict(os.environ, MANAGER_VERSION=version, MANAGER_SEQUENCE=str(sequence),
                        MANAGER_COMPAT=MANAGER_COMPAT, MANAGER_SIGNING_KEY=str(manager_private),
                        MANAGER_PUBLIC_KEY=str(manager_public), BUILD_DIR=str(BUILD),
@@ -226,6 +230,8 @@ def main():
     # version or newer updates its manager from the phone (PROTOCOL.md).
     (kit / "phone").mkdir(exist_ok=True)
     shutil.copy2(RELEASE / "manager.nbtr", kit / f"phone/NBT-Manager-{version}.nbtr")
+    if step:  # for a car whose manager reads only older formats: this one first
+        shutil.copy2(RELEASE / "manager-step.nbtr", kit / f"phone/NBT-Manager-{version}-step.nbtr")
     shutil.copy2(ROOT / "config/controller.conf.example", kit / "controller.conf.example")
     shutil.copy2(ROOT / "docs/in-car-procedure.md", kit / "PROCEDURE.md")
     (kit / "usb").mkdir()
@@ -238,6 +244,8 @@ def main():
     (kit / "VERSION.txt").write_text(
         f"NBT Manager {version} (release sequence {sequence}, compatibility {MANAGER_COMPAT})\n"
         f"Manager release SHA-256: {release_sha}\n"
+        + (f"Step release {version}-step (sequence {sequence - 1}): phone/NBT-Manager-{version}-step.nbtr\n"
+           if step else "") +
         f"Test application compatibility: {TEST_COMPAT}; v1 is inside the installer.\n", newline="\r\n")
     # No line of either private key may appear in any kit file. (The installer
     # contains PEM labels such as "PRIVATE KEY" from its libraries, so search

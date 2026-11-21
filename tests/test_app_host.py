@@ -251,11 +251,14 @@ while not stopping:
             "NBTSTATE2\nsequence=00000000000000000001\nhighwater=00000000000000000001\n"
             f"version=v1\nsha256={hashlib.sha256(active.read_bytes()).hexdigest()}\n"
             "bridge=1.7\nbridge-uses=runner\nbridge-optional=\n")
+        # Without one (a slot staged from a step release), `runner` is not
+        # served: the start is refused, not failed.
         with mock.patch.dict(os.environ, {"NBT_TEST_RUNNER": str(Path(self.tmp.name) / "missing")}):
             _, command = self.worker()
             command("START test")
-            self.wait_for(lambda: (self.root / "state/test/output.log").exists() and
-                          b"cannot start the application" in (self.root / "state/test/output.log").read_bytes())
+            log = self.root / "state/test/output.log"
+            self.wait_for(lambda: log.exists() and b"bridge grant refused" in log.read_bytes())
+            self.assertIn(b"runner", log.read_bytes())
 
     def test_status_grant_readiness_worker_restart_and_fresh_instance(self):
         self.traced_app(uses="show,status", ready_delay=0.8)

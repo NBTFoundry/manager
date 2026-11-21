@@ -165,6 +165,8 @@ int PhoneApi::execute(const http::Request &request, const char *body, uint64_t n
         return phoneSettings(worker_, body, request.route == http::SettingsSet, out);
     case http::Autostart:
         return phoneAutostart(worker_, body, out);
+    case http::Manager:
+        return phoneManager(worker_, out);
     case http::Pair:
         if (!bssid_[0]) {
             return 503;

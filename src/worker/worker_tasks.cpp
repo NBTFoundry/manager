@@ -6,6 +6,7 @@
 #include "nbt/bridge.h"
 #include "nbt/core/secure.hpp"
 #include "nbt/manager_refresh.h"
+#include "nbt/process/runner_path.hpp"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
 #include "nbt/worker/usb_files.hpp"
@@ -31,6 +32,7 @@ void closeOwned(int &fd) {
 int verifyNew(TaskContext &c) {
     nbt_bridge_provider provider;
     nbt_bridge_current(&provider);
+    process::withoutMissingRunner(&provider);
     return nbt_package_verify(c.fd, c.keyFd, c.app, c.compatibility, &c.pending, c.error,
                               sizeof(c.error)) ||
                    nbt_bridge_check(&c.pending.bridge, &provider, NULL, NULL, c.error,

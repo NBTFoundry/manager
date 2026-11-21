@@ -500,13 +500,13 @@ class TransactionTests(unittest.TestCase):
                 daemon.kill()
                 daemon.communicate()
 
-    def package_for(self, app, sequence=2, key=None):
+    def package_for(self, app, sequence=2, key=None, payload=None, extra=()):
         source = Path(self.tmp.name) / "source"
-        source.write_bytes(self.new)
+        source.write_bytes(payload or self.new)
         output = Path(self.tmp.name) / f"{app}-{sequence}.nbt"
         output.unlink(missing_ok=True)
         result = run("python3", PACK, "--app", app, "--version", f"v{sequence}", "--sequence", sequence,
-                     "--compat", "demo-1", "--key", key or self.key, "--output", output, source)
+                     "--compat", "demo-1", "--key", key or self.key, "--output", output, *extra, source)
         self.assertEqual(result.returncode, 0, result.stderr)
         return output.read_bytes()
 
@@ -559,6 +559,16 @@ class TransactionTests(unittest.TestCase):
             self.assertTrue(fields[7].startswith("Package rejected: "), fields)
             self.assertFalse(staging.exists())
             self.assertFalse((self.root / "state/forged").exists())
+            # A payload for nbt-runner on a manager without one (a slot staged
+            # from a step release): `runner` is not served, so it is refused.
+            from test_app_host import payload_with_note
+            guest = self.package_for("guest", payload=payload_with_note(mode=2),
+                                     extra=("--bridge", "1.7", "--bridge-uses", "runner"))
+            self.assertEqual(upload(guest)[0], 202)
+            fields = settled(command)
+            self.assertEqual(fields[1], "5")
+            self.assertTrue(fields[7].startswith("Package rejected: ") and "runner" in fields[7], fields)
+            self.assertFalse((self.root / "state/guest").exists())
             # A new application signed with the apps key: verified, nothing
             # installed until it is approved, then installed from scratch.
             other = self.package_for("other")
@@ -609,7 +619,7 @@ class TransactionTests(unittest.TestCase):
             calls = firewall.read_text().splitlines()
             self.assertEqual(calls[0], "close", calls)
             opens, closes = calls[1::2], calls[2::2]
-            self.assertEqual(len(opens), 7, calls)  # seven sessions above
+            self.assertEqual(len(opens), 8, calls)  # eight sessions above
             self.assertTrue(all(re.fullmatch(r"open lo 127\.0\.0\.1 [1-9][0-9]*", line) for line in opens), calls)
             self.assertEqual(closes, ["close"] * len(opens), calls)
         finally:

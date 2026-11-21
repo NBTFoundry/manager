@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/phone_routes.hpp"
 #include "nbt/app_settings.h"
+#include "nbt/manager_refresh.h"
+#include "nbt/manager_store.h"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
 #include "nbt/worker/autostart_request.hpp"
@@ -108,6 +110,32 @@ int phoneSettings(Worker &worker, const char *body, bool setting, core::Span<cha
         out[used] = 0;
     }
     return 200;
+}
+int phoneManager(Worker &worker, core::Span<char> out) {
+    nbt_fs *fs = worker.root().legacy();
+    nbt_manager_state state;
+    char version[49];
+    if (nbt_manager_store_inspect(fs, &state) || nbt_manager_launcher_current(fs, version) < 0) {
+        return 503;
+    }
+    // The formats a phone update can use: the stable launcher stages it
+    // (manager_upload.cpp); NBTRLS1 needs nothing from it.
+    char formats[32] = "NBTRLS1";
+    for (unsigned format = 2; format <= 3; ++format) {
+        char name[8];
+        snprintf(name, sizeof(name), "NBTRLS%u", format);
+        const int supported = nbt_manager_launcher_supports_format(fs, name);
+        if (supported < 0) {
+            return 503;
+        }
+        if (supported) {
+            const size_t used = strlen(formats);
+            snprintf(formats + used, sizeof(formats) - used, ",%s", name);
+        }
+    }
+    const int n = snprintf(out.data(), out.size(), "MANAGER\t%s\t%llu\t%s\n", version,
+                           static_cast<unsigned long long>(state.active.sequence), formats);
+    return n > 0 && static_cast<size_t>(n) < out.size() ? 200 : 500;
 }
 } // namespace worker
 } // namespace nbt

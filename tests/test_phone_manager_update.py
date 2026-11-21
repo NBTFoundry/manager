@@ -171,6 +171,20 @@ class PhoneManagerUpdateTests(unittest.TestCase):
         self.assertEqual(reply[1], '5')
         self.assertEqual(reply[-1], 'Package rejected: update NBT Manager once with the installer first')
 
+    def test_the_phone_reads_the_installed_manager_and_the_formats_it_takes(self):
+        # The installed launcher here is a stand-in that cannot run: NBTRLS1 only.
+        self.assertEqual(self.phone.request(self.host, 'GET', '/v1/manager'),
+                         (200, b'MANAGER\tv2\t2\tNBTRLS1\n'))
+        # A launcher that lists every format.
+        launcher = self.root / 'manager/nbt-manager-launcher'
+        shutil.copyfile(BUILD / 'launcher-host', launcher)
+        launcher.chmod(0o700)
+        self.assertEqual(self.phone.request(self.host, 'GET', '/v1/manager'),
+                         (200, b'MANAGER\tv2\t2\tNBTRLS1,NBTRLS2,NBTRLS3\n'))
+        # An installed release that no longer verifies.
+        (self.root / 'trust/manager.pem').write_bytes((self.path / 'other.pub').read_bytes())
+        self.assertEqual(self.phone.request(self.host, 'GET', '/v1/manager')[0], 503)
+
     def test_launcher_capabilities_cli(self):
         res = run(BUILD / 'launcher-host', '--capabilities')
         self.assertEqual(res.returncode, 0, res.stderr)

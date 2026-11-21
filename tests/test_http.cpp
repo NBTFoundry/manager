@@ -69,6 +69,15 @@ static bool run() {
     TEST_CHECK(!strcmp(path(LogsManager), "/v1/logs/manager"));
     snprintf(text, sizeof(text), "GET /v1/logs/app HTTP/1.1\r\nHost: car\r\n%s\r\n", auth);
     TEST_CHECK(parse(text, request) == Invalid);
+    // The installed manager: a GET with no body (PROTOCOL.md).
+    snprintf(text, sizeof(text), "GET /v1/manager HTTP/1.1\r\nHost: car\r\n%s\r\n", auth);
+    TEST_CHECK(parse(text, request) == Complete && request.route == Manager);
+    TEST_CHECK(!strcmp(path(Manager), "/v1/manager"));
+    snprintf(text, sizeof(text),
+             "POST /v1/manager HTTP/1.1\r\nHost: car\r\n%sContent-Length: 0\r\n"
+             "Content-Type: text/plain\r\n\r\n",
+             auth);
+    TEST_CHECK(parse(text, request) == Invalid);
     snprintf(text, sizeof(text),
              "POST /v1/logs/app HTTP/1.1\r\nHost: car\r\nContent-Length: 5\r\n"
              "Content-Type: text/plain\r\n\r\n");
