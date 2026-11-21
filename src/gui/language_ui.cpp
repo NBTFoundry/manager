@@ -112,16 +112,25 @@ const char *settingLabel(const UiController &ui, const nbt_setting &setting) {
         if (!strcmp(setting.key, "release")) {
             return text(T_SETTING_RELEASE);
         }
+        if (!strcmp(setting.key, "native_audio")) {
+            return text(T_SETTING_NATIVE_AUDIO);
+        }
     }
     return setting.label;
 }
 
 const char *settingChoice(const UiController &ui, const char *choice) {
-    if (ui.managerSettings() && !strcmp(choice, "on")) {
-        return text(T_VALUE_ON);
-    }
-    if (ui.managerSettings() && !strcmp(choice, "off")) {
-        return text(T_VALUE_OFF);
+    static const struct {
+        const char *choice;
+        TextId text;
+    } kChoices[] = {{"on", T_VALUE_ON},
+                    {"off", T_VALUE_OFF},
+                    {"interrupt", T_VALUE_AUDIO_INTERRUPT},
+                    {"media", T_VALUE_AUDIO_MEDIA}};
+    for (size_t i = 0; ui.managerSettings() && i < sizeof(kChoices) / sizeof(kChoices[0]); ++i) {
+        if (!strcmp(choice, kChoices[i].choice)) {
+            return text(kChoices[i].text);
+        }
     }
     return choice;
 }

@@ -5,9 +5,9 @@
 running = 実行中
 settings = 設定
 no_apps = アプリはインストールされていません
-menu_hint = 押して起動、長押しで設定
+menu_hint = 押して起動、長押しで停止、OPTIONで設定
 app_settings = {1} の設定
-keep_holding = 押し続けると開きます
+keep_holding = 押し続けると停止します
 loading_apps = アプリを読み込み中
 starting = 起動中
 recovered = エラーから復旧しました
@@ -34,6 +34,9 @@ back = 戻る
 setting_debug_log = デバッグログ
 setting_invert = ノブの回転を反転
 setting_release = コントローラーを戻す
+setting_native_audio = ネイティブオーディオ
+value_audio_interrupt = 割り込み（最低 25）
+value_audio_media = メディアソース
 value_on = オン
 value_off = オフ
 

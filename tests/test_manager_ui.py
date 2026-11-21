@@ -164,13 +164,14 @@ class ManagerUiTests(unittest.TestCase):
         self.fail(f"Expected screen {screen}: {view.text()}")
 
     def pair_phone(self):
-        # Settings is the main menu's last item; Pair a phone follows its three
+        # Settings is the main menu's last item; Pair a phone follows its four
         # settings and Language.
         view = self.send("down", "down", "down", "select")
         self.assertEqual(view.screen, SETTINGS, view.text())
-        self.assertEqual(view.items[3:], ["Language: Automatic (English)", "Pair a phone",
+        self.assertEqual(view.items[3:], ["Native audio: Interrupting (at least 25)",
+                                          "Language: Automatic (English)", "Pair a phone",
                                           "Paired phones", "Status"])
-        view = self.send("down", "down", "down", "down", "select", "address", "link")
+        view = self.send("down", "down", "down", "down", "down", "select", "address", "link")
         self.assertEqual(view.screen, PAIRING, view.text())
         self.assertTrue(self.link.startswith("WIFI:T:WPA;"))
         self.assertNotIn("http", self.link)
@@ -197,9 +198,7 @@ class ManagerUiTests(unittest.TestCase):
         self.pair_phone()
         view = self.upload_review()
         self.assertIn("Installed: v1, new: v2", view.lines)
-        view = self.send("down", "select")
-        self.assertEqual((view.screen, view.focus), (CONFIRM, 0))
-        view = self.send("down", "select")
+        view = self.send("down", "select")  # Install: the one confirmation
         if view.screen != RESULT:
             view = self.until(RESULT)
         self.assertIn("Update failed", view.lines)
@@ -242,7 +241,7 @@ class ManagerUiTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         view = self.upload_review(package.read_bytes())
         self.assertEqual(view.items, ["Reject", "Install"])
-        view = self.send("down", "select", "down", "select")
+        view = self.send("down", "select")
         if view.screen != RESULT:
             view = self.until(RESULT)
         self.assertIn("Update installed", view.lines)
@@ -281,7 +280,7 @@ class ManagerUiTests(unittest.TestCase):
         # Settings > Status (its last item), then the gamepad test, each frame
         # drawn by the renderer; BACK returns to Status, then to Settings.
         view = self.send("down", "down", "down", "select")
-        view = self.send("down", "down", "down", "down", "down", "down", "select")
+        view = self.send("down", "down", "down", "down", "down", "down", "down", "select")
         self.assertEqual((view.screen, view.title), (STATUS, "Status"), view.text())
         self.assertEqual(view.items, ["Test the gamepad"])
         self.assertIn("Last error: none since the manager opened", view.lines)
@@ -292,7 +291,7 @@ class ManagerUiTests(unittest.TestCase):
         view = self.send("back")
         self.assertEqual(view.screen, STATUS, view.text())
         view = self.send("back")
-        self.assertEqual((view.screen, view.focus), (SETTINGS, 6), view.text())
+        self.assertEqual((view.screen, view.focus), (SETTINGS, 7), view.text())
         self.send("back")
         self.finish()
 
@@ -346,15 +345,15 @@ class ManagerUiTests(unittest.TestCase):
             view = self.send("select")
             self.assertEqual(view.exit, 0, view.text())
             self.assertIn("test is already running", view.lines)
-            # Holding the push opens its settings: Start with the car, App shortcut, then
+            # OPTION opens its settings: Start with the car, App shortcut, then
             # stopping it.
-            view = self.send("hold")
+            view = self.send("option")
             self.assertEqual((view.screen, view.title, view.items),
                              (SETTINGS, "test settings",
                               ["Start with the car: off", "App shortcut: off", "Stop test",
                                "Uninstall test"]))
             self.assertFalse(view.modal_title)
-            view = self.send("release", "select")
+            view = self.send("select")
             for _ in range(10):
                 if view.items[0] == "Start with the car: on":
                     break

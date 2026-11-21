@@ -84,6 +84,9 @@ bool GamepadInput::apply(UiController &ui, const nbt_gamepad_wire_state &state, 
     if (e.pressed & NBT_GAMEPAD_MENU) {
         (void)ui.home();
     }
+    if (e.pressed & NBT_GAMEPAD_NORTH) { // Y / Triangle: the controller's OPTION
+        (void)ui.press(KeyOption);
+    }
     if (e.pressed & NBT_GAMEPAD_SOUTH) {
         (void)ui.press(KeySelect);
         selecting_ = true;

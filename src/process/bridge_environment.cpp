@@ -2,6 +2,7 @@
 #include "nbt/process/bridge_environment.hpp"
 #include "nbt/gui/hmi_hold.hpp"
 #include "nbt/log.h"
+#include "nbt/manager_settings.h"
 #include "nbt/storage/files_root.hpp"
 #include <errno.h>
 #include <stdio.h>
@@ -61,6 +62,14 @@ size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridg
     }
     if (user && bridge && bridge->net[0] && nbt_bridge_cap_has(grant.caps, "net")) {
         snprintf(out->text[count], sizeof(out->text[0]), "NBT_NET=%s", bridge->net);
+        out->list[count] = out->text[count];
+        ++count;
+    }
+    // The manager's native_audio setting: the SDK's audio route, and an
+    // application's own player, build this connection instead of their default.
+    if (user && fs && nbt_manager_native_audio(const_cast<nbt_fs *>(fs))) {
+        snprintf(out->text[count], sizeof(out->text[0]), "NBT_AUDIO_CONN=0x%x",
+                 NBT_NATIVE_AUDIO_MEDIA_CONN);
         out->list[count] = out->text[count];
         ++count;
     }

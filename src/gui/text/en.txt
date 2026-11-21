@@ -7,9 +7,9 @@
 running = running
 settings = Settings
 no_apps = No applications installed
-menu_hint = Push to start; hold for settings
+menu_hint = Push to start, hold to stop; OPTION for settings
 app_settings = {1} settings
-keep_holding = Keep holding to open them
+keep_holding = Keep holding to stop it
 loading_apps = Loading applications
 starting = Starting
 recovered = recovered from a fault
@@ -36,6 +36,9 @@ back = Back
 setting_debug_log = Debug log
 setting_invert = Invert knob
 setting_release = Hand back controller
+setting_native_audio = Native audio
+value_audio_interrupt = Interrupting (at least 25)
+value_audio_media = Media source
 value_on = on
 value_off = off
 

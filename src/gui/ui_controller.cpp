@@ -254,7 +254,8 @@ int UiController::readInputFd(int fd, bool apply) {
         const char *name;
     } kNames[] = {{NBT_INPUT_UP, "up"},         {NBT_INPUT_DOWN, "down"},
                   {NBT_INPUT_SELECT, "select"}, {NBT_INPUT_BACK, "back"},
-                  {NBT_INPUT_HOME, "menu"},     {NBT_INPUT_RELEASE, "release"}};
+                  {NBT_INPUT_HOME, "menu"},     {NBT_INPUT_RELEASE, "release"},
+                  {NBT_INPUT_OPTION, "option"}};
     unsigned char byte = 0;
     ssize_t n = 0;
     int count = 0;
@@ -271,11 +272,12 @@ int UiController::readInputFd(int fd, bool apply) {
             continue;
         }
         if (byte == NBT_INPUT_UP || byte == NBT_INPUT_DOWN || byte == NBT_INPUT_SELECT ||
-            byte == NBT_INPUT_BACK) {
+            byte == NBT_INPUT_BACK || byte == NBT_INPUT_OPTION) {
             press(byte == NBT_INPUT_UP       ? KeyUp
                   : byte == NBT_INPUT_DOWN   ? KeyDown
                   : byte == NBT_INPUT_SELECT ? KeySelect
-                                             : KeyBack);
+                  : byte == NBT_INPUT_BACK   ? KeyBack
+                                             : KeyOption);
         } else if (byte == NBT_INPUT_HOME) {
             home();
         } else if (byte == NBT_INPUT_RELEASE) {

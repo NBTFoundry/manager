@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-    static const char letters[] = "?UDSBHR";
+    static const char letters[] = "?UDSBHRO";
     int fd, idle_ms;
     if (argc != 3) {
         return 2;

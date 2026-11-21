@@ -5,6 +5,7 @@
 
 #include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
+#include "nbt/gui/menu_keys.hpp"
 #include "nbt/gui/phone_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/setup_ui.hpp"
@@ -23,20 +24,12 @@ bool polling(const UiController &ui) {
            ui.screen == Progress || (ui.screen == Apps && ui.stopping) || filesPolling(ui);
 }
 
-void advanceHold(UiController &ui, uint64_t nowMs) {
-    if (!ui.holding || ui.holdFired || ui.screen != Apps || ui.holdIndex >= ui.appCount ||
-        ui.queued || ui.outstanding || nowMs < ui.holdMs || nowMs - ui.holdMs < kHoldMs) {
-        return;
-    }
-    ui.holdFired = 1;
-    ui.holding = 0;
-    strcpy(ui.settingsApp, ui.apps[ui.holdIndex]);
-    ui.queued = R_SETTINGS;
-}
-
 } // namespace
 
 int UiController::press(Key key) {
+    if (key == KeyOption) {
+        return optionKey(*this);
+    }
     if (key != KeyUp && key != KeyDown && key != KeySelect && key != KeyBack) {
         return -1;
     }
@@ -150,11 +143,15 @@ int UiController::press(Key key) {
             leaveSession(text(T_UPDATE_REJECTED));
             return 1;
         }
+        // Install is the one confirmation; an older version first shows its warning.
         recovery = focus == 2;
-        go(Confirm);
-        return 1;
+        if (recovery) {
+            go(Confirm);
+            return 1;
+        }
+        /* fall through */
     case Confirm:
-        if (key == KeyBack || focus == 0) {
+        if (screen == Confirm && (key == KeyBack || focus == 0)) {
             go(Review);
             return 1;
         }

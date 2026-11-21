@@ -4,9 +4,9 @@
 running = in esecuzione
 settings = Impostazioni
 no_apps = Nessuna applicazione installata
-menu_hint = Premi per avviare; tieni premuto per le impostazioni
+menu_hint = Premi: avvia, tieni premuto: arresta; OPTION: impostazioni
 app_settings = Impostazioni di {1}
-keep_holding = Tieni premuto per aprirle
+keep_holding = Tieni premuto per arrestarla
 loading_apps = Caricamento delle applicazioni
 starting = Avvio
 recovered = ripristinato dopo un errore
@@ -33,6 +33,9 @@ back = Indietro
 setting_debug_log = Log di debug
 setting_invert = Inverti la manopola
 setting_release = Restituisci il controller
+setting_native_audio = Audio nativo
+value_audio_interrupt = Interruzione (almeno 25)
+value_audio_media = Sorgente multimediale
 value_on = attivo
 value_off = disattivo
 

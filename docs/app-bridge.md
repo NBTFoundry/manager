@@ -8,8 +8,8 @@ iDrive, car data and the BMW plugin ABI. When a firmware needs different
 plugin code, the manager changes and applications do not.
 
 Managed applications ship no iDrive plugin of their own: the manager's menu
-starts them, holding the push opens their settings, and they are stopped
-there. Capabilities give an application more: coming to the front on request,
+starts them, the controller's OPTION key opens their settings, and holding
+the push on a running one stops it. Capabilities give an application more: coming to the front on request,
 a status label in the menu, live settings, MOST messages under a signed policy,
 a wired USB gamepad, the decoded iDrive controller and a folder of files.
 
@@ -104,6 +104,7 @@ how the manager provides each part.
 | Car data | car -> app | `car-data` (1.6): the iDrive car data named in the signed `bridge-cds` list, one file per name in `NBT_CDS_DIR` (6) |
 | Network | phone -> app | `net` (1.6): the signed `bridge-net` rules let in through the packet filter while it runs; `NBT_NET` (7) |
 | Runner | manager -> app | `runner` (1.7): a payload with the SDK's NBT ABI note runs under the release's `nbt-runner` (8) |
+| Audio connection | manager -> app | `NBT_AUDIO_CONN=0x1d0` for a user launch while the manager's `native_audio` setting is `media` (PROTOCOL.md, "Manager settings"); no capability: an application that plays sound builds that connection instead of its default (the SDK's audio route does) |
 
 Every name, path and format here belongs to one interface version; see
 "Versioning and dependencies".

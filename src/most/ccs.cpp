@@ -38,9 +38,14 @@ void key(unsigned char *state, int pressed, nbt_input input, nbt_input *out, siz
 
 void slotKey(unsigned char *slots, size_t slot, unsigned menu, unsigned back, int pressed,
              nbt_input *out, size_t max, size_t *count) {
-    const nbt_input input = slot == back   ? NBT_INPUT_BACK
-                            : slot == menu ? NBT_INPUT_HOME
-                                           : NBT_INPUT_NONE;
+    unsigned option = 0; // the first slot that is neither MENU nor BACK (nbt/ccs.h)
+    while (option == menu || option == back) {
+        ++option;
+    }
+    const nbt_input input = slot == back     ? NBT_INPUT_BACK
+                            : slot == menu   ? NBT_INPUT_HOME
+                            : slot == option ? NBT_INPUT_OPTION
+                                             : NBT_INPUT_NONE;
     key(&slots[slot], pressed, input, out, max, count);
 }
 

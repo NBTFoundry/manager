@@ -15,7 +15,9 @@ extern "C" {
 #endif
 
 /* NBT_INPUT_RELEASE: the controller push (SELECT) was let go, so a host can
- * tell a short push from a held one. */
+ * tell a short push from a held one. NBT_INPUT_OPTION: the OPTION key, the
+ * first hard key slot that is neither MENU nor BACK (slot 2 by default; BMW's
+ * order is MENU BACK OPTION COM MEDIA NAV MAP, as the controller feed's). */
 typedef enum {
     NBT_INPUT_NONE,
     NBT_INPUT_UP,
@@ -23,7 +25,8 @@ typedef enum {
     NBT_INPUT_SELECT,
     NBT_INPUT_BACK,
     NBT_INPUT_HOME,
-    NBT_INPUT_RELEASE
+    NBT_INPUT_RELEASE,
+    NBT_INPUT_OPTION
 } nbt_input;
 
 /* Hard key slots: the byte index in CCS35up 0xC47/0xC4F, the sensor bit in
@@ -64,8 +67,8 @@ void nbt_ccs_init(nbt_ccs *ccs, const nbt_ccs_config *config);
 /* Feeds one message and writes at most `max` inputs; returns how many. Each
  * input is one action, taken on press: a clockwise detent moves down, a push
  * selects (and its release is reported), up/down tilts move, BACK or a left
- * tilt goes back and MENU goes home. A right tilt and other hard keys are
- * ignored. */
+ * tilt goes back, MENU goes home and OPTION is reported. A right tilt and
+ * other hard keys are ignored. */
 size_t nbt_ccs_feed(nbt_ccs *ccs, unsigned fblock, unsigned inst, unsigned fkt, unsigned op,
                     const unsigned char *data, size_t length, nbt_input *out, size_t max);
 /* Forgets positions and held keys after a lost link. */

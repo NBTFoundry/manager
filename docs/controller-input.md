@@ -71,6 +71,8 @@ flowchart LR
 | Tilt up / down | Up / Down |
 | Tilt left, BACK key | Back |
 | MENU key | Leave the manager (refused while installing) |
+| OPTION key (the first hard key slot that is neither MENU nor BACK: slot 2 by default) | An application's settings, on the main menu |
+| Push held 1.5 s on a running application | Stop it (held on one that does not run: nothing) |
 | Tilt right, other keys | Ignored |
 
 CCS35up controllers (default instance `0x03`) send rotary/push/tilt state in

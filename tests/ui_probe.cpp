@@ -123,6 +123,8 @@ int main(int argc, char **argv) {
                     goto done;
                 }
             }
+        } else if (!strcmp(line, "option")) {
+            ui.press(nbt::gui::KeyOption);
         } else if (!strcmp(line, "release")) {
             ui.release(nbt::gui::KeySelect);
         } else if (!strcmp(line, "back")) {

@@ -167,7 +167,11 @@ static void exchange(UiController *ui, const char *expected, const char *reply) 
 static void idle(UiController *ui) {
     char command[nbt::gui::kCommandMax];
     unsigned timeout = 0;
-    CHECK(nextRequest(ui, now, command, sizeof(command), &timeout) == 0);
+    const int requested = nextRequest(ui, now, command, sizeof(command), &timeout);
+    if (requested) {
+        fprintf(stderr, "idle: got '%s' on screen %d\n", command, static_cast<int>(ui->screen));
+    }
+    CHECK(requested == 0);
 }
 
 static void poll_status(UiController *ui, const char *reply) {
@@ -219,9 +223,11 @@ static void press(UiController *ui, Key key, int expected) {
     "\trelease|Hand back controller|off|off,on"
 #define TEST_SETTINGS "SETTINGS\t1\trestart\tbackground|Background color|blue|blue,red,green,black"
 
-/* Holds the push on the focused application until its settings are asked for. */
-static void hold(UiController *ui, const char *command, const char *reply) {
-    press(ui, nbt::gui::KeySelect, 1);
+/* OPTION on the focused application: its settings are asked for. The clock
+ * moves on as it did for the hold that opened them before (tests that follow
+ * count on it). */
+static void options(UiController *ui, const char *command, const char *reply) {
+    press(ui, nbt::gui::KeyOption, 1);
     now += nbt::gui::kHoldMs;
     exchange(ui, command, reply);
 }
@@ -307,7 +313,7 @@ static void test_main_menu_and_banner(void) {
     /* The manager's own actions are drawn apart from the applications. */
     CHECK(v.itemStyle[0] == nbt::gui::ItemEntry && v.itemStyle[2] == nbt::gui::ItemEntry);
     CHECK(v.itemStyle[3] == nbt::gui::ItemAction);
-    CHECK(view_contains(&ui, "Push to start; hold for settings"));
+    CHECK(view_contains(&ui, "Push to start, hold to stop; OPTION for settings"));
     /* Settings opens the manager's own settings, under its own banner. */
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeyDown, 1);
@@ -460,7 +466,7 @@ static void test_application_needing_an_update(void) {
     exchange(&ui, "START demo", "ERR incompatible");
     CHECK(!wantsExit(&ui) && view_contains(&ui, "demo needs an update for this manager"));
     exchange(&ui, "RUNNING status", "RUNNING\t0");
-    hold(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart+update");
+    options(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart+update");
     CHECK(ui.screen == nbt::gui::Settings && ui.settingsUpdate);
     CHECK(view_contains(&ui, "demo needs an update for this manager") &&
           view_contains(&ui, "Uninstall demo"));
@@ -496,7 +502,7 @@ static void test_push_starts(void) {
 
     loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t0");
     press(&ui, nbt::gui::KeySelect, 1);
-    /* Let go just before the hold would open the settings: it starts. */
+    /* Let go just before the hold ends: it starts. */
     now += nbt::gui::kHoldMs - 1;
     idle(&ui);
     CHECK(ui.screen == nbt::gui::Apps && view(&ui).progress == -1);
@@ -518,11 +524,25 @@ static void test_push_starts(void) {
     idle(&ui);
 }
 
-static void test_hold_opens_settings(void) {
+static void test_hold_stops_and_option_opens_settings(void) {
     UiController ui;
     UiView v;
     uint64_t pressed;
     loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t1\ttest");
+    /* Holding the push on an application that does not run shows nothing, and
+     * letting go then starts nothing. */
+    idle(&ui);
+    pressed = now;
+    press(&ui, nbt::gui::KeySelect, 1);
+    now = pressed + nbt::gui::kHoldMs / 2;
+    idle(&ui);
+    CHECK(!view(&ui).modal.shown);
+    now = pressed + nbt::gui::kHoldMs;
+    exchange(&ui, "RUNNING status", "RUNNING\t1\ttest"); /* the usual poll, nothing else */
+    CHECK(!ui.holding && !ui.queued && ui.screen == nbt::gui::Apps);
+    CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 0 && !ui.queued);
+    /* On a running one, after half a second a dialog over the menu fills a bar
+     * until it is stopped. */
     press(&ui, nbt::gui::KeyDown, 1);
     idle(&ui);
     pressed = now;
@@ -530,15 +550,22 @@ static void test_hold_opens_settings(void) {
     now = pressed + nbt::gui::kHoldShowMs - 1;
     idle(&ui);
     CHECK(!view(&ui).modal.shown && view(&ui).progress == -1);
-    /* After half a second a dialog over the menu fills a bar until the settings open. */
     now = pressed + nbt::gui::kHoldMs / 2;
     idle(&ui);
     v = view(&ui);
-    CHECK(v.modal.shown && v.modal.progress == 50 && !strcmp(v.modal.title, "test settings"));
-    CHECK(!strcmp(v.modal.text, "Keep holding to open them") && !v.modal.itemCount &&
+    CHECK(v.modal.shown && v.modal.progress == 50 && !strcmp(v.modal.title, "Stop test"));
+    CHECK(!strcmp(v.modal.text, "Keep holding to stop it") && !v.modal.itemCount &&
           v.progress == -1);
     CHECK(!strcmp(v.title, "NBT App Manager dev") && v.focus == 1 && v.itemCount == 3);
     now = pressed + nbt::gui::kHoldMs;
+    exchange(&ui, "STOP test", "OK");
+    CHECK(ui.screen == nbt::gui::Apps && view_contains(&ui, "Stopping test"));
+    CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 0 && !ui.queued); /* starts nothing */
+    poll_status(&ui, "STATUS\t0\ttest\tv1\t-\t0\t-\tApplication stopped");
+    CHECK(ui.screen == nbt::gui::Apps && view_contains(&ui, "test stopped"));
+    exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
+    /* OPTION opens the focused application's settings. */
+    press(&ui, nbt::gui::KeyOption, 1);
     exchange(&ui, "SETTINGS test live", TEST_SETTINGS);
     v = view(&ui);
     /* A running application's settings: its own, Start with the car, App shortcut, then
@@ -553,14 +580,14 @@ static void test_hold_opens_settings(void) {
           v.itemStyle[2] == nbt::gui::ItemEntry && v.itemStyle[3] == nbt::gui::ItemAction &&
           v.itemStyle[4] == nbt::gui::ItemAction && v.focus == 0);
     CHECK(view_contains(&ui, "Changes apply when test next starts"));
-    /* Letting go after the hold starts nothing. */
-    CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 0 && !ui.queued);
+    /* OPTION does nothing on the settings page. */
+    press(&ui, nbt::gui::KeyOption, 0);
     /* BACK returns to the main menu, on the application. */
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 1);
     exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
     /* Stopping is an entry like the settings. */
-    hold(&ui, "SETTINGS test live", TEST_SETTINGS);
+    options(&ui, "SETTINGS test live", TEST_SETTINGS);
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeyDown, 1);
@@ -588,7 +615,7 @@ static void test_hold_opens_settings(void) {
     CHECK(!strcmp(view(&ui).items[1], "test"));
     /* Nothing to set and not running: Start with the car and Uninstall; BACK leaves. */
     press(&ui, nbt::gui::KeyUp, 1);
-    hold(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
+    options(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
     v = view(&ui);
     CHECK(!strcmp(v.title, "demo settings") && view_contains(&ui, "demo has no settings"));
     CHECK(v.itemCount == 3 && !strcmp(v.items[0], "Start with the car: off") &&
@@ -634,9 +661,7 @@ static void test_new_application(void) {
     CHECK(!strcmp(view(&ui).title, "Review new application") && view_contains(&ui, "Version v2") &&
           view(&ui).itemCount == 2); /* no "even if older" for a new application */
     press(&ui, nbt::gui::KeyDown, 1);
-    press(&ui, nbt::gui::KeySelect, 1);
-    press(&ui, nbt::gui::KeyDown, 1);
-    press(&ui, nbt::gui::KeySelect, 1);
+    press(&ui, nbt::gui::KeySelect, 1); /* Install: the one confirmation */
     snprintf(approve, sizeof(approve), "APPROVE %s normal", DIGEST_A);
     exchange(&ui, approve, "OK installing");
     poll_status(&ui, "STATUS\t4\ttest\tv2\t-\t0\t-\tApplication installed");
@@ -660,7 +685,7 @@ static void test_uninstall(void) {
     UiController ui;
     UiView v;
     loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t0");
-    hold(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
+    options(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
     /* Uninstall (after Start with the car and App shortcut) asks first, with No focused. */
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeyDown, 1);
@@ -709,7 +734,7 @@ static void test_uninstall(void) {
 static void test_stop_failures(void) {
     UiController ui;
     loaded(&ui, "APPS\t1\ttest", "RUNNING\t1\ttest");
-    hold(&ui, "SETTINGS test live", "SETTINGS\t0\trestart");
+    options(&ui, "SETTINGS test live", "SETTINGS\t0\trestart");
     CHECK(view(&ui).itemCount == 4 && !strcmp(view(&ui).items[2], "Stop test"));
     CHECK(view_contains(&ui, "test has no settings"));
     press(&ui, nbt::gui::KeyDown, 1);
@@ -726,7 +751,7 @@ static void test_stop_failures(void) {
     /* Unreadable settings leave the main menu with a message. */
     press(&ui, nbt::gui::KeyBack, 1);
     exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
-    hold(&ui, "SETTINGS test live", "ERR settings");
+    options(&ui, "SETTINGS test live", "ERR settings");
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 0 &&
           view_contains(&ui, "Cannot read test settings"));
     exchange(&ui, "RUNNING status", "RUNNING\t1\ttest");
@@ -754,18 +779,11 @@ static void test_install_flow(void) {
     /* What the driver can act on, and nothing internal (no hash, no sequence). */
     CHECK(view_contains(&ui, "Installed: v1, new: v2") && !view_contains(&ui, "01234567") &&
           !view_contains(&ui, "sequence") && view(&ui).itemCount == 3);
+    /* Install is the one confirmation: no second screen. */
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
-    CHECK(ui.screen == nbt::gui::Confirm && ui.focus == 0 &&
-          !strcmp(view(&ui).title, "Confirm install") && ui.updating());
-    press(&ui, nbt::gui::KeySelect, 1); /* "No" returns to review */
-    CHECK(ui.screen == nbt::gui::Review);
-    press(&ui, nbt::gui::KeyDown, 1);
-    press(&ui, nbt::gui::KeySelect, 1);
-    press(&ui, nbt::gui::KeyDown, 1);
-    press(&ui, nbt::gui::KeyDown, 0);
-    press(&ui, nbt::gui::KeySelect, 1);
-    CHECK(ui.screen == nbt::gui::Progress && view_contains(&ui, "Installing test v2"));
+    CHECK(ui.screen == nbt::gui::Progress && view_contains(&ui, "Installing test v2") &&
+          ui.updating());
     CHECK(installing(&ui) && home(&ui) == 0 && !wantsExit(&ui));
     snprintf(approve, sizeof(approve), "APPROVE %s normal", DIGEST_A);
     exchange(&ui, approve, "OK installing");
@@ -826,9 +844,7 @@ static void test_package_change_requires_new_review(void) {
     char command[nbt::gui::kCommandMax];
     unsigned timeout;
     verified_review(&ui, DIGEST_A);
-    press(&ui, nbt::gui::KeyDown, 1);
-    press(&ui, nbt::gui::KeySelect, 1);
-    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeyDown, 1); /* on Install */
     poll_status(&ui,
                 "STATUS\t2\ttest\tv1\tv3\t3\t" DIGEST_B "\tPackage verified; approve in iDrive");
     CHECK(ui.screen == nbt::gui::Review && ui.focus == 0 && !strcmp(ui.review.digest, DIGEST_B));
@@ -839,14 +855,12 @@ static void test_package_change_requires_new_review(void) {
     CHECK(ui.screen == nbt::gui::Result);
     exchange(&ui, "CANCEL", "OK");
 
-    /* A reply that arrives after the user confirmed must cancel the approval. */
+    /* A reply that arrives while the user confirms must cancel the approval. */
     verified_review(&ui, DIGEST_A);
     press(&ui, nbt::gui::KeyDown, 1);
-    press(&ui, nbt::gui::KeySelect, 1);
     now += nbt::gui::kPollMs;
     CHECK(nextRequest(&ui, now, command, sizeof(command), &timeout) == 1 &&
           !strcmp(command, "STATUS"));
-    press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 0); /* busy while the poll is outstanding */
     CHECK(replyUi(&ui, "STATUS\t0\t-\t-\t-\t0\t-\tSession closed", now) == 0);
     CHECK(ui.screen == nbt::gui::Result);
@@ -856,14 +870,10 @@ static void test_package_change_requires_new_review(void) {
     /* Confirmation re-checks the last reported package. */
     verified_review(&ui, DIGEST_A);
     press(&ui, nbt::gui::KeyDown, 1);
-    press(&ui, nbt::gui::KeySelect, 1);
-    press(&ui, nbt::gui::KeyDown, 1);
     strcpy(ui.status.digest, DIGEST_B);
     press(&ui, nbt::gui::KeySelect, 1);
     CHECK(ui.screen == nbt::gui::Review && !strcmp(ui.review.digest, DIGEST_B));
     idle(&ui);
-    press(&ui, nbt::gui::KeyDown, 1);
-    press(&ui, nbt::gui::KeySelect, 1);
     press(&ui, nbt::gui::KeyDown, 1);
     ui.status.state = 0;
     press(&ui, nbt::gui::KeySelect, 1);
@@ -1179,9 +1189,9 @@ static void test_app_settings(void) {
     UiView v;
     loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t0");
     press(&ui, nbt::gui::KeyDown, 1);
-    hold(&ui, "SETTINGS test live",
-         "SETTINGS\t2\trestart\tbackground|Background color|blue|blue,red,green,black"
-         "\tsize|Text size|small|small,large");
+    options(&ui, "SETTINGS test live",
+            "SETTINGS\t2\trestart\tbackground|Background color|blue|blue,red,green,black"
+            "\tsize|Text size|small|small,large");
     v = view(&ui);
     CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "test settings") && v.itemCount == 5);
     CHECK(!strcmp(v.items[0], "Background color: blue") &&
@@ -1239,9 +1249,11 @@ static void test_app_settings(void) {
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "SET manager debug_log on", "OK");
     exchange(&ui, "SETTINGS manager live",
-             "SETTINGS\t3\trestart\tdebug_log|Debug log|on|off,on\tinvert|Invert knob|off|off,on"
-             "\trelease|Hand back controller|off|off,on");
-    CHECK(!strcmp(view(&ui).items[0], "Debug log: on"));
+             "SETTINGS\t4\trestart\tdebug_log|Debug log|on|off,on\tinvert|Invert knob|off|off,on"
+             "\trelease|Hand back controller|off|off,on"
+             "\tnative_audio|Native audio|media|interrupt,media");
+    CHECK(!strcmp(view(&ui).items[0], "Debug log: on") &&
+          !strcmp(view(&ui).items[3], "Native audio: Media source"));
     /* BACK returns to the main menu, on Settings. */
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 2);
@@ -1267,7 +1279,7 @@ static void test_app_settings(void) {
         }
         CHECK(used > 1024);
         loaded(&ui, "APPS\t1\ttest", "RUNNING\t1\ttest");
-        hold(&ui, "SETTINGS test live", reply);
+        options(&ui, "SETTINGS test live", reply);
         CHECK(ui.settings.count == 12 && view(&ui).itemCount == 16);
         CHECK(view_contains(&ui, "Changes apply at once"));
         for (i = 0; i < 11; ++i) {
@@ -1306,8 +1318,7 @@ static void test_app_settings(void) {
         size_t i;
         for (i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
             loaded(&ui, "APPS\t1\ttest", "RUNNING\t0");
-            press(&ui, nbt::gui::KeySelect, 1);
-            now += nbt::gui::kHoldMs;
+            press(&ui, nbt::gui::KeyOption, 1);
             {
                 char command[nbt::gui::kCommandMax];
                 unsigned timeout;
@@ -1580,10 +1591,8 @@ static void test_quarantine_unblock_and_abort_app(void) {
     CHECK(view_contains(&ui, "test blocked after faults"));
     exchange(&ui, "RUNNING status", "RUNNING\t0");
 
-    /* Hold opens Settings with Unblock test before Uninstall test (after Start with the car). */
-    press(&ui, nbt::gui::KeySelect, 1);
-    now += nbt::gui::kHoldMs;
-    exchange(&ui, "SETTINGS test live", "SETTINGS\t0\tlive");
+    /* OPTION opens Settings with Unblock test before Uninstall test (after Start with the car). */
+    options(&ui, "SETTINGS test live", "SETTINGS\t0\tlive");
     CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 4);
     CHECK(!strcmp(view(&ui).items[2], "Unblock test") &&
           !strcmp(view(&ui).items[3], "Uninstall test"));
@@ -1616,7 +1625,7 @@ static void test_autostart_setting(void) {
     UiController ui;
     UiView v;
     loaded(&ui, "APPS\t1\tdemo", "RUNNING\t1\tdemo");
-    hold(&ui, "SETTINGS demo live", TEST_SETTINGS);
+    options(&ui, "SETTINGS demo live", TEST_SETTINGS);
     v = view(&ui);
     CHECK(v.itemCount == 5 && !strcmp(v.items[1], "Start with the car: off") &&
           !strcmp(v.items[2], "App shortcut: off") && !strcmp(v.items[3], "Stop demo") &&
@@ -1679,8 +1688,7 @@ static void test_autostart_setting(void) {
     CHECK(!view_contains(&manager, "Start with the car"));
     UiController bad;
     loaded(&bad, "APPS\t1\tdemo", "RUNNING\t0");
-    press(&bad, nbt::gui::KeySelect, 1);
-    now += nbt::gui::kHoldMs;
+    press(&bad, nbt::gui::KeyOption, 1);
     {
         Request request;
         CHECK(bad.nextRequest(now, request) == 1 && !strcmp(request.command, "SETTINGS demo live"));
@@ -1693,7 +1701,7 @@ static void test_files_screens(void) {
     UiController ui;
     UiView v;
     loaded(&ui, "APPS\t1\tsnes", "RUNNING\t0");
-    hold(&ui, "SETTINGS snes live", "SETTINGS\t0\trestart+files");
+    options(&ui, "SETTINGS snes live", "SETTINGS\t0\trestart+files");
     v = view(&ui);
     CHECK(v.itemCount == 4 && !strcmp(v.items[0], "Start with the car: off") &&
           !strcmp(v.items[1], "App shortcut: off") && !strcmp(v.items[2], "Files") &&
@@ -1786,7 +1794,7 @@ static void test_files_screens(void) {
     }
     /* An application without files has no entry; sizes are written in the car's language. */
     loaded(&ui, "APPS\t1\tdemo", "RUNNING\t0");
-    hold(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
+    options(&ui, "SETTINGS demo live", "SETTINGS\t0\trestart");
     CHECK(view(&ui).itemCount == 3 &&
           !view_contains(&ui, "Files")); /* Start with the car, App shortcut, Uninstall */
     char size[32];
@@ -1805,7 +1813,7 @@ int main(void) {
     test_main_menu_and_banner();
     test_push_starts();
     test_application_needing_an_update();
-    test_hold_opens_settings();
+    test_hold_stops_and_option_opens_settings();
     test_stop_failures();
     test_uninstall();
     test_new_application();

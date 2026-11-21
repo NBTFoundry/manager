@@ -385,6 +385,14 @@ static void guiInput() {
     sendState();
     (void)input.poll(ui, 110, true);
     assert(ui.queued == nbt::gui::R_START); // short tap survives a single receive batch
+    // Y / Triangle is the controller's OPTION: the focused application's settings.
+    ui.queued = 0;
+    s.buttons = NBT_GAMEPAD_NORTH;
+    sendState();
+    s.buttons = 0;
+    sendState();
+    (void)input.poll(ui, 115, true);
+    assert(ui.queued == nbt::gui::R_SETTINGS && !strcmp(ui.settingsApp, "test"));
     // On the gamepad test the pad's buttons are shown, never acted on: B and
     // the D-pad do not leave, A selects nothing, Menu does not go home.
     ui.queued = 0;

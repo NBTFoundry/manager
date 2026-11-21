@@ -125,10 +125,10 @@ open(root + "/stopped", "w").close()
         import struct
         script = Path(self.tmp.name) / "controller"
         header = struct.pack("<IIIHHBBHB3xII", 0, 2, 0, 0x100, 0x5000, 0xE5, 3, 0xC47, 0xC, 0, 7)
-        # Pressing a key nothing uses (OPTIONS), then MENU.
+        # Pressing a key nothing uses (COM), then MENU.
         # Keys reach the GUI once it is shown (iDrive held); before, they are iDrive's.
         script.write_text("WAIT 500\n" + "\n".join((header + bytes(k)).hex() for k in
-                                                   ([0, 0, 1, 0, 0, 0, 0], [0] * 7, [1, 0, 0, 0, 0, 0, 0])) + "\n")
+                                                   ([0, 0, 0, 1, 0, 0, 0], [0] * 7, [1, 0, 0, 0, 0, 0, 0])) + "\n")
         env = dict(self.env, NBT_TEST_INPUT_LIBRARY=str(BUILD / "libfake_dsi.so"),
                    NBT_FAKE_DSI_SCRIPT=str(script), NBT_FAKE_DSI_LOG=str(Path(self.tmp.name) / "dsi.log"))
         started = time.monotonic()
@@ -253,10 +253,10 @@ open(root + "/stopped", "w").close()
             self.skipTest("sandbox blocks local socket traffic")
         left.close()
         right.close()
-        # MENU moved to slot 2: slot 0 (the default MENU) does nothing.
+        # MENU moved to slot 2 (OPTION is then slot 0): slot 1 does nothing.
         process, dsi_log = self.run_with_controller(
             "NBTCTL1\n# bench car\nknob_menu_slot=2\nknob_back_slot=5\ninstances=03,01,12\n",
-            ([1, 0, 0, 0, 0, 0, 0], [0] * 7))
+            ([0, 1, 0, 0, 0, 0, 0], [0] * 7))
         time.sleep(2)
         self.assertIsNone(process.poll())
         self.assertEqual(self.registered_instances(dsi_log), [0x03, 0x01, 0x12])
@@ -362,9 +362,9 @@ open(root + "/stopped", "w").close()
         debug = self.root / "manager" / "debug.log"
         debug.write_text("")
         debug.chmod(0o600)
-        # An unused key (slot 2), then MENU (slot 0) with an invalid config.
+        # An unused key (slot 3), then MENU (slot 0) with an invalid config.
         process, _ = self.run_with_controller("NBTCTL1\nknob_menu_slot=9\n",
-                                              ([0, 0, 1, 0, 0, 0, 0], [0] * 7, [1, 0, 0, 0, 0, 0, 0]))
+                                              ([0, 0, 0, 1, 0, 0, 0], [0] * 7, [1, 0, 0, 0, 0, 0, 0]))
         self.assertEqual(process.wait(timeout=10), 0)
         lines = debug.read_text().splitlines()
         self.assertTrue(all(re.fullmatch(r"\d+\.\d{3} gui\[\d+\] .+", line) for line in lines), lines)

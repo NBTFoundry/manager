@@ -177,7 +177,7 @@ With the debug log on and the test application installed
 
 | Action | Expected |
 | --- | --- |
-| Hold the push on the application; select **Start with the car** | The row reads "on"; `state/<app>/autostart` holds `enabled=1` |
+| OPTION on the application; select **Start with the car** | The row reads "on"; `state/<app>/autostart` holds `enabled=1` |
 | Switch the car off, wait for the head unit to sleep, start it again | About 25 s after iDrive's menu appears the application runs (its status label in the manager's menu) without the manager's screen opening; the debug log shows `launcher spawn begin (--autostart)` once |
 | Restart iDrive only (Settings > Status, or `OnOffDSICommander appreset`) | No second automatic start: `/dev/shmem/nbt-manager.autostart` is still there |
 | Install a test package that fails its start, with the row on; reboot three times | The fourth boot starts nothing; the page says it is paused; starting it once by hand resumes it |

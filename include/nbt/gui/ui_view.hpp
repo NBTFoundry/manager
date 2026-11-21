@@ -51,7 +51,7 @@ enum Screen {
     FileDelete,   // Delete <file>?
     UsbFiles,     // its files on USB sticks
 };
-enum Key { KeyUp, KeyDown, KeySelect, KeyBack };
+enum Key { KeyUp, KeyDown, KeySelect, KeyBack, KeyOption };
 enum ItemStyle { ItemEntry, ItemAction };
 
 const char *screenName(Screen screen);

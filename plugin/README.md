@@ -14,8 +14,8 @@ or writes `/dev/shmem/nbt-manager.shortcut` ("open", "start <app>"), and the
 plugin then opens the manager as for its own entry (`plugin/shortcut.cpp`,
 `src/worker/shortcut_dispatch.cpp`). The App Manager entry is the
 only iDrive plugin NBT Manager needs: managed applications do not ship their
-own. The manager's main menu starts them; holding the push on one opens its
-settings, declared in its signed package, and stops it (see `PROTOCOL.md`).
+own. The manager's main menu starts them; OPTION on one opens its settings,
+declared in its signed package, and holding the push stops it (see `PROTOCOL.md`).
 Applications that need more from iDrive (car data, the focus hold while they
 are shown) are to get it through the bridge, the documented car interface
 designed in `docs/app-bridge.md`, implemented by this plugin and the worker. Selecting it

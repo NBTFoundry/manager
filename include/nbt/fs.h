@@ -142,7 +142,11 @@ typedef enum {
     /* manager/slots/<n>/runner: nbt-runner from the slot's release (NBTRLS3),
      * which runs applications built without the QNX SDP. */
     NBT_FS_MANAGER_SLOT_RUNNER,
-    NBT_FS_MANAGER_SLOT_RUNNER_NEXT
+    NBT_FS_MANAGER_SLOT_RUNNER_NEXT,
+    /* manager/native-audio: the head unit's audio connection applications'
+     * sound uses (nbt/manager_settings.h), replaced through its .next. */
+    NBT_FS_MANAGER_NATIVE_AUDIO,
+    NBT_FS_MANAGER_NATIVE_AUDIO_NEXT
 } nbt_fs_path_kind;
 
 /* NBT_FS_APPEND opens an existing debug log (NBT_FS_MANAGER_LOG) for

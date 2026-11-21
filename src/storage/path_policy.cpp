@@ -54,6 +54,8 @@ const KindPath kManagerPaths[] = {
     {NBT_FS_MANAGER_LANGUAGE_NEXT, "manager/language.next"},
     {NBT_FS_MANAGER_SHORTCUTS, "manager/shortcuts"},
     {NBT_FS_MANAGER_SHORTCUTS_NEXT, "manager/shortcuts.next"},
+    {NBT_FS_MANAGER_NATIVE_AUDIO, "manager/native-audio"},
+    {NBT_FS_MANAGER_NATIVE_AUDIO_NEXT, "manager/native-audio.next"},
     {NBT_FS_MANAGER_LOG, "manager/debug.log"},
     {NBT_FS_MANAGER_LOG_OLD, "manager/debug.log.1"},
     {NBT_FS_MANAGER_CRASH, "manager/crash.gui"},
@@ -250,7 +252,8 @@ bool PathPolicy::canCreate(PathKind kind) {
            kind == NBT_FS_CAPTURE_STARTER_ORIG_NEXT || kind == NBT_FS_CAPTURE_TX_NEXT ||
            kind == NBT_FS_CAPTURE_PROBE || kind == NBT_FS_APP_LOG || kind == NBT_FS_HMI_ENV_NEXT ||
            kind == NBT_FS_SHIM_STATE_NEXT || kind == NBT_FS_CAPTURE_SHIM_NEXT ||
-           kind == NBT_FS_MANAGER_LANGUAGE_NEXT || kind == NBT_FS_MANAGER_SHORTCUTS_NEXT;
+           kind == NBT_FS_MANAGER_LANGUAGE_NEXT || kind == NBT_FS_MANAGER_SHORTCUTS_NEXT ||
+           kind == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT;
 }
 
 bool PathPolicy::canLock(PathKind kind) {
@@ -291,7 +294,8 @@ bool PathPolicy::canReplace(PathKind from, PathKind to) {
            (from == NBT_FS_MANAGER_CONTROLLER_CONFIG_NEXT &&
             to == NBT_FS_MANAGER_CONTROLLER_CONFIG) ||
            (from == NBT_FS_MANAGER_LANGUAGE_NEXT && to == NBT_FS_MANAGER_LANGUAGE) ||
-           (from == NBT_FS_MANAGER_SHORTCUTS_NEXT && to == NBT_FS_MANAGER_SHORTCUTS);
+           (from == NBT_FS_MANAGER_SHORTCUTS_NEXT && to == NBT_FS_MANAGER_SHORTCUTS) ||
+           (from == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT && to == NBT_FS_MANAGER_NATIVE_AUDIO);
 }
 
 bool PathPolicy::canRename(PathKind from, PathKind to, const char *app) {

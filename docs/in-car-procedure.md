@@ -201,22 +201,22 @@ shim stays off until a new one is installed or you use **Shim on**.
    the iDrive entry write to the head unit's debug log.
 2. Press **Install test application v1**. The log says it is installed. If it
    says the test application is already installed, uninstall it in the
-   manager first (hold the push on `test`, then **Uninstall test**) and press
+   manager first (OPTION on `test`, then **Uninstall test**) and press
    it again.
 
 ## 4. First start
 
 1. Select **App Manager** in iDrive. The NBT Manager window should appear
    within a few seconds. Its banner reads "NBT App Manager" and the version,
-   with "Push to start; hold for settings" under it; the menu lists `test`,
+   with "Push to start, hold to stop; OPTION for settings" under it; the menu lists `test`,
    then **Settings**. (A paired phone sends packages while this menu shows,
    and the car shows the review.)
 2. Turn the knob and tilt it. Focus should move in the manager, and nothing
    should happen in iDrive underneath.
-3. Hold the push on `test`: after half a second a dialog "test settings"
-   opens over the menu and its bar fills; at one and a half seconds "test
-   settings" opens with "Changes apply at once", "Background color: blue"
-   and "Use the controller: on". Let go: nothing starts. Push on the
+3. Hold the push on `test` (not running) for two seconds: nothing shows, and
+   letting go starts nothing. Press OPTION on `test`: "test settings" opens
+   with "Changes apply at once", "Background color: blue" and "Use the
+   controller: on". Push on the
    background, choose `green` and push: it now reads "Background color: green".
    Press BACK: the main menu, on `test`.
 4. Push on **Settings**: the banner changes to "Settings" and shows "Debug
@@ -244,7 +244,7 @@ background. With the controller, `test` ends on BACK or MENU, so for these
 steps it runs without the controller: it stays on screen until MENU puts
 iDrive back, and keeps running.
 
-8. Open the manager, hold the push on `test` and set **Use the controller**
+8. Open the manager, press OPTION on `test` and set **Use the controller**
    to `off`. Press BACK. Push on `test`: "TEST v1" shows on green, without
    "BACK TO EXIT". Press MENU: iDrive's menu returns.
 9. Open the manager: within a second the menu shows `test  (Hello v1)`.
@@ -253,11 +253,11 @@ iDrive back, and keeps running.
    again). In the debug log (step 9) this is `host test: show requested`,
    then `host test: show forwarded` and `handing the panel to test`, with no
    second `host test: started` line. Press MENU.
-10. Open the manager, hold the push on `test` and set the background to
+10. Open the manager, press OPTION on `test` and set the background to
     `red` while it runs. Press BACK and push on `test`: the window comes
     back already red. (The shorter value checks that the settings file,
     rewritten in place, is read correctly.) Press MENU.
-11. Open the manager and hold the push on `test`: the settings now end with
+11. Open the manager and press OPTION on `test`: the settings now end with
     **Stop test**. Push on it: the page says "test stopped". Set **Use the
     controller** back to `on` (it applies at the next start), then press
     BACK: `test` has no label any more. Push on `test`: "TEST v1" on red
@@ -319,8 +319,8 @@ agreement, pairing result, revocation result and any fixed error shown by the ap
 1. Keep App Manager open manually. Import `test-v2.nbt` into the phone's
    library; select the paired car and `test`. Request an update. The car shows
    its review with **Reject** focused. Reject once; both displays report it.
-2. Send the package again. Select Install, then Yes on the car's confirmation
-   (No is focused). The phone follows verification, install/health and result.
+2. Send the package again. Select Install (the one confirmation). The phone
+   follows verification, install/health and result.
 3. Send `test-v3-broken.nbt`. The health check fails; the previous executable
    returns. Both displays must report the failure/rollback. Run the old test
    application from the car to confirm its behavior.
@@ -370,7 +370,7 @@ than the one installed. Copy that kit's `phone\NBT-Manager-<version>.nbtr` to
 the phone and add it in NBT Manager's **Library**. Open App Manager on the car,
 then in the app: **Applications** → **NBT Manager** (tagged Update) → **Send to
 the car**. The car shows **Review update**, "NBT Manager" with both versions,
-**Reject** focused: choose **Install**, then **Yes, install**. The car says
+**Reject** focused: choose **Install**. The car says
 **Update ready**; the app says it starts the next time App Manager opens. Close
 App Manager and open it again: the new version runs on trial, then asks
 **Restart head unit?** if its iDrive entry changed. A manager too old for

@@ -91,11 +91,12 @@ void buildMainMenu(const UiController &ui, UiView *v) {
         textf(v->modal.text, sizeof(v->modal.text), T_CHECKING_MANAGER, ui.version);
         v->modal.progress =
             spent >= kAppHealthMs ? 99 : static_cast<int>(spent * 100u / kAppHealthMs);
-    } else if (ui.holding && ui.holdIndex < ui.appCount && ui.clockMs >= ui.holdMs &&
-               ui.clockMs - ui.holdMs >= kHoldShowMs) {
+    } else if (ui.holding && ui.holdIndex < ui.appCount && ui.running[ui.holdIndex] &&
+               ui.clockMs >= ui.holdMs && ui.clockMs - ui.holdMs >= kHoldShowMs) {
+        // Holding stops a running application (ui_input.cpp); nothing to show otherwise.
         const uint64_t held = ui.clockMs - ui.holdMs;
         v->modal.shown = 1;
-        textf(v->modal.title, sizeof(v->modal.title), T_APP_SETTINGS, ui.apps[ui.holdIndex]);
+        textf(v->modal.title, sizeof(v->modal.title), T_STOP_APP, ui.apps[ui.holdIndex]);
         textf(v->modal.text, sizeof(v->modal.text), T_KEEP_HOLDING);
         v->modal.progress = held >= kHoldMs ? 100 : static_cast<int>(held * 100u / kHoldMs);
     }

@@ -84,7 +84,7 @@ class MostInputTests(unittest.TestCase):
             rotary(101, direction=7), rotary(101, direction=7), rotary(101, direction=0),
             rotary(101, direction=10), rotary(101, direction=4), rotary(101, direction=1), rotary(101),
             keys(1), keys(), keys(0), keys(),  # BACK, then MENU
-            keys(2), keys(),                   # OPTIONS: ignored
+            keys(2), keys(),                   # OPTION
             rotary(0xFFFF),                    # a large jump re-bases
             rotary(1),                         # wraps: two clockwise detents
             message(0xC46, [1, 0, 9, 0, 0, 0, 0, 0xFF], inst=4),   # other instance
@@ -107,7 +107,7 @@ class MostInputTests(unittest.TestCase):
         ]
         output, log = self.run_script(lines)
         # A push reports its release (R) too, so a hold can be told from a tap.
-        self.assertEqual(output, "DDU" "SR" "D" "BU" "BH" "DD" "UU" "D" "U" "SR" "B" "B")
+        self.assertEqual(output, "DDU" "SR" "D" "BU" "BH" "O" "DD" "UU" "D" "U" "SR" "B" "B")
         self.assertEqual(log[-1], "DONE")
 
     def test_registry_is_logged_once_per_content(self):

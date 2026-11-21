@@ -552,7 +552,8 @@ Android Auto connecting gives runtime facts the dump cannot:
 | An uncoded plugin in `Plugins/` | Loads and receives `hmi.graphicalContext` (NbtAad, with the same manifest shape as the manager's) |
 | The car's firmware and the dump | The dump is a car's `/opt` (28735 of 28737 HMI files the same size; copied libraries byte-identical) |
 | zlib as `libz.so.2` on the car (the manager's worker unpacks game archives with it) | Needed by `NBTCarHU` and 22 iDrive libraries of NBTevo_Y21432J (`DT_NEEDED`); the same soname as QNX 6.5 SP1's |
-| The browser audio source `0xb8` (applications' sound, NBT-AAD's native audio) has a minimum volume of 25 | Seen on the car; `audioconn` also knows `eSRC_BON_BROWSER_ENT` and `eSRC_A4A_ENT1/2` (entertainment sources), whose connection ids only `audioconn -l` on the car gives |
+| The browser audio source `0xb8` (applications' sound, NBT-AAD's native audio) has a minimum volume of 25 | Seen on the car. `/opt/conn/data/audiosourcemap.csv` names it `HTML_Browser_IR` (an interrupting source) |
+| The car's audio connections (`audioconn -l`, NBTevo_Y21432J, 196 of them) | `0xb8` `eSRC_BROWSER` (0x51) to the speakers, DSI `BrowserFront`; `0x1d0` `eSRC_BON_BROWSER_ENT` (0x85), DSI `AuxInOEStream1` (`Streaming_OnlineEntertainment_ENT` in the CSV); `0x100`/`0x110` `eSRC_A4A_ENT1/2` through `AuxInUsbAudio1/2`; CarPlay's `0x314`-`0x320` through `AuxInCarPlay`. The CSV's `0x71 HTML_Browser_ENT` is not built on this car. Whether `0x1d0` plays the browser's `input_stereo_3` (dev-libasound) and follows the car's volume is the manager's `native_audio media` test |
 
 To learn more about a car: the `MOST registry` lines of a debug log list the
 FBlocks and instances present without any new MOST request; capturing candidate

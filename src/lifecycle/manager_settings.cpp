@@ -24,6 +24,7 @@ const char *const kDeclarations[] = {
     "debug_log|Debug log|off|off,on",
     "invert|Invert knob|off|off,on",
     "release|Hand back controller|off|off,on",
+    "native_audio|Native audio|interrupt|interrupt,media",
 };
 
 int barrier(nbt_fs *fs) {
@@ -217,6 +218,10 @@ int loadLegacy(nbt_fs *fs, nbt_settings *settings) {
     setValue(settings, "debug_log", log);
     setValue(settings, "invert", config.invert);
     setValue(settings, "release", config.release);
+    const int audio = nbt_settings_find(settings, "native_audio");
+    if (audio >= 0 && nbt_manager_native_audio(fs)) {
+        strcpy(settings->items[audio].value, "media");
+    }
     return 0;
 }
 
@@ -244,6 +249,14 @@ int setLegacy(nbt_fs *fs, const char *key, const char *value) {
     if (index < 0 || !nbt_setting_allows(&settings.items[index], value)) {
         errno = EINVAL;
         return -1;
+    }
+    if (!strcmp(key, "native_audio")) {
+        const size_t n = strlen(value);
+        char text[16];
+        memcpy(text, value, n); // a declared choice: at most "interrupt"
+        text[n] = '\n';
+        return replace(fs, NBT_FS_MANAGER_NATIVE_AUDIO_NEXT, NBT_FS_MANAGER_NATIVE_AUDIO, text,
+                       n + 1);
     }
     const int on = !strcmp(value, "on");
     if (!strcmp(key, "debug_log")) {

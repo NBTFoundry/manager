@@ -140,7 +140,9 @@ static void test_decoder_uses_config(void) {
     CHECK(feed(&ccs, 3, 0xc47, slot0, 7, out) == 0);
     CHECK(feed(&ccs, 5, 0xc47, slot0, 7, out) == 1 && out[0] == NBT_INPUT_BACK);
     CHECK(feed(&ccs, 5, 0xc47, released, 7, out) == 0);
-    CHECK(feed(&ccs, 5, 0xc47, slot1, 7, out) == 0); /* slot 1 is nothing here */
+    /* OPTION is the first slot that is neither MENU nor BACK: slot 1 here. */
+    CHECK(feed(&ccs, 5, 0xc47, slot1, 7, out) == 1 && out[0] == NBT_INPUT_OPTION);
+    CHECK(feed(&ccs, 5, 0xc47, released, 7, out) == 0);
     CHECK(feed(&ccs, 5, 0xc47, menu_slot2, 7, out) == 1 && out[0] == NBT_INPUT_HOME);
     /* Inverted rotation: a positive step moves up. */
     CHECK(feed(&ccs, 5, 0xc46, rotary, 8, out) == 0);
@@ -161,6 +163,11 @@ static void test_decoder_uses_config(void) {
         key[3] = 1;
         key[6] = 1u << 1;
         CHECK(feed(&ccs, 1, 0xc20, key, 7, out) == 0);
+        key[3] = 0;
+        CHECK(feed(&ccs, 1, 0xc20, key, 7, out) == 0);
+        key[3] = 1; /* OPTION: slot 0 here, MENU and BACK being 3 and 4 */
+        key[6] = 1u << 0;
+        CHECK(feed(&ccs, 1, 0xc20, key, 7, out) == 1 && out[0] == NBT_INPUT_OPTION);
     }
     /* An invalid configuration falls back to the defaults. */
     c.release = 2;

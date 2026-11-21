@@ -5,9 +5,9 @@
 running = 运行中
 settings = 设置
 no_apps = 未安装应用
-menu_hint = 按下启动；长按打开设置
+menu_hint = 按下启动，长按停止；OPTION 打开设置
 app_settings = {1} 设置
-keep_holding = 继续按住以打开
+keep_holding = 继续按住以停止
 loading_apps = 正在加载应用
 starting = 正在启动
 recovered = 已从故障中恢复
@@ -34,6 +34,9 @@ back = 返回
 setting_debug_log = 调试日志
 setting_invert = 反转旋钮
 setting_release = 交还控制器
+setting_native_audio = 原生音频
+value_audio_interrupt = 插播（至少 25）
+value_audio_media = 媒体音源
 value_on = 开
 value_off = 关
 

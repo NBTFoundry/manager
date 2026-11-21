@@ -27,7 +27,20 @@
  * entries App shortcut 1-3 open (plugin/NbtManager.xml), in manager/shortcuts
  * ("<app>\n" per entry, an empty line for none). An application takes one
  * entry at most: giving it another frees the first. Shown on each
- * application's own page (SETTINGS <app> live: +shortcut<n>). */
+ * application's own page (SETTINGS <app> live: +shortcut<n>).
+ *
+ *   native_audio  interrupt|media  the head unit's audio connection
+ *                 applications' sound uses, in manager/native-audio
+ *                 ("media\n"; absent or anything else is interrupt).
+ *                 interrupt leaves applications on their own default, the
+ *                 browser source 0xb8 (eSRC_BROWSER), an interrupting source
+ *                 the car never turns below volume 25; media gives user
+ *                 launches NBT_AUDIO_CONN=0x1d0 (eSRC_BON_BROWSER_ENT, the
+ *                 browser as an entertainment source, expected to follow the
+ *                 car's volume). Both are in the car's `audioconn -l`. */
+
+/* The connection a user launch gets with native_audio media. */
+#define NBT_NATIVE_AUDIO_MEDIA_CONN 0x1d0u
 
 #include "nbt/fs.h"
 #include "nbt/package.h"
@@ -42,6 +55,9 @@ extern "C" {
 /* The application of each shortcut entry, "" for none (also when the file is
  * absent); -1 when it cannot be read. */
 int nbt_manager_shortcuts_load(nbt_fs *fs, char apps[NBT_SHORTCUTS][NBT_ID_MAX + 1]);
+
+/* 1 when native_audio is media, else 0 (also when unreadable). */
+int nbt_manager_native_audio(nbt_fs *fs);
 
 /* Returns -1 when the debug log's state cannot be read. */
 int nbt_manager_settings_load(nbt_fs *fs, nbt_settings *settings);

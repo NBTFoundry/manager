@@ -68,9 +68,10 @@ static const char *const declared[APPS] = {NULL,
                                            "background|Background color|blue|blue,red,green,black"};
 static nbt_settings settings[APPS];
 /* The manager's own (src/lifecycle/manager_settings.cpp), kept in memory here. */
-static const char *const manager_declared[] = {"debug_log|Debug log|off|off,on",
-                                               "invert|Invert knob|off|off,on",
-                                               "release|Hand back controller|off|off,on"};
+static const char *const manager_declared[] = {
+    "debug_log|Debug log|off|off,on", "invert|Invert knob|off|off,on",
+    "release|Hand back controller|off|off,on",
+    "native_audio|Native audio|interrupt|interrupt,media"};
 static nbt_settings manager_settings;
 static bool pairing = false, phonePending = false;
 
@@ -548,6 +549,8 @@ int main(int argc, char **argv) {
                     ui.press(nbt::gui::KeyBack);
                 } else if (key == XK_m && !(event.xkey.state & ControlMask)) {
                     ui.home();
+                } else if (key == XK_o) { /* the controller's OPTION */
+                    ui.press(nbt::gui::KeyOption);
                 } else if (key == XK_u) {
                     phone();
                 } else if (key == XK_q || (key == XK_c && (event.xkey.state & ControlMask))) {

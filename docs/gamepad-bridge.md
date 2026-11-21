@@ -186,8 +186,10 @@ light bar was not set. Each endpoint found is logged.
 ## The manager's own use
 
 The GUI maps the D-pad and left stick to navigation (left also goes back), south /
-A / Cross to push, including the settings hold, east / B / Circle and View / Share
-/ Create to back, and Menu / Options to leaving the manager. Navigation starts at a
+A / Cross to push, including the hold that stops a running application, north /
+Y / Triangle to the controller's OPTION (an application's settings), east / B /
+Circle and View / Share / Create to back, and Menu / Options to leaving the
+manager. Navigation starts at a
 20% stick deflection and repeats after 400 ms, then every 100 ms. Local approval
 and installation guards apply unchanged.
 

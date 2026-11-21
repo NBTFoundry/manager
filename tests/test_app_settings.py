@@ -171,7 +171,7 @@ class AppSettingsTests(unittest.TestCase):
         self.assertIn("key0000000000011=fghijklmnopq\n", values)
         self.assertEqual(values, (self.state / "settings").read_text())
         self.assertTrue(command("SETTINGS plain live").startswith("SETTINGS\t0\trestart"))
-        self.assertTrue(command("SETTINGS manager live").startswith("SETTINGS\t3\trestart"))
+        self.assertTrue(command("SETTINGS manager live").startswith("SETTINGS\t4\trestart"))
         for line in ("SETTINGS test unknown", "SETTINGS test live x"):
             self.assertEqual(command(line), "ERR invalid-command")
         # Exercise the largest environment: 12 values plus both paths,
@@ -287,8 +287,9 @@ class AppSettingsTests(unittest.TestCase):
         manager = self.root / "manager"
         log, old, conf = manager / "debug.log", manager / "debug.log.1", manager / "controller.conf"
         self.assertEqual(command("SETTINGS manager"),
-                         "SETTINGS\t3\tdebug_log|Debug log|off|off,on\tinvert|Invert knob|off|off,on"
-                         "\trelease|Hand back controller|off|off,on")
+                         "SETTINGS\t4\tdebug_log|Debug log|off|off,on\tinvert|Invert knob|off|off,on"
+                         "\trelease|Hand back controller|off|off,on"
+                         "\tnative_audio|Native audio|interrupt|interrupt,media")
         # Debug log on: created private, and the worker logs from then on.
         self.assertEqual(command("SET manager debug_log on"), "OK")
         self.assertEqual(log.stat().st_mode & 0o777, 0o600)
@@ -363,7 +364,7 @@ class AppSettingsTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(command("SET manager language " + value), "ERR settings")
         self.assertEqual(language.read_text(), "auto\n")
-        self.assertEqual(command("SETTINGS manager").count("\t"), 4)
+        self.assertEqual(command("SETTINGS manager").count("\t"), 5)
         self.assertNotIn("language", command("SETTINGS manager"))
         self.assertEqual(command("QUIT"), "OK")
 

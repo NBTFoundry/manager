@@ -206,22 +206,20 @@ def main():
             time.sleep(1.0)
             s.key("u", after=1.6)                                      # upload arrives: review
             s.key("Down", after=0.9)                                   # Install
-            s.key("Return", after=1.4)                                 # confirm
-            s.key("Down", after=0.6)
-            s.key("Return", after=0.4)                                 # Yes, install
+            s.key("Return", after=2.4)                                 # the one confirmation
             rec.wait()
         finally:
             s.close()
         frame_gif(video, args.out / "manager-install.gif")
 
-        # Animation: hold the push on an application for its settings.
+        # Animation: OPTION on an application opens its settings.
         s = Session()
         try:
-            video = tmp / "hold.mkv"
+            video = tmp / "option.mkv"
             rec = s.record(video, 5)
             time.sleep(0.8)
             s.key("Down", after=0.6)
-            s.key("Return", hold=1.9, after=1.2)
+            s.key("o", after=2.0)
             rec.wait()
         finally:
             s.close()

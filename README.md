@@ -71,9 +71,9 @@ BMW AG.
 <table>
   <tr>
     <td width="50%"><img src="docs/assets/manager-menu.png" alt="The manager's menu: installed applications and Settings"><br>
-      <sub>The menu, opened from iDrive: push to start, hold for settings</sub></td>
-    <td width="50%"><img src="docs/assets/manager-settings.gif" alt="Holding the push on an application fills a bar, then opens its settings"><br>
-      <sub>Hold the push on an application to open its settings</sub></td>
+      <sub>The menu, opened from iDrive: push to start, hold to stop, OPTION for settings</sub></td>
+    <td width="50%"><img src="docs/assets/manager-settings.gif" alt="An application's settings, opened from the menu"><br>
+      <sub>An application's settings: OPTION on it in the menu</sub></td>
   </tr>
   <tr>
     <td><img src="docs/assets/manager-pair-qr.png" alt="Pair a phone: a Wi-Fi QR code for the phone app"><br>

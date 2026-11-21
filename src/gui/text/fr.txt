@@ -4,9 +4,9 @@
 running = en cours
 settings = Réglages
 no_apps = Aucune application installée
-menu_hint = Appuyer pour lancer ; maintenir pour les réglages
+menu_hint = Appuyer : lancer, maintenir : arrêter ; OPTION : réglages
 app_settings = Réglages de {1}
-keep_holding = Maintenir pour les ouvrir
+keep_holding = Maintenir pour l'arrêter
 loading_apps = Chargement des applications
 starting = Démarrage
 recovered = rétabli après une erreur
@@ -33,6 +33,9 @@ back = Retour
 setting_debug_log = Journal de débogage
 setting_invert = Inverser la molette
 setting_release = Rendre le contrôleur
+setting_native_audio = Audio natif
+value_audio_interrupt = Interruption (au moins 25)
+value_audio_media = Source multimédia
 value_on = activé
 value_off = désactivé
 

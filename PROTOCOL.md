@@ -355,7 +355,7 @@ Snapshot targets must be private owned regular files with one link on the
 managed filesystem. Package metadata selects neither snapshot nor data paths.
 The signed manifest's total limit remains 2048 bytes, including all settings.
 
-In the GUI, holding the push on an application opens its settings (`SETTINGS <app> live`), which end with "Stop <app>" while it runs; the main menu's Settings opens the manager's own (`SETTINGS manager live`). A live app's page says "Changes apply at once". Choosing a setting lists its values (the current one marked), of which one is saved with `SET`.
+In the GUI, the controller's OPTION key (a gamepad's north button) on an application opens its settings (`SETTINGS <app> live`), which end with "Stop <app>" while it runs; holding the push on an application stops it while it runs (`STOP <app>`, after a 1.5 s bar titled "Stop <app>") and does nothing otherwise; the main menu's Settings, or OPTION on it, opens the manager's own (`SETTINGS manager live`). A live app's page says "Changes apply at once". Choosing a setting lists its values (the current one marked), of which one is saved with `SET`.
 
 Applications therefore need no iDrive plugin of their own: the manager's main menu starts them, and their settings, and stopping them, live in the manager.
 
@@ -464,10 +464,11 @@ malformed), `START <app>` replies `ERR quarantined` and the Settings page offers
 | `debug_log` | Debug log | `off`, `on` | `manager/debug.log` exists. `on` creates it empty (mode 0600) and the worker logs from then on; `off` moves it to `manager/debug.log.1`, replacing the previous copy, so the last log can still be fetched, and every writer stops at its next line. A log file the writers would refuse (wrong owner, mode or type) makes both commands answer `ERR settings`. |
 | `invert` | Invert knob | `off`, `on` | `invert=` in `manager/controller.conf` |
 | `language` | Language | `auto`, `en`, `fr`, `de`, `it`, `es`, `zh`, `ja` | The language of the manager's screen, one line in `manager/language` (mode 0600, replaced through `manager/language.next`); absent or invalid is `auto`. |
+| `native_audio` | Native audio | `interrupt`, `media` | The head unit's audio connection applications' sound uses, one line in `manager/native-audio` (replaced through its `.next`); absent or invalid is `interrupt`. `interrupt` leaves applications on their own default, the browser's interrupting source 0xb8 (`eSRC_BROWSER`), which the car never turns below volume 25. `media` gives user launches `NBT_AUDIO_CONN=0x1d0` (`eSRC_BON_BROWSER_ENT`, the browser as an entertainment source); the SDK's audio route builds that connection instead (an application already running keeps its own until it starts again). |
 | `phone_open` | Open from phone | `off`, `on` | Enable stationary, home-screen wake requests; defaults off. |
 | `release` | Hand back controller | `off`, `on` | `release=` in `manager/controller.conf` |
 
-`SETTINGS manager` lists `debug_log`, `invert` and `release` only. `SET` also
+`SETTINGS manager` lists `debug_log`, `invert`, `release` and `native_audio` only. `SET` also
 takes `phone_open` and `language`: `language` has more choices than a
 declaration allows (six), so listing it would make phone apps that check that
 limit reject the whole reply. The GUI has its own Language screen for it.
@@ -480,8 +481,9 @@ Managed executables are invoked with `--ready-fd 3 --lease-fd 4`. Before signall
 
 `src/gui/ui_controller.cpp` and the phone helpers are I/O-free controllers.
 The GUI host passes controller events and private worker replies, then renders
-the view. Push on an application starts it; hold the push for 1.5 seconds to
-open its settings (the hold dialog appears after 0.5 seconds). Applications
+the view. Push on an application starts it; OPTION opens its settings; holding
+the push for 1.5 seconds stops it while it runs (the hold dialog appears after
+0.5 seconds) and does nothing otherwise. Applications
 keep running after the manager closes. Settings expose declared choices,
 Stop while running, and Uninstall. Local and phone-requested uninstall both
 default to No. Phone requests name the requesting phone.
@@ -515,8 +517,9 @@ status labels are shown as the application gives them. The debug log is in
 English, but for the message logged with a screen change, which is as shown.
 
 A signed upload is reviewed regardless of whether the driver selected the
-waiting screen. Review defaults to Reject; Install requires a second Yes with
-No focused. Recovery is separate and explicitly labelled. `APPROVE` is emitted
+waiting screen. Review defaults to Reject; Install is the one confirmation and
+approves at once. Recovery (an older version) is separate and explicitly
+labelled, and still asks a second Yes, with No focused, under its warning. `APPROVE` is emitted
 only from controller input, bound to the digest in the latest verified STATUS.
 Package changes require a new review. Only the private channel can confirm
 pairing or uninstall. `src/gui/phone_ui.cpp` keeps background phone queries in
