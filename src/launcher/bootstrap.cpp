@@ -190,10 +190,8 @@ int nbt_manager_bootstrap(const char *root, int input, uint64_t key_size, uint64
     }
     required = release_size * 2 + verified.components[0].size + verified.components[1].size +
                verified.components[2].size +
-               (verified.component_count > NBT_RELEASE_CAPTURE_INDEX
-                    ? verified.components[NBT_RELEASE_CAPTURE_INDEX].size
-                    : 0) +
-               BOOTSTRAP_KEY_MAX;
+               nbt_release_named_size(&verified, NBT_RELEASE_CAPTURE_NAME) +
+               nbt_release_named_size(&verified, NBT_RELEASE_RUNNER_NAME) + BOOTSTRAP_KEY_MAX;
     if (nbt_fs_setup_root(&fs, root, required, error, error_size) ||
         nbt_manager_setup(&fs, fileno(release), fileno(key), compat, digest, error, error_size)) {
         goto done;

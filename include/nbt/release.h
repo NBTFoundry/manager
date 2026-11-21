@@ -7,9 +7,12 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+/* NBTRLS1: the eight fixed roles. NBTRLS2: and capture_lib. NBTRLS3: the eight
+ * fixed roles, then up to eight named components (docs/manager-release.md). */
 #define NBT_RELEASE_V1_COMPONENTS 8
-#define NBT_RELEASE_MAX_COMPONENTS 9
-#define NBT_RELEASE_CAPTURE_INDEX 8
+#define NBT_RELEASE_V2_COMPONENTS 9
+#define NBT_RELEASE_MAX_COMPONENTS 16
+#define NBT_RELEASE_NAME_MAX 24
 #define NBT_RELEASE_MANIFEST_MAX 4096u
 #define NBT_RELEASE_PAYLOAD_MAX (128u * 1024u * 1024u)
 
@@ -17,6 +20,7 @@ typedef struct {
     uint64_t size;
     off_t offset;
     unsigned char sha256[32];
+    char name[NBT_RELEASE_NAME_MAX + 1];
 } nbt_release_component;
 
 typedef struct {
@@ -30,8 +34,17 @@ typedef struct {
     nbt_release_component components[NBT_RELEASE_MAX_COMPONENTS];
 } nbt_release;
 
-/* Fixed component order is part of the format, never a destination path. */
-const char *nbt_release_component_name(unsigned index);
+/* Fixed component order is part of the format, never a destination path. The
+ * index of the component named `name` in a verified release, or -1. */
+int nbt_release_find(const nbt_release *release, const char *name);
+/* The size of the named component, 0 when the release has none. */
+static inline uint64_t nbt_release_named_size(const nbt_release *release, const char *name) {
+    const int index = nbt_release_find(release, name);
+    return index < 0 ? 0 : release->components[index].size;
+}
+/* Named components this manager knows: the input-capture shim, nbt-runner. */
+#define NBT_RELEASE_CAPTURE_NAME "capture_lib"
+#define NBT_RELEASE_RUNNER_NAME "runner"
 #ifdef __cplusplus
 extern "C"
 #endif

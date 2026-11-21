@@ -131,7 +131,8 @@ int nbt_capture_refresh_from_release(nbt_fs *fs, const char *hmi_root, const cha
         return failMsg(error, error_size, "capture paths invalid");
     }
     const uid_t owner = geteuid();
-    const bool wantInstall = release->component_count > NBT_RELEASE_CAPTURE_INDEX;
+    const int captureIndex = nbt_release_find(release, NBT_RELEASE_CAPTURE_NAME);
+    const bool wantInstall = captureIndex >= 0;
     const int txPresent = nbt_fs_exists(fs, NBT_FS_CAPTURE_TX, "manager", NULL);
     const int origPresent = nbt_fs_exists(fs, NBT_FS_CAPTURE_STARTER_ORIG, "manager", NULL);
     if (txPresent < 0 || origPresent < 0) {
@@ -162,7 +163,7 @@ int nbt_capture_refresh_from_release(nbt_fs *fs, const char *hmi_root, const cha
         return nbt_capture_remove_installed(fs, hmi_root, starter_cfg_path, remount, error,
                                             error_size);
     }
-    const nbt_release_component &comp = release->components[NBT_RELEASE_CAPTURE_INDEX];
+    const nbt_release_component &comp = release->components[captureIndex];
     const int legacy = legacyShimDir(capDir, txPresent > 0);
     if (txPresent == 0 && origPresent == 1 && cfgState == nbt::storage::StarterWithShim &&
         legacy == 0 && shimFileMatches(fs, comp.size, comp.sha256)) {

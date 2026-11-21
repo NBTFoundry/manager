@@ -24,15 +24,16 @@ public:
     static core::Status copyComponent(int fd, const nbt_release &verified, unsigned index,
                                       int outputFd);
 #ifdef NBT_TESTING
+    /* format: 1, 2 or 3 (NBTRLS1-3). */
     static core::Status parseManifestForTesting(core::Span<const uint8_t> text,
-                                                unsigned components = NBT_RELEASE_V1_COMPONENTS);
+                                                unsigned format = 1);
 #endif
 
 private:
     int managerKeyFd_;
 };
 
-const char *componentName(unsigned index);
+int findComponent(const nbt_release &release, const char *name);
 
 } // namespace package
 } // namespace nbt

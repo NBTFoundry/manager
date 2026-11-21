@@ -147,6 +147,33 @@ class ManagerStageTests(unittest.TestCase):
         self.assertNotIn(b"Disabled", result.stderr)
         self.assertEqual(self.state()["phase"], "pending")
 
+    def test_runner_is_staged_with_its_slot_and_verified(self):
+        # NBTRLS3: the release's runner becomes the slot's runner, checked with it.
+        runner = Path(self.tmp.name) / "nbt-runner"
+        runner.write_bytes((self.path / "gui").read_bytes() + b"runner")
+        self.bridge_release(1, "--component", f"runner={runner}")
+        result = self.stage("initial")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        staged = self.root / "manager/slots/0/runner"
+        self.assertEqual(staged.read_bytes(), runner.read_bytes())
+        self.assertEqual(staged.stat().st_mode & 0o777, 0o700)
+        staged.write_bytes(staged.read_bytes() + b"x")
+        self.upload(2)
+        result = self.stage("update")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"current manager slot failed verification", result.stderr)
+        self.assertFalse((self.root / "manager/slots/1/release.nbtr").exists())
+
+    def test_release_without_runner_leaves_no_runner_in_its_slot(self):
+        runner = Path(self.tmp.name) / "nbt-runner"
+        runner.write_bytes((self.path / "gui").read_bytes() + b"runner")
+        self.bridge_release(1, "--component", f"runner={runner}")
+        self.assertEqual(self.stage("initial").returncode, 0)
+        self.upload(2)
+        self.assertEqual(self.stage("update").returncode, 0)
+        self.assertFalse((self.root / "manager/slots/1/runner").exists())
+        self.assertTrue((self.root / "manager/slots/0/runner").exists())
+
     def test_pending_manager_activation_blocks_new_app_dependencies(self):
         self.baseline()
         (self.root / "trust/keys").mkdir(mode=0o700)

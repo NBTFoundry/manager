@@ -29,8 +29,10 @@ namespace nbt {
 namespace worker {
 namespace {
 
-const char kReleaseV1Magic[] = "NBTRLS1\n";
-const char kReleaseV2Magic[] = "NBTRLS2\n";
+/* NBTRLS1 to NBTRLS3 (docs/manager-release.md). */
+bool releaseMagic(const char head[8]) {
+    return !memcmp(head, "NBTRLS", 6) && head[6] >= '1' && head[6] <= '3' && head[7] == '\n';
+}
 
 /* The operation lock: free, or held by the launcher that started this worker. */
 int operationLock(nbt_fs *fs) {
@@ -66,8 +68,7 @@ bool Worker::uploadIsManagerRelease() {
     return upload.get() &&
            pread(upload.value().get(), head, sizeof(head), 0) ==
                static_cast<ssize_t>(sizeof(head)) &&
-           (!memcmp(head, kReleaseV1Magic, sizeof(head)) ||
-            !memcmp(head, kReleaseV2Magic, sizeof(head)));
+           releaseMagic(head);
 }
 
 core::Status Worker::bindManager() {
@@ -96,9 +97,12 @@ core::Status Worker::bindManager() {
         return reject(current < 0 ? "the installed NBT Manager failed verification"
                                   : "update NBT Manager once with the installer first");
     }
+    // The stable launcher stages it at the next opening: it must read its format.
+    char format[16];
+    snprintf(format, sizeof(format), "NBTRLS%u", static_cast<unsigned>(release.format_version));
     if (release.format_version >= 2 &&
-        nbt_manager_launcher_supports_format(root_.legacy(), "NBTRLS2") != 1) {
-        return reject("install and confirm the NBTRLS1 compatibility release first");
+        nbt_manager_launcher_supports_format(root_.legacy(), format) != 1) {
+        return reject("update NBT Manager once with the installer first");
     }
     memset(&state_.pending, 0, sizeof(state_.pending));
     snprintf(state_.pending.app, sizeof(state_.pending.app), "manager");

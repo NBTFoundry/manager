@@ -92,12 +92,13 @@ entry), `--door`, `--capabilities`, `--bootstrap-manager`, `--stage-update`,
    present, same owner, group write only for root's group, writable, not noexec,
    qnx6, enough space; the root is created 0700. Refusals: `manager storage: <check>`.
 6. **Manager setup** (`src/launcher/manager_setup.cpp`): key, profile, launcher,
-   upload, then slot 0, each verified by hash. Re-running with the same release is
+   upload, then slot 0 (release, GUI, worker, and `runner` from an `NBTRLS3`
+   release), each verified by hash. Re-running with the same release is
    accepted; a different existing install is refused.
 7. **Plugin install** (`src/launcher/plugin_installer.cpp`): the five files into
    `Plugins/.NbtManager.setup` (`.so` 0755, others 0644, verified), the folder
    chmod 0755, sync, then renamed to `Plugins/NbtManager`.
-8. **Input-capture shim** (`src/storage/capture_install.cpp`, `NBTRLS2` releases):
+8. **Input-capture shim** (`src/storage/capture_install.cpp`, `NBTRLS2` releases, and `NBTRLS3` releases with `capture_lib`):
    1. Verify `/opt/sys/etc/starter.cfg`: Environment 6 `System_HMI_PRELOAD` stock
       (or with the shim of an older install), HmiMain3D's `<EnvFile/>`.
    2. Save a verified backup to `state/manager/starter.cfg.orig` with

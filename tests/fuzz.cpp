@@ -595,10 +595,10 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
         (void)nbt::package::PackageVerifier::parseManifestForTesting(bytes(input), 52);
         break;
     case ReleaseManifest:
-        (void)nbt::package::SignedReleaseVerifier::parseManifestForTesting(
-            bytes(input), NBT_RELEASE_V1_COMPONENTS);
-        (void)nbt::package::SignedReleaseVerifier::parseManifestForTesting(
-            bytes(input), NBT_RELEASE_MAX_COMPONENTS);
+        for (unsigned format = 1; format <= 3; ++format) {
+            (void)nbt::package::SignedReleaseVerifier::parseManifestForTesting(bytes(input),
+                                                                               format);
+        }
         break;
     case SettingsSchema: {
         nbt_settings settings;

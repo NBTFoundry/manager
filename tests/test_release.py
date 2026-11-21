@@ -219,6 +219,60 @@ class ReleaseTests(unittest.TestCase):
             1,
         )
 
+    def test_v3_named_components(self):
+        """NBTRLS3: the runner and a component this manager does not know, by name."""
+        runner = self.root / "nbt-runner"
+        runner.write_bytes((self.root / "launcher").read_bytes() + b"runner")
+        later = self.root / "later.bin"
+        later.write_bytes(b"not a program: a later release's data")
+        v3 = self.root / "release-v3.nbtr"
+        args = ["--version", "v3", "--sequence", "3", "--compat", "demo-1",
+                "--key", self.root / "manager.pem",
+                "--launcher", self.root / "launcher", "--gui", self.root / "gui",
+                "--worker", self.root / "worker", "--plugin-dir", self.root / "plugin"]
+        result = run("python3", PACK, *args, "--output", v3,
+                     "--component", f"runner={runner}", "--component", f"later_data={later}")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        verified = self.verify(v3.read_bytes())
+        self.assertEqual(verified.returncode, 0, verified.stderr)
+        self.assertIn(b"format=NBTRLS3\ncomponents=10\n", verified.stdout)
+        out = self.root / "copied-runner"
+        self.assertEqual(run(COPY, v3, self.root / "manager.pub", "demo-1", 8, out, "normal").returncode, 0)
+        self.assertEqual(out.read_bytes(), runner.read_bytes())
+        out.unlink()
+        self.assertEqual(run(COPY, v3, self.root / "manager.pub", "demo-1", 9, out, "normal").returncode, 0)
+        self.assertEqual(out.read_bytes(), later.read_bytes())
+        out.unlink()
+        # The tool refuses bad names, fixed roles and duplicates.
+        for bad in ("Runner=x", "9runner=x", "gui=x", "a" * 25 + "=x", "runner"):
+            refused = run("python3", PACK, *args, "--output", self.root / "bad.nbtr", "--component", bad)
+            self.assertNotEqual(refused.returncode, 0, bad)
+        refused = run("python3", PACK, *args, "--output", self.root / "bad.nbtr",
+                      "--component", f"runner={runner}", "--component", f"runner={runner}")
+        self.assertNotEqual(refused.returncode, 0)
+        data = v3.read_bytes()
+        size = struct.unpack(">I", data[8:12])[0]
+        manifest, payload = data[16:16 + size], data[16 + size + 384:]
+        self.assertEqual(self.verify(self.resign(manifest, payload, magic=b"NBTRLS3\n")).returncode, 0)
+        # NBTRLS1/2 headers do not take named components.
+        for magic in (b"NBTRLS1\n", b"NBTRLS2\n", b"NBTRLS4\n"):
+            self.assertEqual(self.verify(self.resign(manifest, payload, magic=magic)).returncode, 1)
+        # A named component that repeats a fixed role or another name, or a bad name.
+        for old, new in ((b"later_data_", b"gui_"), (b"later_data_", b"runner_"), (b"later_data_", b"Later_"),
+                         (b"later_data_", b"x" * 25 + b"_")):
+            self.assertEqual(self.verify(self.resign(manifest.replace(old, new), payload,
+                                                     magic=b"NBTRLS3\n")).returncode, 1, new)
+        # The runner must be ARM ELF.
+        bad_runner = bytearray(runner.read_bytes())
+        bad_runner[18] = 3  # not ARM
+        old_hash = hashlib.sha256(runner.read_bytes()).hexdigest().encode()
+        new_hash = hashlib.sha256(bytes(bad_runner)).hexdigest().encode()
+        bad_payload = payload.replace(runner.read_bytes(), bytes(bad_runner))
+        self.assertEqual(self.verify(self.resign(manifest.replace(old_hash, new_hash), bad_payload,
+                                                 magic=b"NBTRLS3\n")).returncode, 1)
+        # An unknown component is only hashed: any content.
+        self.assertEqual(self.verify(self.resign(manifest, payload, magic=b"NBTRLS3\n")).returncode, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

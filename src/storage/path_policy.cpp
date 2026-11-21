@@ -113,6 +113,8 @@ const KindPath kSlotSuffixes[] = {
     {NBT_FS_MANAGER_SLOT_RELEASE_NEXT, "/release.nbtr.next"},
     {NBT_FS_MANAGER_SLOT_GUI_NEXT, "/gui.next"},
     {NBT_FS_MANAGER_SLOT_WORKER_NEXT, "/worker.next"},
+    {NBT_FS_MANAGER_SLOT_RUNNER, "/runner"},
+    {NBT_FS_MANAGER_SLOT_RUNNER_NEXT, "/runner.next"},
 };
 
 template <size_t N> const char *lookupPath(const KindPath (&table)[N], PathKind kind) {
@@ -239,7 +241,8 @@ bool PathPolicy::canCreate(PathKind kind) {
            kind == NBT_FS_MANAGER_UPLOAD_NEXT || kind == NBT_FS_MANAGER_SLOT_RELEASE ||
            kind == NBT_FS_MANAGER_SLOT_GUI || kind == NBT_FS_MANAGER_SLOT_WORKER ||
            kind == NBT_FS_MANAGER_SLOT_RELEASE_NEXT || kind == NBT_FS_MANAGER_SLOT_GUI_NEXT ||
-           kind == NBT_FS_MANAGER_SLOT_WORKER_NEXT || kind == NBT_FS_MANAGER_LOG ||
+           kind == NBT_FS_MANAGER_SLOT_WORKER_NEXT || kind == NBT_FS_MANAGER_SLOT_RUNNER ||
+           kind == NBT_FS_MANAGER_SLOT_RUNNER_NEXT || kind == NBT_FS_MANAGER_LOG ||
            kind == NBT_FS_SESSION_UPLOAD || kind == NBT_FS_SETTINGS_SCHEMA_NEXT ||
            kind == NBT_FS_SETTINGS_NEXT || kind == NBT_FS_AUTOSTART_NEXT ||
            kind == NBT_FS_AUTOSTART_GUARD_NEXT || kind == NBT_FS_FAULT_GUARD_NEXT ||
@@ -298,6 +301,7 @@ bool PathPolicy::canRename(PathKind from, PathKind to, const char *app) {
            (from == NBT_FS_MANAGER_SLOT_RELEASE_NEXT && to == NBT_FS_MANAGER_SLOT_RELEASE) ||
            (from == NBT_FS_MANAGER_SLOT_GUI_NEXT && to == NBT_FS_MANAGER_SLOT_GUI) ||
            (from == NBT_FS_MANAGER_SLOT_WORKER_NEXT && to == NBT_FS_MANAGER_SLOT_WORKER) ||
+           (from == NBT_FS_MANAGER_SLOT_RUNNER_NEXT && to == NBT_FS_MANAGER_SLOT_RUNNER) ||
            (from == NBT_FS_ACTIVE && to == NBT_FS_BACKUP) ||
            (from == NBT_FS_SESSION_UPLOAD && to == NBT_FS_UPLOAD && app &&
             strcmp(app, "manager")) ||

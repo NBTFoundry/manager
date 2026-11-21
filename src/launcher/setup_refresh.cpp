@@ -210,7 +210,7 @@ int refreshLocked(nbt_fs *fs, const char *hmiRoot, nbt_remount_fn remount, bool 
 #ifdef NBT_TESTING
             starterCfg = getenv("NBT_TEST_STARTER_CFG");
 #endif
-            const bool wantCapture = release.component_count > NBT_RELEASE_CAPTURE_INDEX;
+            const bool wantCapture = nbt_release_find(&release, NBT_RELEASE_CAPTURE_NAME) >= 0;
             if (!starterCfg) {
                 if (wantCapture) {
                     result = fail(error, errorSize, "starter.cfg test path not configured");

@@ -169,12 +169,12 @@ class PhoneManagerUpdateTests(unittest.TestCase):
         self.assertLess(status, 500, data)
         reply = self.command('STATUS').split('\t')
         self.assertEqual(reply[1], '5')
-        self.assertEqual(reply[-1], 'Package rejected: install and confirm the NBTRLS1 compatibility release first')
+        self.assertEqual(reply[-1], 'Package rejected: update NBT Manager once with the installer first')
 
     def test_launcher_capabilities_cli(self):
         res = run(BUILD / 'launcher-host', '--capabilities')
         self.assertEqual(res.returncode, 0, res.stderr)
-        self.assertEqual(res.stdout, b'formats=NBTRLS1,NBTRLS2\n')
+        self.assertEqual(res.stdout, b'formats=NBTRLS1,NBTRLS2,NBTRLS3\n')
 
 
 if __name__ == '__main__':

@@ -88,12 +88,13 @@ Later focused; only Restart iDrive sends `IDRIVE RESTART`.
 
 ## Manager updates from a phone
 
-A paired phone uploads a manager release (`NBTRLS1`) like a package. In the
+A paired phone uploads a manager release (`NBTRLS1` to `NBTRLS3`) like a package. In the
 session the worker verifies it against `trust/manager.pem` and the profile's
 compatibility, and refuses it (`Package rejected: <reason>`) when it is not
 newer than the high-water mark, while another update is pending, or while the
 stable launcher is not the active release's (`update NBT Manager once with the
-installer first`: an older launcher cannot stage it). `STATUS` then reports
+installer first`: an older launcher cannot stage it; the same answer when the
+stable launcher does not list the release's format in `--capabilities`). `STATUS` then reports
 application `manager` with the running and the new version; the GUI reviews it
 as "NBT Manager", without "Install, even if older". `APPROVE` re-verifies it
 under the operation lock, moves it to `state/manager/release.upload`, writes

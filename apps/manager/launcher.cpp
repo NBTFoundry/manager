@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     int shimSwitch = argc == 3 && !strcmp(argv[1], "--shim") &&
                      (!strcmp(argv[2], "on") || !strcmp(argv[2], "off"));
     if (capabilities) {
-        printf("formats=NBTRLS1,NBTRLS2\n");
+        printf("formats=NBTRLS1,NBTRLS2,NBTRLS3\n");
         return 0;
     }
     /* --restart-hmi: iDrive's program alone, through the process manager

@@ -215,10 +215,8 @@ int nbt_manager_setup(nbt_fs *fs, int release_fd, int key_fd, const char *compat
     const uint64_t relSize = static_cast<uint64_t>(releaseStat.st_size);
     const uint64_t need = relSize * 2 + release.components[0].size + release.components[1].size +
                           release.components[2].size +
-                          (release.component_count > NBT_RELEASE_CAPTURE_INDEX
-                               ? release.components[NBT_RELEASE_CAPTURE_INDEX].size
-                               : 0) +
-                          kKeyMax;
+                          nbt_release_named_size(&release, NBT_RELEASE_CAPTURE_NAME) +
+                          nbt_release_named_size(&release, NBT_RELEASE_RUNNER_NAME) + kKeyMax;
     if (SlotFs::requireSpace(fs->root, need, 8)) {
         return SlotFs::fail(error, error_size, "insufficient setup space");
     }

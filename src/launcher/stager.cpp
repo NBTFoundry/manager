@@ -54,29 +54,44 @@ int copyRelease(nbt_fs *fs, const char *slot, int input, uint64_t size) {
     return 0;
 }
 
+/* A program of the slot: the GUI, the worker or the runner. */
+struct SlotProgram {
+    nbt_fs_path_kind kind, next;
+    const char *name; // fault injection: <name>-created, -written, -sync, -synced
+};
+const SlotProgram kGui = {NBT_FS_MANAGER_SLOT_GUI, NBT_FS_MANAGER_SLOT_GUI_NEXT, "gui"};
+const SlotProgram kWorker = {NBT_FS_MANAGER_SLOT_WORKER, NBT_FS_MANAGER_SLOT_WORKER_NEXT, "worker"};
+const SlotProgram kRunner = {NBT_FS_MANAGER_SLOT_RUNNER, NBT_FS_MANAGER_SLOT_RUNNER_NEXT, "runner"};
+
+void stageFault(const SlotProgram &program, const char *step) {
+    char name[32];
+    snprintf(name, sizeof(name), "%s-%s", program.name, step);
+    SlotFs::stageFault(name);
+}
+
 int copyComponent(nbt_fs *fs, const char *slot, int releaseFd, const nbt_release *release,
-                  unsigned index, nbt_fs_path_kind kind) {
+                  unsigned index, const SlotProgram &program) {
+    const nbt_fs_path_kind kind = program.kind, next = program.next;
     const int present = nbt_fs_exists(fs, kind, "manager", slot);
     if (present != 0) {
         return present > 0 ? 0 : -1;
     }
-    const nbt_fs_path_kind next =
-        index == 1 ? NBT_FS_MANAGER_SLOT_GUI_NEXT : NBT_FS_MANAGER_SLOT_WORKER_NEXT;
     const int output = nbt_fs_open(fs, next, "manager", slot, NBT_FS_CREATE);
     if (output < 0) {
         return -1;
     }
-    SlotFs::stageFault(index == 1 ? "gui-created" : "worker-created");
+    stageFault(program, "created");
     int result = nbt_release_copy_component(releaseFd, release, index, output, NULL, 0);
     if (!result && fchmod(output, 0700)) {
         result = -1;
     }
-    SlotFs::stageFault(index == 1 ? "gui-written" : "worker-written");
-    if (!result &&
-        (SlotFs::injectedStageError(index == 1 ? "gui-sync" : "worker-sync") || fsync(output))) {
+    stageFault(program, "written");
+    char syncName[32];
+    snprintf(syncName, sizeof(syncName), "%s-sync", program.name);
+    if (!result && (SlotFs::injectedStageError(syncName) || fsync(output))) {
         result = -1;
     }
-    SlotFs::stageFault(index == 1 ? "gui-synced" : "worker-synced");
+    stageFault(program, "synced");
     if (close(output)) {
         result = -1;
     }
@@ -93,9 +108,8 @@ int stageSlotFiles(nbt_fs *fs, const char *slot, int initial, int recovery, int 
     nbt_release copied;
     char verifyError[160];
     const uint64_t need = relSize + release.components[1].size + release.components[2].size +
-                          (release.component_count > NBT_RELEASE_CAPTURE_INDEX
-                               ? release.components[NBT_RELEASE_CAPTURE_INDEX].size
-                               : 0);
+                          nbt_release_named_size(&release, NBT_RELEASE_CAPTURE_NAME) +
+                          nbt_release_named_size(&release, NBT_RELEASE_RUNNER_NAME);
     if (SlotFs::requireSpace(fs->root, need, 4)) {
         return SlotFs::fail(error, errorSize, "insufficient staging space");
     }
@@ -118,17 +132,23 @@ int stageSlotFiles(nbt_fs *fs, const char *slot, int initial, int recovery, int 
         }
         return SlotFs::fail(error, errorSize, "staged release changed");
     }
-    if (copyComponent(fs, slot, staged, &copied, 1, NBT_FS_MANAGER_SLOT_GUI)) {
+    if (copyComponent(fs, slot, staged, &copied, 1, kGui)) {
         close(staged);
         return SlotFs::fail(error, errorSize, "cannot stage manager GUI");
     }
     SlotFs::stageFault("gui");
-    if (copyComponent(fs, slot, staged, &copied, 2, NBT_FS_MANAGER_SLOT_WORKER)) {
+    if (copyComponent(fs, slot, staged, &copied, 2, kWorker)) {
         close(staged);
         return SlotFs::fail(error, errorSize, "cannot stage manager worker");
     }
-    close(staged);
     SlotFs::stageFault("worker");
+    const int runner = nbt_release_find(&copied, NBT_RELEASE_RUNNER_NAME);
+    if (runner >= 0 &&
+        copyComponent(fs, slot, staged, &copied, static_cast<unsigned>(runner), kRunner)) {
+        close(staged);
+        return SlotFs::fail(error, errorSize, "cannot stage nbt-runner");
+    }
+    close(staged);
     if (SlotFs::slotBarrier(fs, slot)) {
         return SlotFs::fail(error, errorSize, "cannot sync manager slot");
     }

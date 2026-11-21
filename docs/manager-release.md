@@ -18,14 +18,31 @@ ordered `version`, `sequence`, `platform`, `compat`, optional `bridge` lines
 
 `NBTRLS2` keeps that exact header, signature, bounds and eight components and
 appends a ninth component, `capture_lib` (an ARMv7 ELF shared object `ET_DYN`
-for the early-boot DSI preload shim). Both formats share the same manager signing
-key and strict verification rules. `nbt-manager-launcher --capabilities` prints
-`formats=NBTRLS1,NBTRLS2`. The installers do not ask it: their Update stages
-a release with that release's own launcher (docs/install-flow.md), so an
-`NBTRLS2` release needs no `NBTRLS1` step first and kits carry one release.
-From the phone's manager page (the worker), a manager older than `NBTRLS2`
-cannot take an `NBTRLS2` release: update it over SSH (Windows or the phone's
-installer).
+for the early-boot DSI preload shim).
+
+`NBTRLS3` keeps the same header, signature, bounds and eight fixed components,
+then up to eight **named components**, each a `<name>_size` and `<name>_sha256`
+pair in the manifest, in payload order. A name is `[a-z][a-z0-9_]{0,23}`,
+unique, and never one of the fixed roles. The verifier knows two names:
+`capture_lib` (ARM `ET_DYN`, as in `NBTRLS2`) and `runner` (`nbt-runner`, an
+ARM ELF program that runs applications built without the QNX SDP). Any other
+name is checked by size and digest only, so a later release can add a
+component that an `NBTRLS3` launcher stages without knowing it: the slot keeps
+the whole release (`release.nbtr`), and the new release's own code reads the
+component from it. Staging copies `runner` next to the GUI and the worker
+(`manager/slots/<n>/runner`, mode 0700), and the slot check covers it.
+`tools/package_release.py --component runner=<path>` writes `NBTRLS3`.
+
+All three formats share the same manager signing key and strict verification
+rules. `nbt-manager-launcher --capabilities` prints
+`formats=NBTRLS1,NBTRLS2,NBTRLS3`. The installers do not ask it: their Update
+stages a release with that release's own launcher (docs/install-flow.md), so a
+new format needs no older-format step first and kits carry one release. From
+the phone's manager page (the worker), the stable launcher stages the upload
+at the next opening, so a launcher that does not list the release's format
+refuses it: `update NBT Manager once with the installer first` (Windows or the
+phone's installer). That happens once per format: `NBTRLS3` was made extensible
+so that it is the last.
 
 Each optional `bridge=<major>.<minor>|<capabilities>` line declares one served
 major, in increasing major order, at most two. Canonical version components

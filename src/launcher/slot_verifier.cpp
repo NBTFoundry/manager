@@ -45,12 +45,16 @@ int SlotVerifier::verifySlotWithKey(nbt_fs *fs, const nbt_manager_slot *record, 
         close(fd);
         return -1;
     }
+    const int runner = nbt_release_find(&active, NBT_RELEASE_RUNNER_NAME);
     if (close(fd) || active.sequence != record->sequence ||
         !nbt_constant_equal(active.sha256, record->release_hash, 32) ||
         SlotFs::fileMatches(fs, NBT_FS_MANAGER_SLOT_GUI, slot, active.components[1].size,
                             active.components[1].sha256, true) ||
         SlotFs::fileMatches(fs, NBT_FS_MANAGER_SLOT_WORKER, slot, active.components[2].size,
-                            active.components[2].sha256, true)) {
+                            active.components[2].sha256, true) ||
+        (runner >= 0 &&
+         SlotFs::fileMatches(fs, NBT_FS_MANAGER_SLOT_RUNNER, slot, active.components[runner].size,
+                             active.components[runner].sha256, true))) {
         return -1;
     }
     return 0;
@@ -75,24 +79,36 @@ int SlotVerifier::preflightInitialSlot(nbt_fs *fs, const char *slot, const nbt_r
                                                        release->components[2].sha256, true))) {
         return -1;
     }
+    const int runner = nbt_release_find(release, NBT_RELEASE_RUNNER_NAME);
+    present = nbt_fs_exists(fs, NBT_FS_MANAGER_SLOT_RUNNER, "manager", slot);
+    if (present < 0 || (present && (runner < 0 || SlotFs::fileMatches(
+                                                      fs, NBT_FS_MANAGER_SLOT_RUNNER, slot,
+                                                      release->components[runner].size,
+                                                      release->components[runner].sha256, true)))) {
+        return -1;
+    }
     return 0;
 }
 
 int SlotVerifier::clearSlot(nbt_fs *fs, const char *slot, int initial) {
+    // The programs first; an initial setup keeps them (preflightInitialSlot
+    // checked them) and removes only the partial copies.
     const nbt_fs_path_kind kinds[] = {
-        NBT_FS_MANAGER_SLOT_RELEASE,  NBT_FS_MANAGER_SLOT_GUI,
-        NBT_FS_MANAGER_SLOT_WORKER,   NBT_FS_MANAGER_SLOT_RELEASE_NEXT,
-        NBT_FS_MANAGER_SLOT_GUI_NEXT, NBT_FS_MANAGER_SLOT_WORKER_NEXT};
-    int exists[6];
+        NBT_FS_MANAGER_SLOT_RELEASE,      NBT_FS_MANAGER_SLOT_GUI,
+        NBT_FS_MANAGER_SLOT_WORKER,       NBT_FS_MANAGER_SLOT_RUNNER,
+        NBT_FS_MANAGER_SLOT_RELEASE_NEXT, NBT_FS_MANAGER_SLOT_GUI_NEXT,
+        NBT_FS_MANAGER_SLOT_WORKER_NEXT,  NBT_FS_MANAGER_SLOT_RUNNER_NEXT};
+    const int kPrograms = 4, kKinds = 8;
+    int exists[kKinds];
     int changed = 0;
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < kKinds; ++i) {
         exists[i] = nbt_fs_exists(fs, kinds[i], "manager", slot);
         if (exists[i] < 0) {
             return -1;
         }
     }
-    for (int i = 0; i < 6; ++i) {
-        if (exists[i] && (!initial || i >= 3)) {
+    for (int i = 0; i < kKinds; ++i) {
+        if (exists[i] && (!initial || i >= kPrograms)) {
             if (nbt_fs_unlink(fs, kinds[i], "manager", slot)) {
                 return -1;
             }

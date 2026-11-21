@@ -16,17 +16,23 @@ import tempfile
 MAX_COMPONENT = 64 * 1024 * 1024
 MAX_TOTAL = 128 * 1024 * 1024
 TOKEN = re.compile(r"[a-z0-9_.-]{1,48}\Z")
+# NBTRLS3: named components after the fixed roles (docs/manager-release.md).
+NAME = re.compile(r"[a-z][a-z0-9_]{0,23}\Z")
+MAX_EXTRA = 8
+# Named components this manager knows as ARM programs: (name, ELF types).
+KNOWN_ELF = {"capture_lib": (b"\x03\x00",), "runner": (b"\x02\x00", b"\x03\x00")}
 VERSION = re.compile(r"[A-Za-z0-9_.-]{1,48}\Z")
 COMPONENTS_V1 = ("launcher", "gui", "worker", "plugin_lib", "plugin_manifest",
                  "plugin_xml", "plugin_text", "plugin_images")
-COMPONENTS_V2 = COMPONENTS_V1 + ("capture_lib",)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("launcher", "gui", "worker", "plugin-dir", "key", "output"):
         parser.add_argument("--" + name, required=True, type=Path)
-    parser.add_argument("--capture-lib", type=Path, help="optional ARM input-capture shim (produces NBTRLS2)")
+    parser.add_argument("--capture-lib", type=Path, help="optional ARM input-capture shim (alone: NBTRLS2)")
+    parser.add_argument("--component", action="append", default=[], metavar="NAME=PATH",
+                        help="a named component after the fixed roles (produces NBTRLS3), e.g. runner=build/nbt-runner")
     parser.add_argument("--version", required=True)
     parser.add_argument("--sequence", required=True, type=int)
     parser.add_argument("--compat", required=True)
@@ -41,13 +47,29 @@ def main():
         parser.error(str(error))
     if not VERSION.fullmatch(args.version) or not TOKEN.fullmatch(args.compat) or not 0 < args.sequence < 2**64:
         parser.error("invalid version, compatibility or sequence")
-    components = COMPONENTS_V2 if args.capture_lib else COMPONENTS_V1
-    magic = b"NBTRLS2\n" if args.capture_lib else b"NBTRLS1\n"
+    extras = []
+    for item in args.component:
+        name, _, path = item.partition("=")
+        if not NAME.fullmatch(name) or name in COMPONENTS_V1 or not path or name in [n for n, _ in extras]:
+            parser.error(f"invalid component: {item}")
+        extras.append((name, Path(path)))
+    if args.capture_lib:
+        if "capture_lib" in [n for n, _ in extras]:
+            parser.error("capture_lib given twice")
+        extras.insert(0, ("capture_lib", args.capture_lib))
+    if len(extras) > MAX_EXTRA:
+        parser.error(f"at most {MAX_EXTRA} named components")
     paths = [args.launcher, args.gui, args.worker, args.plugin_dir / "libNbtManager.so",
              args.plugin_dir / "NbtManager.manifest", args.plugin_dir / "NbtManager.xml",
              args.plugin_dir / "NbtManager_ALL_Texts.zip", args.plugin_dir / "NbtManager_ALL_Images.zip"]
-    if args.capture_lib:
-        paths.append(args.capture_lib)
+    paths += [path for _, path in extras]
+    components = COMPONENTS_V1 + tuple(name for name, _ in extras)
+    if args.component:
+        magic = b"NBTRLS3\n"
+    elif args.capture_lib:
+        magic = b"NBTRLS2\n"
+    else:
+        magic = b"NBTRLS1\n"
     try:
         with ExitStack() as stack:
             snapshots, details, total = [], [], 0
@@ -67,8 +89,9 @@ def main():
                     snapshot.write(block)
                 if not size:
                     raise ValueError(f"empty component: {components[index]}")
-                if index < 4 or index == 8:
-                    expected_types = (b"\x03\x00",) if index in (3, 8) else (b"\x02\x00", b"\x03\x00")
+                name = components[index]
+                if index < 4 or name in KNOWN_ELF:
+                    expected_types = (b"\x03\x00",) if index == 3 else KNOWN_ELF.get(name, (b"\x02\x00", b"\x03\x00"))
                     if len(first) < 52 or first[:7] != b"\x7fELF\x01\x01\x01" or first[18:20] != b"\x28\x00" or first[16:18] not in expected_types:
                         raise ValueError(f"invalid ARM ELF: {components[index]}")
                 total += size

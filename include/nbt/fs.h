@@ -138,7 +138,11 @@ typedef enum {
     /* manager/shortcuts: the applications iDrive's App shortcut entries open
      * (nbt/manager_settings.h), replaced through its .next. */
     NBT_FS_MANAGER_SHORTCUTS,
-    NBT_FS_MANAGER_SHORTCUTS_NEXT
+    NBT_FS_MANAGER_SHORTCUTS_NEXT,
+    /* manager/slots/<n>/runner: nbt-runner from the slot's release (NBTRLS3),
+     * which runs applications built without the QNX SDP. */
+    NBT_FS_MANAGER_SLOT_RUNNER,
+    NBT_FS_MANAGER_SLOT_RUNNER_NEXT
 } nbt_fs_path_kind;
 
 /* NBT_FS_APPEND opens an existing debug log (NBT_FS_MANAGER_LOG) for
