@@ -45,7 +45,7 @@ export BUILD_DIR DIST_DIR MANAGER_VERSION MANAGER_SEQUENCE MANAGER_COMPAT
 export MANAGER_SIGNING_KEY MANAGER_PUBLIC_KEY APPS_PUBLIC_KEY CARGO NBT_INSTALLER_DIR
 export INSTALLER_TARGET_DIR
 
-.PHONY: all host release installer-release test clean simulator run-simulator qnx qnx-plugin qnx-capture qnx-check plugin-resources windows-kit kit check-cxx check-static-init stack-report pre-commit format fuzz FORCE tsan
+.PHONY: all host release installer-release test clean simulator run-simulator qnx qnx-plugin qnx-capture qnx-runner qnx-check plugin-resources windows-kit kit check-cxx check-static-init stack-report pre-commit format fuzz FORCE tsan
 all: release
 
 # The whole kit procedure from a clean commit: QNX checks, kit, copy to the
@@ -55,7 +55,7 @@ kit:
 
 release:
 	python3 tools/build_release.py check
-	$(MAKE) host qnx qnx-plugin qnx-capture
+	$(MAKE) host qnx qnx-plugin qnx-capture qnx-runner
 	python3 tools/build_release.py package
 
 # The desktop installer with dist/manager.nbtr embedded (NBT_INSTALLER_DIR).
@@ -440,7 +440,20 @@ qnx-capture: | $(BUILD_DIR)
 	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -DNBT_CAPTURE_OBSERVER=0 -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -shared -Iinclude -Wl,-soname,libnbt-capture.so -Wl,-z,defs -Wl,--exclude-libs,ALL -o $(QNX_UNSTRIPPED)/libnbt-capture.so src/capture/control.c src/capture/classifier.c src/capture/shim_env.c src/capture/shim_diag.c src/capture/shim.c
 	$(QNX_STRIP) -o $(BUILD_DIR)/libnbt-capture.so $(QNX_UNSTRIPPED)/libnbt-capture.so
 
-qnx-check: qnx qnx-plugin qnx-capture
+# nbt-runner, the release's runner component (NBTRLS3, docs/manager-release.md),
+# built by the SDK checkout at NBT_SDK_DIR: CI checks out the commit sdk.ref
+# names. Its own check: imports only what QNX 6.5.0 SP1 provides.
+NBT_SDK_DIR ?= $(abspath ../sdk)
+QNX_ENV ?=
+qnx-runner: | $(BUILD_DIR)
+	test -n "$(QNX_ENV)" -a -n "$(QNX_SCREEN_LIBDIR)"
+	$(MAKE) -C "$(NBT_SDK_DIR)" BUILD_DIR=$(BUILD_DIR)/sdk QNX_ENV="$(QNX_ENV)" \
+		QNX_SCREEN_LIBDIR="$(QNX_SCREEN_LIBDIR)" nbt-runner runner-check
+	mkdir -p $(QNX_UNSTRIPPED)
+	cp $(BUILD_DIR)/sdk/nbt-runner $(QNX_UNSTRIPPED)/nbt-runner
+	$(QNX_STRIP) -o $(BUILD_DIR)/nbt-runner $(BUILD_DIR)/sdk/nbt-runner
+
+qnx-check: qnx qnx-plugin qnx-capture qnx-runner
 	QNX_READELF="$(QNX_READELF)" QNX_NM="$(QNX_NM)" QNX_SIZE="$(QNX_SIZE)" python3 tools/check_qnx_artifacts.py
 
 plugin-resources: | $(BUILD_DIR)

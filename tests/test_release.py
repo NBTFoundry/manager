@@ -161,6 +161,7 @@ class ReleaseTests(unittest.TestCase):
                                         ("gui", "nbt-manager-gui"),
                                         ("worker", "nbt-managerd-qnx")):
                 shutil.copyfile(self.root / source, build / destination)
+            shutil.copyfile(self.root / "launcher", build / "nbt-runner")
             shutil.copytree(self.root / "plugin", build / "NbtManager")
             shutil.copy2(VERIFY, build / "nbt-verify-release")
             environment = dict(os.environ, BUILD_DIR=str(build), DIST_DIR=str(dist), MANAGER_VERSION="v1",
@@ -168,16 +169,29 @@ class ReleaseTests(unittest.TestCase):
                                MANAGER_SIGNING_KEY=str(self.root / "manager.pem"),
                                MANAGER_PUBLIC_KEY=str(self.root / "manager.pub"))
             command = ["python3", str(ROOT / "tools/build_release.py")]
+            # The release carries the runner: NBTRLS3.
+            expected = Path(temporary) / "expected.nbtr"
+            packed = run("python3", PACK, "--version", "v1", "--sequence", "1", "--compat", "demo-1",
+                         "--key", self.root / "manager.pem", "--output", expected,
+                         "--launcher", self.root / "launcher", "--gui", self.root / "gui",
+                         "--worker", self.root / "worker", "--plugin-dir", self.root / "plugin",
+                         "--component", f"runner={build / 'nbt-runner'}")
+            self.assertEqual(packed.returncode, 0, packed.stderr)
+            (build / "nbt-runner").rename(build / "runner-elsewhere")
+            result = subprocess.run(command + ["package"], env=environment, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(b"make qnx-runner", result.stderr)
+            (build / "runner-elsewhere").rename(build / "nbt-runner")
             for _ in range(2):
                 result = subprocess.run(command + ["package"], env=environment, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual((dist / "manager.nbtr").read_bytes(), self.release.read_bytes())
+                self.assertEqual((dist / "manager.nbtr").read_bytes(), expected.read_bytes())
                 self.assertEqual(sorted(p.name for p in dist.iterdir()), ["manager.nbtr"])
                 self.assertFalse((build / "manager.nbtr").exists())
             environment["MANAGER_PUBLIC_KEY"] = str(self.root / "other.pub")
             result = subprocess.run(command + ["package"], env=environment, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertEqual((dist / "manager.nbtr").read_bytes(), self.release.read_bytes())
+            self.assertEqual((dist / "manager.nbtr").read_bytes(), expected.read_bytes())
             self.assertEqual(sorted(p.name for p in dist.iterdir()), ["manager.nbtr"])
             environment["MANAGER_PUBLIC_KEY"] = str(self.root / "manager.pub")
             environment["MANAGER_SEQUENCE"] = "2"

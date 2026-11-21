@@ -48,7 +48,8 @@ def clean_tree():
 
 
 def build():
-    env = dict(os.environ, QNX_SCREEN_LIBDIR=setting("QNX_SCREEN_LIBDIR"),
+    env = dict(os.environ, QNX_ENV=setting("QNX_ENV"),
+               QNX_SCREEN_LIBDIR=setting("QNX_SCREEN_LIBDIR"),
                RHMI_LIBDIR=setting("RHMI_LIBDIR"),
                MANAGER_CAPTURE_LIB=str(ROOT / "build/libnbt-capture.so"))
     jobs = os.cpu_count() or 1

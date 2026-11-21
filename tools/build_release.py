@@ -114,6 +114,12 @@ def package():
         capture = os.environ.get("MANAGER_CAPTURE_LIB", "")
         if capture:
             command.extend(["--capture-lib", capture])
+        # nbt-runner (make qnx-runner): an NBTRLS3 component, so that
+        # applications built without the QNX SDP run (docs/app-bridge.md, 8).
+        runner = Path(os.environ.get("MANAGER_RUNNER", build / "nbt-runner"))
+        if not runner.is_file():
+            raise ValueError(f"missing {runner}: make qnx-runner")
+        command.extend(["--component", f"runner={runner}"])
         subprocess.run(command, check=True)
         verify(output, public, compatibility, build)
         publish(output, destination / "manager.nbtr")

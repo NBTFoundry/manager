@@ -18,13 +18,19 @@
 #         build: make qnx qnx-check
 #         payload: build/nbt-doom-qnx
 #
+# An application built without the QNX SDP (a module or guest for nbt-runner,
+# bridge capability runner) sets qnx: false: its build runs on a plain runner
+# with the SDK's own toolchain (the job runs make -C ../sdk toolchain first),
+# and needs no access to the private QNX image.
+#
 # The caller's release/package.args describes the package (tools/package.py @FILE).
 # The apps key comes from the caller's "release" environment (secret APPS_SIGNING_KEY,
 # base64 of the PEM) and must be the pair of this repository's release/apps-public.pem,
 # the key the manager trusts. A called workflow sees the caller's environment secrets
 # only with "secrets: inherit"; keep no repository-level secrets in the caller, since
 # inherit passes those too. Each job holds only what it needs:
-#   build    private QNX image, no secret; produces the unsigned executable
+#   build    private QNX image (or none, qnx: false), no secret; produces the
+#            unsigned executable
 #   sign     the release environment; runs only tools/package.py from this workflow's
 #            commit, never build output
 #   verify   nbt-verify built from this workflow's commit; holds nothing
@@ -50,6 +56,10 @@ on:
         description: The package description, one tools/package.py argument per line
         type: string
         default: release/package.args
+      qnx:
+        description: Build in the private QNX image; false for a module or guest built with the SDK's toolchain only
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -65,8 +75,9 @@ jobs:
       contents: read
       packages: read
     container:
-      # ci/qnx/README.md; the same image as release.yml.
-      image: ghcr.io/nbtfoundry/qnx65-build@sha256:83bbc5a6f91966bf0e9f36c3c8a49e11911d22c7d1ae14a03516c928664fcac4
+      # ci/qnx/README.md; the same image as release.yml. No image (qnx: false):
+      # the job runs on the runner itself.
+      image: ${{ inputs.qnx && 'ghcr.io/nbtfoundry/qnx65-build@sha256:83bbc5a6f91966bf0e9f36c3c8a49e11911d22c7d1ae14a03516c928664fcac4' || '' }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -120,6 +131,9 @@ jobs:
             echo "sequence=$sequence"
             echo "payload=$(basename "$PAYLOAD")"
           } >>"$GITHUB_OUTPUT"
+      - name: The SDK's toolchain (without the QNX SDP)
+        if: ${{ !inputs.qnx }}
+        run: make -C sdk toolchain
       - name: Build
         working-directory: app
         env:

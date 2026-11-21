@@ -33,6 +33,8 @@ ALLOWED_NEEDED = {
     # iDrive libraries need it on NBTevo_Y21432J (DT_NEEDED).
     "libz.so.2",
 }
+# nbt-runner (the SDK's, NBTRLS3 component runner) draws for the applications.
+RUNNER_NEEDED = ALLOWED_NEEDED | {"libEGL.so.1", "libGLESv2.so.1"}
 ALLOWED_REMOVED_PLUGIN_IMPORTS = {
     "_ZnwjRKSt9nothrow_t", "_ZSt7nothrow", "__aeabi_unwind_cpp_pr0",
     "__aeabi_unwind_cpp_pr1", "__cxa_end_cleanup", "__gxx_personality_v0",
@@ -111,6 +113,19 @@ def main():
         if b"NBT_TEST_" in path.read_bytes():
             errors.append(name + ": contains NBT_TEST_ strings")
         imported |= symbols(path, "--undefined-only")
+
+    runner = BUILD / "nbt-runner"
+    if not runner.is_file():
+        errors.append("missing " + str(runner))
+    else:
+        header = run(READELF, "-h", str(runner))
+        match = re.search(r"^\s*Type:\s+(\S+)", header, re.MULTILINE)
+        if not match or match.group(1) != "EXEC":
+            errors.append("nbt-runner: expected ET_EXEC")
+        unexpected = set(needed(runner)) - RUNNER_NEEDED
+        if unexpected:
+            errors.append("nbt-runner: unexpected NEEDED " + ", ".join(sorted(unexpected)))
+        imported |= symbols(runner, "--undefined-only")
 
     plugin = BUILD / "NbtManager" / "libNbtManager.so"
     if not plugin.is_file():

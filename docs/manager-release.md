@@ -109,7 +109,9 @@ approves the run; it executes nothing but `tools/package_release.py` from the ta
 step and refuses a key that is not the pair of `release/manager-public.pem`. A
 separate job runs the build's verifier on the signed file without any credential,
 and the publishing job, the only one with write access, executes nothing from the
-build. All actions are pinned to commit SHAs.
+build. All actions are pinned to commit SHAs. The build also checks out
+`NBTFoundry/sdk` at the commit `sdk.ref` names and builds `nbt-runner` from it
+(`make qnx-runner`, the `runner` component).
 
 Application packages (`.nbt`) are released the same way by
 `.github/workflows/app-release.yml`, which application repositories call from their
@@ -119,7 +121,9 @@ package description is the repository's `release/package.args` (`tools/package.p
 is the secret `APPS_SIGNING_KEY` of the application repository's `release`
 environment and must be the pair of `release/apps-public.pem` here; the sign job
 takes `tools/package.py` from the called workflow's own commit, and the verify job
-checks the package with `nbt-verify` built from that commit.
+checks the package with `nbt-verify` built from that commit. An application built without
+the QNX SDP passes `qnx: false`: its build runs on a plain runner with the SDK's
+own toolchain and never touches the private image.
 
 The desktop installer and target launcher enforce the manager signing key,
 release sequence, installation and rollback policies described below. A valid

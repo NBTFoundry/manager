@@ -50,6 +50,23 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git -c url.https://github.com/.insteadOf=git@github.com: submodule update --init --depth 1 third_party/lvgl
+      - name: SDK commit for nbt-runner
+        id: sdk
+        run: |
+          ref="$(cat sdk.ref)"
+          [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::sdk.ref must hold one SDK commit"; exit 1; }
+          echo "ref=$ref" >>"$GITHUB_OUTPUT"
+      # nbt-runner, the release's runner component, is the SDK's (make qnx-runner).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: NBTFoundry/sdk
+          ref: ${{ steps.sdk.outputs.ref }}
+          path: sdk
+          persist-credentials: false
+      - name: Fetch the SDK's submodules
+        run: |
+          git config --global --add safe.directory '*'
+          git -C sdk -c url.https://github.com/.insteadOf=git@github.com: submodule update --init --recursive --depth 1
       - name: Version and sequence from the tag
         id: version
         run: |
@@ -67,13 +84,14 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          make -j"$(nproc)" qnx qnx-plugin qnx-capture qnx-check "$PWD/build/nbt-verify-release" \
-            MANAGER_VERSION="$VERSION" APPS_PUBLIC_KEY=release/apps-public.pem
+          make -j"$(nproc)" qnx qnx-plugin qnx-capture qnx-runner qnx-check "$PWD/build/nbt-verify-release" \
+            MANAGER_VERSION="$VERSION" APPS_PUBLIC_KEY=release/apps-public.pem NBT_SDK_DIR="$PWD/sdk"
           # A worker without the apps key would accept no application package.
           key_line="$(sed -n 2p release/apps-public.pem)"
           grep -qF "$key_line" build/nbt-managerd-qnx || { echo "::error::the worker lacks the apps key"; exit 1; }
           mkdir -p out/unsigned/NbtManager out/verifier
-          cp build/nbt-manager-launcher build/nbt-manager-gui build/nbt-managerd-qnx build/libnbt-capture.so out/unsigned/
+          cp build/nbt-manager-launcher build/nbt-manager-gui build/nbt-managerd-qnx build/libnbt-capture.so \
+            build/nbt-runner out/unsigned/
           cp build/NbtManager/{libNbtManager.so,NbtManager.manifest,NbtManager.xml,NbtManager_ALL_Texts.zip,NbtManager_ALL_Images.zip} out/unsigned/NbtManager/
           cp build/nbt-verify-release out/verifier/
           (cd out/unsigned && find . -type f | sort | xargs sha256sum)
@@ -133,6 +151,7 @@ jobs:
           python3 tools/package_release.py --launcher unsigned/nbt-manager-launcher \
             --gui unsigned/nbt-manager-gui --worker unsigned/nbt-managerd-qnx \
             --plugin-dir unsigned/NbtManager --capture-lib unsigned/libnbt-capture.so \
+            --component runner=unsigned/nbt-runner \
             --key "$key" --output "signed/nbt-manager-$VERSION.nbtr" \
             --version "$VERSION" --sequence "$SEQUENCE" --compat "$MANAGER_COMPAT"
           # No line of the private key may appear in the output.
