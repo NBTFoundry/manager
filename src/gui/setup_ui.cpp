@@ -11,6 +11,7 @@
 #include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
+#include "nbt/gui/shortcut_ui.hpp"
 #include "nbt/log.h"
 #include <stdio.h>
 #include <string.h>
@@ -63,6 +64,9 @@ int setupReply(UiController &ui, int kind, const char *reply, uint64_t now) {
     }
     if (kind == R_AUTOSTART) {
         return autostartReply(ui, reply);
+    }
+    if (kind == R_SHORTCUT) {
+        return shortcutReply(ui, reply);
     }
     if (kind != R_SETUP) {
         return -1;

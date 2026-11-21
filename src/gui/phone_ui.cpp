@@ -5,6 +5,7 @@
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/setup_ui.hpp"
+#include "nbt/gui/shortcut_ui.hpp"
 #include "nbt/util.h"
 #include <stdio.h>
 #include <string.h>
@@ -72,7 +73,8 @@ bool phoneRequest(const UiController &ui, int kind, Request &request) {
         break;
     default:
         return setupRequest(kind, request) || languageRequest(ui, kind, request) ||
-               autostartRequest(ui, kind, request) || filesRequest(ui, kind, request);
+               autostartRequest(ui, kind, request) || shortcutRequest(ui, kind, request) ||
+               filesRequest(ui, kind, request);
     }
     return true;
 }

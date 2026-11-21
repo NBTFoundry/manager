@@ -1,7 +1,15 @@
 <!-- SPDX-License-Identifier: MPL-2.0 -->
 # iDrive bridge
 
-This PluginApp registers one `App Manager` menu entry. It is the
+This PluginApp registers one `App Manager` menu entry, and three entries
+**App shortcut 1-3** that open the application the manager assigns to each
+(an application's settings page, **App shortcut**; `include/nbt/manager_settings.h`).
+They carry fixed UUIDs (property 55), so iDrive stores them on favourite
+buttons; changing an assignment never touches iDrive. A press spawns the
+launcher with `--shortcut<n>`; its worker brings a running application back
+or writes `/dev/shmem/nbt-manager.shortcut` ("open", "start <app>"), and the
+plugin then opens the manager as for its own entry (`plugin/shortcut.cpp`,
+`src/worker/shortcut_dispatch.cpp`). The App Manager entry is the
 only iDrive plugin NBT Manager needs: managed applications do not ship their
 own. The manager's main menu starts them; holding the push on one opens its
 settings, declared in its signed package, and stops it (see `PROTOCOL.md`).

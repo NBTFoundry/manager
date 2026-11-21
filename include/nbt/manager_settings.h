@@ -21,14 +21,27 @@
  *
  * SET also takes language, auto|en|fr|de|it|es|zh|ja, written to
  * manager/language (nbt/model/language.hpp). It is not listed: a declared
- * setting has at most six choices, and the GUI has its own Language screen. */
+ * setting has at most six choices, and the GUI has its own Language screen.
+ *
+ * And shortcut1, shortcut2, shortcut3 <app>|off: which application iDrive's
+ * entries App shortcut 1-3 open (plugin/NbtManager.xml), in manager/shortcuts
+ * ("<app>\n" per entry, an empty line for none). An application takes one
+ * entry at most: giving it another frees the first. Shown on each
+ * application's own page (SETTINGS <app> live: +shortcut<n>). */
 
 #include "nbt/fs.h"
+#include "nbt/package.h"
 #include "nbt/settings.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define NBT_SHORTCUTS 3
+
+/* The application of each shortcut entry, "" for none (also when the file is
+ * absent); -1 when it cannot be read. */
+int nbt_manager_shortcuts_load(nbt_fs *fs, char apps[NBT_SHORTCUTS][NBT_ID_MAX + 1]);
 
 /* Returns -1 when the debug log's state cannot be read. */
 int nbt_manager_settings_load(nbt_fs *fs, nbt_settings *settings);

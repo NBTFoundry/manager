@@ -34,6 +34,11 @@ public:
     }
     /* Copies what the application wrote so far into its log. */
     void drain();
+    /* SIGTERM, SIGKILL after the grace period, as nbt_process_stop, reading
+     * the output meanwhile: what the application writes as it ends (a
+     * daemon's log, dev122) filled the pipe, blocked it and was lost with the
+     * SIGKILL. */
+    void stopChild(nbt_process &child);
     log::AppLog &log() {
         return log_;
     }

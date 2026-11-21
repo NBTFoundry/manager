@@ -9,6 +9,11 @@ static const char kPhoneWakePath[] = "/dev/shmem/nbt-manager.wake";
 static const char kDoorLivePath[] = "/dev/shmem/nbt-manager.door";
 /* Marks that this boot's automatic application starts were asked for. */
 static const char kAutostartBootPath[] = "/dev/shmem/nbt-manager.autostart";
+/* Set by `--autostart` when an open manager session holds the manager
+ * operation lock: that session's worker starts the applications instead
+ * (dev122: the manager opened before the boot's automatic starts, which then
+ * gave up). */
+static const char kAutostartHandoverPath[] = "/dev/shmem/nbt-manager.autostart-pending";
 enum PhoneWakeState { WakeOpening, WakeOpen, WakeBusy, WakeMoving, WakeOff };
 struct PhoneWake {
     char id[33];
@@ -24,6 +29,20 @@ bool phoneDoorClaim(const char *path);
  * record across iDrive restarts. */
 bool bootOnceClaim(const char *path);
 bool phoneDoorReset(const char *path);
+/* A one-byte flag record: set writes `value` ('1' to '9'); take gives it once
+ * after a set (and writes "0"), else 0. */
+bool flagRecordSet(const char *path, char value = '1');
+char flagRecordTakeValue(const char *path);
+inline bool flagRecordTake(const char *path) {
+    return flagRecordTakeValue(path) == '1';
+}
+/* kAutostartHandoverPath (tests: NBT_TEST_AUTOSTART_HANDOVER). */
+const char *autostartHandoverPath();
+/* An App shortcut pressed while a manager session holds the manager
+ * operation lock: its number, for that session's worker (shortcut_dispatch). */
+static const char kShortcutHandoverPath[] = "/dev/shmem/nbt-manager.shortcut-pending";
+/* kShortcutHandoverPath (tests: NBT_TEST_SHORTCUT_HANDOVER). */
+const char *shortcutHandoverPath();
 bool phoneWakeParse(const char *text, size_t size, PhoneWake &wake);
 bool phoneWakeRead(const char *path, PhoneWake &wake);
 bool phoneWakeWrite(const char *path, const PhoneWake &wake);

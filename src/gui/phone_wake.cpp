@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -86,6 +87,47 @@ bool phoneDoorReset(const char *path) {
     }
     const bool ok = write(fd, "0", 1) == 1 && !ftruncate(fd, 1);
     return close(fd) == 0 && ok;
+}
+bool flagRecordSet(const char *path, char value) {
+    const int fd = value >= '1' && value <= '9' ? openPrivate(path, true) : -1;
+    if (fd < 0) {
+        return false;
+    }
+    const bool ok = pwrite(fd, &value, 1, 0) == 1 && !ftruncate(fd, 1);
+    return close(fd) == 0 && ok;
+}
+char flagRecordTakeValue(const char *path) {
+    const int fd = openPrivate(path, false);
+    if (fd < 0) {
+        return 0;
+    }
+    char value = 0;
+    const bool set = pread(fd, &value, 1, 0) == 1 && value >= '1' && value <= '9';
+    close(fd);
+    if (!set) {
+        return 0;
+    }
+    const int writer = openPrivate(path, true);
+    const bool taken = writer >= 0 && pwrite(writer, "0", 1, 0) == 1;
+    return (writer < 0 || close(writer) == 0) && taken ? value : 0;
+}
+const char *shortcutHandoverPath() {
+#ifdef NBT_TESTING
+    const char *path = getenv("NBT_TEST_SHORTCUT_HANDOVER");
+    if (path) {
+        return path;
+    }
+#endif
+    return kShortcutHandoverPath;
+}
+const char *autostartHandoverPath() {
+#ifdef NBT_TESTING
+    const char *path = getenv("NBT_TEST_AUTOSTART_HANDOVER");
+    if (path) {
+        return path;
+    }
+#endif
+    return kAutostartHandoverPath;
 }
 const char *phoneWakeName(PhoneWakeState state) {
     const char *const names[] = {"opening", "open", "busy", "moving", "off"};

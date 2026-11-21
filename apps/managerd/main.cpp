@@ -2,6 +2,7 @@
 #include "nbt/core/system.hpp"
 #include "nbt/process/sandbox_limits.hpp"
 #include "nbt/worker/daemon.hpp"
+#include "nbt/worker/shortcut_dispatch.hpp"
 
 #include <errno.h>
 #include <signal.h>
@@ -46,6 +47,9 @@ int main(int argc, char **argv) {
     }
     if (argc >= 2 && !strcmp(argv[1], "--autostart")) {
         return nbt::worker::autostartMain(root, argv[0], argc, argv);
+    }
+    if (argc >= 2 && nbt::worker::shortcutSlot(argv[1])) {
+        return nbt::worker::shortcutMain(root, argv[0], argc, argv);
     }
     if (argc < 3 || strcmp(argv[1], "--control-fd")) {
         fprintf(stderr, "nbt-managerd: invalid arguments\n");

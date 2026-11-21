@@ -14,6 +14,15 @@ LANGUAGES = {
     "fr-CA": "Francais (CA)", "it": "Italiano", "pt": "Portugues", "ru": "Russian",
 }
 
+# Texts 2-4, the App shortcut entries (NbtManager.xml), as the manager's
+# settings page names them (src/gui/text, app_shortcut).
+SHORTCUT = {
+    "de": "App-Kurzbefehl", "en-UK": "App shortcut", "en-US": "App shortcut",
+    "es-ES": "Acceso directo", "es-US": "Acceso directo", "fr-FR": "Raccourci appli",
+    "fr-CA": "Raccourci appli", "it": "Scorciatoia app", "pt": "Atalho de app",
+    "ru": "App shortcut",  # as NBT-AAD's Russian entries: English (Cyrillic not car-tested)
+}
+
 
 def icon(name):
     """The menu icon: the NBTFoundry mark in one colour on transparent, 8-bit
@@ -36,7 +45,9 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(args.output / "NbtManager_ALL_Texts.zip", "w") as archive:
         for lang, name in LANGUAGES.items():
-            write_entry(archive, lang + ".txt", ("100000=" + name + "\n1=App Manager\n").encode())
+            shortcuts = "".join(f"{1 + n}={SHORTCUT[lang]} {n}\n" for n in (1, 2, 3))
+            write_entry(archive, lang + ".txt",
+                        ("100000=" + name + "\n1=App Manager\n" + shortcuts).encode())
     with zipfile.ZipFile(args.output / "NbtManager_ALL_Images.zip", "w") as archive:
         write_entry(archive, "55001.png", icon("55001.png"))
         write_entry(archive, "55002.png", icon("55002.png"))

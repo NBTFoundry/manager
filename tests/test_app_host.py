@@ -132,8 +132,8 @@ class AppHostTests(unittest.TestCase):
         self.assertEqual(command("HELLO 1"), "HELLO\t1")
         return daemon, command
 
-    def traced_app(self, uses=None, optional="", ready_delay=0, ignore_stop=False):
-        """An app with SIGUSR1's default fatal action unless actually granted show."""
+    def traced_app(self, uses=None, optional="", ready_delay=0, ignore_stop=False, bridge="1.5"):
+        """An app with SIGUSR1's default fatal action unless granted show or hold."""
         self.trace = self.root / "app-events"
         self.trace.write_text("")
         program = r"""#!/usr/bin/python3
@@ -150,7 +150,7 @@ def show(number, frame):
     global showing
     showing = True
 signal.signal(signal.SIGTERM, signal.SIG_IGN if @IGNORE_STOP@ else stop)
-if "show" in os.environ.get("NBT_BRIDGE_CAPS", "").split(","):
+if {"show", "hold"} & set(os.environ.get("NBT_BRIDGE_CAPS", "").split(",")):
     signal.signal(signal.SIGUSR1, show)
 fcntl.lockf(4, fcntl.LOCK_SH | fcntl.LOCK_NB)
 event("start " + str(os.getpid()))
@@ -186,7 +186,7 @@ event("exit")
                   f"version=v1\nsha256={hashlib.sha256(active.read_bytes()).hexdigest()}\n")
         if uses is not None:
             record = record.replace("NBTSTATE1\n", "NBTSTATE2\n")
-            record += f"bridge=1.5\nbridge-uses={uses}\nbridge-optional={optional}\n"
+            record += f"bridge={bridge}\nbridge-uses={uses}\nbridge-optional={optional}\n"
         (self.root / "state/test/installed").write_text(record)
 
     def events(self):
@@ -406,6 +406,22 @@ event("exit")
                 self.wait_for(lambda: command("RUNNING") == "RUNNING\t0")
                 self.assertEqual(command("QUIT"), "OK")
                 self.assertEqual(daemon.wait(timeout=10), 0)
+
+    def test_show_reaches_an_application_that_holds_its_own_surface(self):
+        # Bridge 1.6 `hold` (Android Auto): no surface of the manager's, but
+        # chosen again in the manager while it runs, it is asked to come back.
+        self.traced_app(uses="", optional="hold", bridge="1.6")
+        daemon, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: show_holder(self.host_lock))
+        self.assertIn("surface=absent", self.events())
+        self.assertFalse(lock_holder(self.surface_lock))
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "show" in self.events())
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("RUNNING") == "RUNNING\t0")
+        self.assertEqual(command("QUIT"), "OK")
+        self.assertEqual(daemon.wait(timeout=10), 0)
 
     def test_show_waits_for_readiness_and_accepts_optional_grants(self):
         self.traced_app(uses="", optional="show", ready_delay=1.5)
@@ -1069,6 +1085,28 @@ event("exit")
         self.assertNotIn(b"\0", data)
         self.assertTrue(data.startswith(b"after\n"), data)
         self.assertIn("opened with a plain write open", debug.read_text())
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_what_an_application_writes_as_it_stops_is_kept(self):
+        # dev122: Android Auto's adapter copies its daemon's log as it ends;
+        # the host stopped reading, the pipe filled and the end was lost.
+        self.script_app(
+            "import signal\n"
+            "def stop(number, frame):\n"
+            "    for i in range(1400):\n"  # beyond a Linux pipe's 64 KiB
+            "        print('closing line %04d ' % i + 'x' * 40)\n"
+            "    print('LAST LINE', flush=True)\n"
+            "    sys.exit(0)\n"
+            "signal.signal(signal.SIGTERM, stop)\n"
+            "while True:\n    os.write(3, b'R')\n    time.sleep(0.5)\n")
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: lock_holder(self.lease))
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: "stopped by the manager" in self.app_log())
+        self.assertIn("closing line 1399", self.app_log())
+        self.assertIn("LAST LINE", self.app_log())
+        self.wait_for(lambda: command("RUNNING") == "RUNNING\t0")
         self.assertEqual(command("QUIT"), "OK")
 
     def test_a_broken_contract_and_a_stop_are_explained(self):

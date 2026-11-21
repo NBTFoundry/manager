@@ -8,8 +8,10 @@
 #include "nbt/crypto/threads.hpp"
 #include "nbt/firewall.h"
 #include "nbt/fs.h"
+#include "nbt/gui/phone_wake.hpp"
 #include "nbt/log.h"
 #include "nbt/process/sandbox_limits.hpp"
+#include "nbt/worker/shortcut_dispatch.hpp"
 #include "nbt/worker/storage_report.hpp"
 
 #include <errno.h>
@@ -99,7 +101,7 @@ core::Status Daemon::command(char *line, uint64_t nowMs) {
 
 int Daemon::run() {
     int result = 1;
-    uint64_t nextListen = 0;
+    uint64_t nextListen = 0, nextHandover = 0;
     while (!control_.quitting()) {
         core::Result<uint64_t> now = core::monotonicMs();
         if (!now.get()) {
@@ -107,6 +109,19 @@ int Daemon::run() {
         }
         worker_.poll(now.value());
         wfdJob_.poll(now.value());
+        // This boot's automatic starts, and App shortcuts, handed over while
+        // this session holds the manager operation lock (launcher/door.cpp).
+        if (now.value() >= nextHandover) {
+            nextHandover = now.value() + 250;
+            if (gui::flagRecordTake(gui::autostartHandoverPath())) {
+                nbt_logf("autostart: handed over by the boot's automatic start");
+                (void)autostartDispatch(root_.legacy());
+            }
+            const char slot = gui::flagRecordTakeValue(gui::shortcutHandoverPath());
+            if (slot) { // an App shortcut pressed while this session holds the lock
+                (void)shortcutDispatch(root_.legacy(), static_cast<unsigned>(slot - '0'));
+            }
+        }
         if (wfdJob_.enabledByUs()) {
             const State st = worker_.state().state;
             if (st != State::Session && st != State::Verified && st != State::Installing &&
@@ -223,29 +238,35 @@ int autostartMain(const char *root, const char *self, int argc, char **argv) {
     }
 #endif
     (void)nbt_log_open(rootObject.legacy(), "autostart");
+    const int result = autostartDispatch(rootObject.legacy());
+    nbt_log_close();
+    return result;
+}
+
+int autostartDispatch(nbt_fs *fs) {
     char names[NBT_APP_LIST_MAX][NBT_APP_NAME_MAX + 1];
-    const int count = nbt_fs_list_apps(rootObject.legacy(), names);
+    const int count = nbt_fs_list_apps(fs, names);
     int result = count < 0 ? 1 : 0;
     for (int i = 0; i < count; ++i) {
         nbt_autostart state;
-        if (nbt_autostart_load(rootObject.legacy(), names[i], &state)) {
+        if (nbt_autostart_load(fs, names[i], &state)) {
             result = 1;
             continue;
         }
         char reason[128];
         if (state.enabled && state.failures < NBT_AUTOSTART_FAILURE_LIMIT &&
-            nbt_app_compatible(rootObject.legacy(), names[i], reason, sizeof(reason)) == 1) {
+            nbt_app_compatible(fs, names[i], reason, sizeof(reason)) == 1) {
             // Disabled until updated: not a failed start, so autostart is not paused.
             nbt_logf("autostart %s: skipped, needs an update: %s", names[i], reason);
         } else if (state.enabled && state.failures < NBT_AUTOSTART_FAILURE_LIMIT) {
-            const pid_t running = nbt_app_host_pid(rootObject.legacy(), names[i]);
-            if (running < 0 ||
-                (!running && nbt_app_host_autostart(rootObject.legacy(), names[i]))) {
+            const pid_t running = nbt_app_host_pid(fs, names[i]);
+            if (running < 0 || (!running && nbt_app_host_autostart(fs, names[i]))) {
                 result = 1;
+            } else if (!running) {
+                nbt_logf("autostart %s: started", names[i]);
             }
         }
     }
-    nbt_log_close();
     return result;
 }
 

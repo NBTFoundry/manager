@@ -23,9 +23,12 @@ struct FilesUsage {
 };
 
 /* The stored files of `dir`: entries with a valid name that are regular,
- * owned by `owner` on `device`, with one link (anything else is not counted).
+ * owned by `owner` on `device`, with one link (anything else is not counted),
+ * and game folders: private folders of `owner` on `device` with a valid folder
+ * name, one level, listed as "<folder>/" with the size of their stored files.
  * Fills up to `capacity` of those named after `after` ("" or NULL: from the
- * first), in byte order, and returns the count and size of all of them. */
+ * first), in byte order, and returns the count and size of all the files,
+ * those in folders included. */
 core::Result<FilesUsage> listFolder(const char *dir, dev_t device, uid_t owner, const char *after,
                                     FileEntry *entries, size_t capacity, size_t *count);
 

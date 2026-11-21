@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -113,6 +114,11 @@ void UsbFiles::walk(char *path, size_t length, unsigned depth, unsigned &entries
     if (!dir) {
         return;
     }
+    // Below a stick's top, a folder holding a file of an extension that makes a
+    // game folder (`|folders=`, a cue sheet) is one game: one match.
+    const bool set = depth >= 2 && marksFolder(path);
+    unsigned setFiles = 0;
+    uint64_t setBytes = 0;
     for (struct dirent *entry; count_ < kMatches && (entry = readdir(dir)) != NULL;) {
         const char *name = entry->d_name;
         const size_t n = strlen(name);
@@ -127,20 +133,32 @@ void UsbFiles::walk(char *path, size_t length, unsigned depth, unsigned &entries
         memcpy(path + length + 1, name, n + 1);
         if (!lstat(path, &st)) {
             UsbMatch &match = matches_[count_];
+            char stored[NBT_FILES_NAME_MAX + 1];
             if (S_ISDIR(st.st_mode) && depth < kDepthMax) {
                 walk(path, length + 1 + n, depth + 1, entries);
-            } else if (S_ISREG(st.st_mode) && length + 1 + n < sizeof(match.path) &&
-                       storedName(name, match.name) &&
-                       nbt_files_policy_accepts(&files_.policy, match.name)) {
-                memcpy(match.path, path, length + 1 + n + 1);
-                match.size = static_cast<uint64_t>(st.st_size);
-                match.stored = false;
-                ++count_;
+            } else if (S_ISREG(st.st_mode) && accepted(name, stored)) {
+                if (set) {
+                    ++setFiles;
+                    setBytes += static_cast<uint64_t>(st.st_size);
+                } else if (length + 1 + n < sizeof(match.path)) {
+                    memcpy(match.path, path, length + 1 + n + 1);
+                    memcpy(match.name, stored, strlen(stored) + 1);
+                    match.size = static_cast<uint64_t>(st.st_size);
+                    match.files = 1;
+                    match.kind = UsbMatch::File;
+                    match.stored = false;
+                    ++count_;
+                }
+            } else if (S_ISREG(st.st_mode) && n > 4 && !strcasecmp(name + n - 4, ".zip")) {
+                probeArchive(path, length + 1 + n);
             }
         }
         path[length] = 0;
     }
     closedir(dir);
+    if (setFiles) {
+        addFolder(path, length, setFiles, setBytes);
+    }
 }
 
 int UsbFiles::scan() {
@@ -195,38 +213,14 @@ int UsbFiles::copy(UsbMatch &match) {
         }
         return -1;
     }
+    close(source);
     core::Result<core::UniqueFd> staged = files_.root.stage(app_, storage::FilesSource::Usb);
     if (!staged.ok()) {
-        close(source);
         snprintf(reason_, sizeof(reason_), "unavailable");
         return -1;
     }
-    uint64_t left = match.size;
-    while (left) {
-        const size_t want = left < sizeof(buffer_) ? static_cast<size_t>(left) : sizeof(buffer_);
-        const ssize_t got = read(source, buffer_, want);
-        if (got < 0 && errno == EINTR) {
-            continue;
-        }
-        size_t written = 0;
-        while (got > 0 && written < static_cast<size_t>(got)) {
-            const ssize_t w =
-                write(staged.value().get(), buffer_ + written, static_cast<size_t>(got) - written);
-            if (w < 0 && errno == EINTR) {
-                continue;
-            }
-            if (w <= 0) {
-                break;
-            }
-            written += static_cast<size_t>(w);
-        }
-        if (got <= 0 || written != static_cast<size_t>(got)) {
-            break;
-        }
-        left -= static_cast<uint64_t>(got);
-        advance(static_cast<uint64_t>(got), false);
-    }
-    close(source);
+    const int copied = copyInto(match.path, match.size, staged.value().get());
+    const bool left = copied != 0;
     core::Status status = left || fsync(staged.value().get()) || !staged.value().close().ok()
                               ? core::Status::error(EIO, "copy failed")
                               : files_.root.commit(app_, storage::FilesSource::Usb, match.name);
@@ -236,6 +230,10 @@ int UsbFiles::copy(UsbMatch &match) {
         return -1;
     }
     return 0;
+}
+
+void UsbFiles::advanced(void *self, uint64_t bytes) {
+    static_cast<UsbFiles *>(self)->advance(bytes, false);
 }
 
 int UsbFiles::import() {
@@ -255,9 +253,10 @@ int UsbFiles::import() {
         if ((selected_ != kAll && selected_ != static_cast<int>(i)) || match.stored) {
             continue;
         }
+        const bool file = match.kind == UsbMatch::File;
         const core::Status admitted =
-            files_.root.admit(app_, files_.policy, match.name, match.size);
-        if (!admitted.ok() || copy(match)) {
+            file ? files_.root.admit(app_, files_.policy, match.name, match.size) : core::Status();
+        if (file ? !admitted.ok() || copy(match) : importSet(match) != 0) {
             if (!admitted.ok()) {
                 snprintf(reason_, sizeof(reason_), "%s", filesReason(admitted));
             }

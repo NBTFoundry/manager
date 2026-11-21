@@ -72,4 +72,99 @@
       </hmiState>
     </hmiStates>
   </pluginApp>
+  <!-- App shortcut 1-3 (raActions 3-5): one-press entries, after App Manager, each opening the application the
+       manager assigns to it (nbt/manager_settings.h; worker/shortcut_dispatch.hpp). Property 55 is its UUID: iDrive
+       stores only plugin entries with one on a favourite button (as NBT-AAD's "Open Android Auto"). Keep the UUIDs:
+       a new one orphans the buttons already stored. Their states come after the App Manager's (14 and 15 keep
+       their numbers). -->
+  <pluginApp applicationType="Custom" applicationWeight="197" entryButtonFocusID="32755" insertAfterFocusID="32754" insertStateID="20" text="App shortcut 1">
+    <comment/>
+    <entryButton action="3" id="101" model="103" imageModel="104" previewModel="113">
+      <properties>
+        <property id="55" value="69d2ab11-95de-4045-b09c-c8e546a5a358"/>
+      </properties>
+    </entryButton>
+    <actions><raAction id="3"/></actions>
+    <models>
+      <textIdModel id="103" textId="2"><synonyms/></textIdModel>
+      <imageIdModel id="104" imageId="55001"/>
+      <imageIdModel id="112" imageId="55002"/>
+      <raPreviewModel id="113" modelType="StatePreview" previewState="110"/>
+    </models>
+    <hmiStates>
+      <hmiState id="110" text="App shortcut 1" textModel="103">
+        <components>
+          <image id="111" model="112">
+            <properties>
+              <property id="3" value="true"/>
+              <property id="9" value="549"/>
+              <property id="10" value="484"/>
+              <property id="20" value="0"/>
+              <property id="21" value="0"/>
+            </properties>
+          </image>
+        </components>
+      </hmiState>
+    </hmiStates>
+  </pluginApp>
+  <pluginApp applicationType="Custom" applicationWeight="196" entryButtonFocusID="32756" insertAfterFocusID="32755" insertStateID="20" text="App shortcut 2">
+    <comment/>
+    <entryButton action="4" id="201" model="203" imageModel="204" previewModel="213">
+      <properties>
+        <property id="55" value="80c03e69-7c81-488a-a1b4-db06e143c2c7"/>
+      </properties>
+    </entryButton>
+    <actions><raAction id="4"/></actions>
+    <models>
+      <textIdModel id="203" textId="3"><synonyms/></textIdModel>
+      <imageIdModel id="204" imageId="55001"/>
+      <imageIdModel id="212" imageId="55002"/>
+      <raPreviewModel id="213" modelType="StatePreview" previewState="210"/>
+    </models>
+    <hmiStates>
+      <hmiState id="210" text="App shortcut 2" textModel="203">
+        <components>
+          <image id="211" model="212">
+            <properties>
+              <property id="3" value="true"/>
+              <property id="9" value="549"/>
+              <property id="10" value="484"/>
+              <property id="20" value="0"/>
+              <property id="21" value="0"/>
+            </properties>
+          </image>
+        </components>
+      </hmiState>
+    </hmiStates>
+  </pluginApp>
+  <pluginApp applicationType="Custom" applicationWeight="195" entryButtonFocusID="32757" insertAfterFocusID="32756" insertStateID="20" text="App shortcut 3">
+    <comment/>
+    <entryButton action="5" id="301" model="303" imageModel="304" previewModel="313">
+      <properties>
+        <property id="55" value="cfb30717-426c-43b9-a75b-56537bc2bb61"/>
+      </properties>
+    </entryButton>
+    <actions><raAction id="5"/></actions>
+    <models>
+      <textIdModel id="303" textId="4"><synonyms/></textIdModel>
+      <imageIdModel id="304" imageId="55001"/>
+      <imageIdModel id="312" imageId="55002"/>
+      <raPreviewModel id="313" modelType="StatePreview" previewState="310"/>
+    </models>
+    <hmiStates>
+      <hmiState id="310" text="App shortcut 3" textModel="303">
+        <components>
+          <image id="311" model="312">
+            <properties>
+              <property id="3" value="true"/>
+              <property id="9" value="549"/>
+              <property id="10" value="484"/>
+              <property id="20" value="0"/>
+              <property id="21" value="0"/>
+            </properties>
+          </image>
+        </components>
+      </hmiState>
+    </hmiStates>
+  </pluginApp>
 </pluginApps>

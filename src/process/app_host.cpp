@@ -80,8 +80,9 @@ class AppHostSupervisor {
 public:
     AppHostSupervisor(nbt_fs *fs, const char *app, bool automatic)
         : fs_(fs), app_(app), automatic_(automatic), confirmed_(!automatic), faultCleared_(false),
-          hostLock_(-1), statusFd_(-1), surfaceFd_(-1), canShow_(false), canStatus_(false),
-          advertised_(false), statusAdvertised_(false), output_(fs, app), child_() {
+          hostLock_(-1), statusFd_(-1), surfaceFd_(-1), canShow_(false), forwardsShow_(false),
+          canStatus_(false), advertised_(false), statusAdvertised_(false), output_(fs, app),
+          child_() {
         child_.ready_fd = -1;
         child_.lease_fd = -1;
     }
@@ -169,6 +170,10 @@ private:
             return failStart(txLock, reason, error);
         }
         canShow_ = start.canShow;
+        // An application that places its own surface and asks for the focus
+        // hold comes back on a show request too (selected in the manager,
+        // the App shortcut): SIGUSR1, as for `show` (docs/app-bridge.md).
+        forwardsShow_ = canShow_ || nbt_bridge_cap_has(start.grantCaps, "hold");
         canStatus_ = start.canStatus;
         if (canStatus_ && (statusFd_ = nbt_fs_status_open(fs_, app_, 1)) < 0) {
             nbt_logf("host %s: no status channel (errno %d); started without", app_, errno);
@@ -240,7 +245,7 @@ private:
                     nbt_logf("host %s: autostart healthy; boot guard cleared", app_);
                 }
             }
-            if (!advertiseCapability(canShow_, 1, advertised_) ||
+            if (!advertiseCapability(forwardsShow_, 1, advertised_) ||
                 !advertiseCapability(canStatus_, 3, statusAdvertised_)) {
                 return 1;
             }
@@ -277,7 +282,7 @@ private:
                 nbt_logf("host %s: stopping", app_);
             }
             pause_.beforeStop(child_);
-            (void)nbt_process_stop(&child_);
+            output_.stopChild(child_);
             output_.drain();
             if (hostStopping) {
                 output_.log().note("stopped by the manager");
@@ -298,7 +303,7 @@ private:
     const char *app_;
     bool automatic_, confirmed_, faultCleared_;
     int hostLock_, statusFd_, surfaceFd_;
-    bool canShow_, canStatus_, advertised_, statusAdvertised_;
+    bool canShow_, forwardsShow_, canStatus_, advertised_, statusAdvertised_;
     nbt::process::AppOutput output_;
     nbt::process::HostChannels channels_;
     nbt::process::HostBridge bridge_;

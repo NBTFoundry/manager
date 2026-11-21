@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/autostart_ui.hpp"
+#include "nbt/gui/shortcut_ui.hpp"
 #include "nbt/gui/ui_controller.hpp"
 
 #include "nbt/gui/files_ui.hpp"
@@ -56,7 +57,7 @@ int UiController::press(Key key) {
         return 0;
     }
     if (phonePress(*this, key) || statusPress(*this, key) || languagePress(*this, key) ||
-        autostartPress(*this, key)) {
+        autostartPress(*this, key) || shortcutPress(*this, key)) {
         return 1;
     }
     switch (screen) {

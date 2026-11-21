@@ -67,6 +67,18 @@ class GamepadOwnershipTests(unittest.TestCase):
                 return True
         return False
 
+    def steady(self, client, seconds):
+        """True when every state for `seconds` says connected, none more than
+        250 ms after the previous one (the relay sends at least every 100 ms)."""
+        end = time.monotonic() + seconds
+        last = time.monotonic()
+        while time.monotonic() < end:
+            ready, _, _ = select.select([client], [], [], 0.25)
+            if not ready or client.recv(25)[2] != 1:
+                return False
+            last = time.monotonic()
+        return time.monotonic() - last < 0.25
+
     def report(self, process):
         process.stdin.write(b"r")
         process.stdin.flush()
@@ -114,6 +126,26 @@ class GamepadOwnershipTests(unittest.TestCase):
         relay.stdin.flush()
         self.assertTrue(self.state(relayed, 1))
         # The application's surface left the panel: no pad either.
+        lm_state.write_text(json.dumps({"order": [256], "visible": {"256": 1}, "bound_after": 0}))
+        self.assertTrue(self.state(relayed, 0))
+
+    def test_relay_keeps_the_pad_while_layer_manager_is_slow_or_silent(self):
+        # dev122: the relay asked LayerManager itself every 250 ms, sent nothing
+        # while it waited and dropped the pad when it got no answer, so the
+        # application saw the pad come and go and held buttons released.
+        env = fake_layer_manager(self.tmp.name)
+        lm_state = Path(env["NBT_FAKE_LM_STATE"])
+        shown = {"order": [1291], "visible": {"1291": 1}, "bound_after": 0}
+        lm_state.write_text(json.dumps(shown))
+        _, relayed = self.spawn(lambda fd: ["--relay", str(fd), str(self.shared), "1"], env)
+        _, owner = self.service()
+        self.assertTrue(self.state(owner, 1))
+        self.assertTrue(self.state(relayed, 1))
+        lm_state.write_text(json.dumps(dict(shown, layer_hang_s=1.2)))
+        self.assertTrue(self.steady(relayed, 2.0))
+        lm_state.write_text(json.dumps(dict(shown, layer_fails=1)))
+        self.assertTrue(self.steady(relayed, 1.5))
+        # An answer still counts: iDrive on the panel stops the pad.
         lm_state.write_text(json.dumps({"order": [256], "visible": {"256": 1}, "bound_after": 0}))
         self.assertTrue(self.state(relayed, 0))
 

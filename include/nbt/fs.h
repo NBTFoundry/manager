@@ -134,7 +134,11 @@ typedef enum {
     /* manager/language: the manager screen's language setting, replaced
      * through its .next (nbt/model/language.hpp). */
     NBT_FS_MANAGER_LANGUAGE,
-    NBT_FS_MANAGER_LANGUAGE_NEXT
+    NBT_FS_MANAGER_LANGUAGE_NEXT,
+    /* manager/shortcuts: the applications iDrive's App shortcut entries open
+     * (nbt/manager_settings.h), replaced through its .next. */
+    NBT_FS_MANAGER_SHORTCUTS,
+    NBT_FS_MANAGER_SHORTCUTS_NEXT
 } nbt_fs_path_kind;
 
 /* NBT_FS_APPEND opens an existing debug log (NBT_FS_MANAGER_LOG) for

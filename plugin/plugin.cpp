@@ -26,6 +26,7 @@
 #include "framework.hpp"
 #include "launcher_spawn.hpp"
 #include "phone_runtime.hpp"
+#include "shortcut.hpp"
 
 using nbt::plugin::focusEvent;
 using nbt::plugin::guiRunning;
@@ -186,13 +187,17 @@ void runnablePoll(void *) {
             phoneRuntime.openFailed();
         }
         apply(instance, hold->poll(now, guiRunning()));
+        if (nbt::plugin::shortcutOpenDue(now)) {
+            (void)requestOpen(instance);
+        }
         pollAppHold(instance);
         carLanguage.poll(now);
         carData.poll(now);
         nbt::plugin::pollCaptureDiag(captureDiagState);
         if (!polling) {
             polling = true;
-            instance->post(reinterpret_cast<bmw::Runnable *>(&pollRunnable), 1000);
+            instance->post(reinterpret_cast<bmw::Runnable *>(&pollRunnable),
+                           nbt::plugin::shortcutPending() ? 250 : 1000);
         }
     }
 }
@@ -238,12 +243,6 @@ bool onParentFocus(void *object, const bmw::Parcel &parcel) {
     return true;
 }
 
-void addHandler(bmw::PluginApp *app, unsigned id, unsigned type,
-                bool (*stub)(void *, const bmw::Parcel &)) {
-    bmw::ActionDelegate delegate = {app, stub};
-    app->addHandler(id, type, delegate);
-}
-
 bool onInit(bmw::PluginApp *app) {
     bmw::ActionDelegate action = {app, &openManager};
     void **base = reinterpret_cast<void **>(dlsym(RTLD_DEFAULT, "_ZTVN3bmw8RunnableE"));
@@ -257,8 +256,9 @@ bool onInit(bmw::PluginApp *app) {
     hold = new (holdStorage) nbt::gui::HmiHold();
     appHold = new (appHoldStorage) nbt::gui::AppHold();
     app->addHandler(kOpenAction, action);
-    addHandler(app, kBlankState, kFocusHandler, &onBlankFocus);
-    addHandler(app, kParentState, kFocusHandler, &onParentFocus);
+    nbt::plugin::addHandler(app, kBlankState, kFocusHandler, &onBlankFocus);
+    nbt::plugin::addHandler(app, kParentState, kFocusHandler, &onParentFocus);
+    nbt::plugin::addShortcutHandlers(app);
     const bool initialized = app->onInit();
     if (initialized) {
         nbt::plugin::startFocusEvents(app);

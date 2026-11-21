@@ -12,6 +12,10 @@ int startDoor(nbt_fs *fs);
 /* --autostart: starts the applications set to start with the car (the
  * worker's --autostart); returns when that dispatch has ended, at most 15 s. */
 int runAutostart(nbt_fs *fs);
+/* App shortcut `slot` pressed in iDrive (worker/shortcut_dispatch.hpp): the
+ * known-good worker's --shortcut<slot>, under the manager operation lock;
+ * while a manager session holds it, that session's worker gets the press. */
+int runShortcut(nbt_fs *fs, unsigned slot);
 } // namespace launcher
 } // namespace nbt
 #endif

@@ -4,6 +4,7 @@
 #include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/phone_ui.hpp"
+#include "nbt/gui/shortcut_ui.hpp"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -103,6 +104,9 @@ void buildSettings(const UiController &ui, UiView *v) {
     if (autostartNote(ui, label, sizeof(label))) {
         addLine(v, label);
     }
+    if (shortcutNote(ui, label, sizeof(label))) {
+        addLine(v, label);
+    }
     addText(v,
             manager                                ? T_APPLY_MANAGER_NEXT
             : ui.settings.count && ui.liveSettings ? T_APPLY_NOW
@@ -114,8 +118,10 @@ void buildSettings(const UiController &ui, UiView *v) {
         textf(label, sizeof(label), T_SETTING_ROW, settingLabel(ui, s), settingChoice(ui, s.value));
         addItem(v, label);
     }
-    if (!manager) { // autostartItem()
+    if (!manager) { // autostartItem(), shortcutItem()
         autostartEntry(ui, label, sizeof(label));
+        addItem(v, label);
+        shortcutEntry(ui, label, sizeof(label));
         addItem(v, label);
     }
     if (ui.stopEntry()) {

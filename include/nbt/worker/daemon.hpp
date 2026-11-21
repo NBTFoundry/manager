@@ -48,6 +48,10 @@ private:
 
 int doorMain(const char *root, int argc, char **argv);
 int autostartMain(const char *root, const char *self, int argc, char **argv);
+/* Starts each application set to start with the car that is not running
+ * (and not disabled until updated or paused after failed starts); 0, or 1 when
+ * a record could not be read or a start failed. */
+int autostartDispatch(nbt_fs *fs);
 int hostMain(const char *root, int argc, char **argv);
 
 } // namespace worker

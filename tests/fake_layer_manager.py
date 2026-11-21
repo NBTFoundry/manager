@@ -8,7 +8,8 @@ manager's and the application's) and after how many `get surface` queries
 they exist. Each call is logged to NBT_FAKE_LM_LOG as "<ppid> <args>".
 NBT_FAKE_LM_HANG_S makes calls wait that long first (only those whose
 arguments start with NBT_FAKE_LM_HANG_ON, if set), as LayerManager answered
-nothing for 28 s after a boot on the car (dev79).
+nothing for 28 s after a boot on the car (dev79). In the state, `layer_hang_s`
+delays each `get layer` and `layer_fails` makes it answer nothing (status 1).
 The output formats are those NBT-AAD parses on the car."""
 import json
 import os
@@ -27,6 +28,10 @@ if os.environ.get("NBT_FAKE_LM_ENV_LOG"):
 if " ".join(args).startswith(os.environ.get("NBT_FAKE_LM_HANG_ON", "")):
     time.sleep(float(os.environ.get("NBT_FAKE_LM_HANG_S", "0")))
 print("unknown symbol: kdMain referenced from libKD.so.1", file=sys.stderr)
+if args[:2] == ["get", "layer"]:
+    time.sleep(float(state.get("layer_hang_s", 0)))
+    if state.get("layer_fails"):
+        sys.exit(1)
 if args[:2] == ["get", "surface"]:
     state["queries"] = state.get("queries", 0) + 1
     bound = (int(args[2]) in state.get("windows", [1290, 1291])
@@ -42,7 +47,10 @@ elif args[:5] == ["set", "layer", "0x80000000", "render", "order"]:
     state["order"] = [int(item, 16) for item in args[5].split(",")]
 elif args[:2] == ["set", "surface"] and args[3] == "visibility":
     state["visible"][args[2]] = int(args[4])
-# Atomic, so a test reading the state never sees it half written.
-with open(state_path + ".next", "w") as handle:
-    json.dump(state, handle)
-os.replace(state_path + ".next", state_path)
+# Atomic, so a test reading the state never sees it half written. A query
+# that changed nothing leaves the file alone: a slow one would otherwise put
+# back the state it read over one a test wrote meanwhile.
+if args[:1] == ["set"] or args[:2] == ["get", "surface"]:
+    with open(state_path + ".next", "w") as handle:
+        json.dump(state, handle)
+    os.replace(state_path + ".next", state_path)

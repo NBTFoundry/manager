@@ -5,6 +5,7 @@
 #include "nbt/manager_settings.h"
 #include "nbt/model/language.hpp"
 #include "nbt/storage/phone_store.hpp"
+#include "nbt/util.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -173,6 +174,32 @@ int language(nbt_fs *fs, const char *value) {
     return replace(fs, NBT_FS_MANAGER_LANGUAGE_NEXT, NBT_FS_MANAGER_LANGUAGE, text, n + 1);
 }
 
+/* "shortcut<n>" to <app> or off (nbt/manager_settings.h). */
+int shortcut(nbt_fs *fs, const char *key, const char *value) {
+    char apps[NBT_SHORTCUTS][NBT_ID_MAX + 1];
+    const unsigned slot = static_cast<unsigned>(key[8] - '1');
+    const bool off = !strcmp(value, "off");
+    if (strlen(key) != 9 || slot >= NBT_SHORTCUTS ||
+        (!off && (!nbt_token_valid(value, NBT_ID_MAX, 0) || !strcmp(value, "manager")))) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (nbt_manager_shortcuts_load(fs, apps)) {
+        return -1;
+    }
+    char text[NBT_SHORTCUTS * (NBT_ID_MAX + 1) + 1];
+    size_t n = 0;
+    for (unsigned i = 0; i < NBT_SHORTCUTS; ++i) {
+        const char *app =
+            i == slot ? (off ? "" : value) : (!off && !strcmp(apps[i], value) ? "" : apps[i]);
+        const size_t length = strlen(app);
+        memcpy(text + n, app, length);
+        n += length;
+        text[n++] = '\n';
+    }
+    return replace(fs, NBT_FS_MANAGER_SHORTCUTS_NEXT, NBT_FS_MANAGER_SHORTCUTS, text, n);
+}
+
 int loadLegacy(nbt_fs *fs, nbt_settings *settings) {
     nbt_ccs_config config;
     if (!fs || !settings) {
@@ -206,6 +233,9 @@ int setLegacy(nbt_fs *fs, const char *key, const char *value) {
     }
     if (!strcmp(key, "language")) {
         return language(fs, value);
+    }
+    if (!strncmp(key, "shortcut", 8)) {
+        return shortcut(fs, key, value);
     }
     if (declare(&settings)) {
         return -1;

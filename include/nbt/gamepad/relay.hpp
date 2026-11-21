@@ -11,8 +11,11 @@ namespace gamepad {
  * owner, shared_state.hpp) sent on the application's NBT_GAMEPAD_FD as the
  * service sent it (24-byte wire states, on change and at least every 100 ms).
  * Disconnected unless active (a surface, not paused) and the application's
- * surface holds the panel. The pad's family reaches only applications built
- * for bridge 1.5 or later (`family`); older readers reject it. */
+ * surface holds the panel. A second thread asks LayerManager which surface
+ * holds the panel (a child process, up to 3 s): the sending thread never waits
+ * for it, and an unanswered question keeps the last answer. The pad's family
+ * reaches only applications built for bridge 1.5 or later (`family`); older
+ * readers reject it. */
 class Relay {
 public:
     Relay();
@@ -26,14 +29,15 @@ private:
     Relay(const Relay &) = delete;
     Relay &operator=(const Relay &) = delete;
     static void *entry(void *self);
+    static void *watchEntry(void *self);
     void run();
-    bool shown(uint64_t now);
+    void watch();
     core::Mutex mutex_;
     core::UniqueFd socket_;
-    pthread_t thread_;
+    pthread_t thread_, watcher_;
     const char *path_;
     bool started_, stopping_, active_, focused_, family_;
-    uint64_t focusAt_, sentAt_;
+    uint64_t sentAt_;
     uint32_t sequence_;
     nbt_gamepad_wire_state sent_;
     StateReader reader_;

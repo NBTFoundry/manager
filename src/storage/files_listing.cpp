@@ -33,10 +33,15 @@ void keep(const char *name, uint64_t size, FileEntry *entries, size_t capacity, 
     entries[i].size = size;
 }
 
-} // namespace
+bool gameFolder(const char *path, const char *name, dev_t device, uid_t owner) {
+    struct stat st;
+    return nbt_files_folder_valid(name) && !lstat(path, &st) && S_ISDIR(st.st_mode) &&
+           st.st_dev == device && st.st_uid == owner && !(st.st_mode & 0077);
+}
 
-core::Result<FilesUsage> listFolder(const char *dir, dev_t device, uid_t owner, const char *after,
-                                    FileEntry *entries, size_t capacity, size_t *count) {
+core::Result<FilesUsage> listLevel(const char *dir, dev_t device, uid_t owner, const char *after,
+                                   FileEntry *entries, size_t capacity, size_t *count,
+                                   bool folders) {
     FilesUsage usage = {0, 0};
     char path[NBT_PATH_MAX];
     *count = 0;
@@ -49,14 +54,36 @@ core::Result<FilesUsage> listFolder(const char *dir, dev_t device, uid_t owner, 
         const char *name = entry->d_name;
         struct stat st;
         const int n = snprintf(path, sizeof(path), "%s/%s", dir, name);
-        if (!nbt_files_name_valid(name) || n < 0 || static_cast<size_t>(n) >= sizeof(path) ||
-            SafePathOpen::checkOwnedFile(device, owner, path) || lstat(path, &st)) {
-            continue; // anything else is not a stored file
+        if (n < 0 || static_cast<size_t>(n) >= sizeof(path)) {
+            continue;
         }
-        ++usage.count;
-        usage.bytes += static_cast<uint64_t>(st.st_size);
-        if (capacity && entries && !(after && after[0] && strcmp(name, after) <= 0)) {
-            keep(name, static_cast<uint64_t>(st.st_size), entries, capacity, count);
+        char shown[NBT_FILES_NAME_MAX + 1];
+        uint64_t size = 0;
+        if (folders && gameFolder(path, name, device, owner)) {
+            // A game folder (one level): its files count, it is listed as "<name>/".
+            size_t none = 0;
+            core::Result<FilesUsage> inside =
+                listLevel(path, device, owner, NULL, NULL, 0, &none, false);
+            if (!inside.ok()) {
+                continue;
+            }
+            usage.count += inside.value().count;
+            size = inside.value().bytes;
+            const size_t length = strlen(name); // valid: at most NBT_FILES_FOLDER_MAX
+            memcpy(shown, name, length);
+            shown[length] = '/';
+            shown[length + 1] = 0;
+        } else if (!nbt_files_name_valid(name) ||
+                   SafePathOpen::checkOwnedFile(device, owner, path) || lstat(path, &st)) {
+            continue; // anything else is not a stored file
+        } else {
+            ++usage.count;
+            size = static_cast<uint64_t>(st.st_size);
+            memcpy(shown, name, strlen(name) + 1); // valid: at most NBT_FILES_NAME_MAX
+        }
+        usage.bytes += size;
+        if (capacity && entries && !(after && after[0] && strcmp(shown, after) <= 0)) {
+            keep(shown, size, entries, capacity, count);
         }
     }
     const int saved = errno;
@@ -66,6 +93,13 @@ core::Result<FilesUsage> listFolder(const char *dir, dev_t device, uid_t owner, 
         return core::Result<FilesUsage>::failure(core::Status::fromErrno("cannot list files"));
     }
     return core::Result<FilesUsage>::success(usage);
+}
+
+} // namespace
+
+core::Result<FilesUsage> listFolder(const char *dir, dev_t device, uid_t owner, const char *after,
+                                    FileEntry *entries, size_t capacity, size_t *count) {
+    return listLevel(dir, device, owner, after, entries, capacity, count, true);
 }
 
 } // namespace storage

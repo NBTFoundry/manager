@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/launcher/door.hpp"
 #include "nbt/core/system.hpp"
+#include "nbt/gui/phone_wake.hpp"
 #include "nbt/launcher/slot_store.hpp"
+#include "nbt/log.h"
 #include "nbt/manager_stage.h"
 #include "nbt/process/child_spawn.hpp"
 #include <errno.h>
@@ -19,6 +21,8 @@ namespace {
 
 const uint64_t kAutostartDispatchMs = 15000; // the worker starts hosts and returns
 const unsigned kAutostartLockTries = 40;     // 10 s for the manager operation lock
+const unsigned kShortcutLockTries = 4;       // 1 s, then the open session's worker
+const uint64_t kShortcutDispatchMs = 10000;
 
 /* The known-good worker, verified: the active slot, or the previous one while
  * a manager update is pending, so that a boot-time job never runs (and so
@@ -117,10 +121,18 @@ int runAutostart(nbt_fs *fs) {
         (void)nanosleep(&step, NULL);
         operation = root.managerOperationLock();
     }
+    if (!operation.ok()) {
+        // An open manager session holds it for its whole life: its worker
+        // starts the applications (gui/phone_wake.hpp, kAutostartHandoverPath).
+        const bool handed = gui::flagRecordSet(gui::autostartHandoverPath());
+        nbt_logf("autostart: the manager is open; %s",
+                 handed ? "its worker starts the applications" : "hand-over failed");
+        return handed ? 0 : 1;
+    }
     char path[NBT_PATH_MAX];
     pid_t pid = 0;
     core::Result<uint64_t> start = core::monotonicMs();
-    if (!operation.ok() || !start.ok() || knownGoodWorker(fs, root, path, sizeof(path)) ||
+    if (!start.ok() || knownGoodWorker(fs, root, path, sizeof(path)) ||
         spawnWorker(fs, path, "--autostart", -1, &pid)) {
         return 1;
     }
@@ -139,6 +151,48 @@ int runAutostart(nbt_fs *fs) {
             return 1;
         }
         const struct timespec step = {0, 50 * 1000 * 1000};
+        (void)nanosleep(&step, NULL);
+    }
+}
+
+int runShortcut(nbt_fs *fs, unsigned slot) {
+    storage::ManagedRoot root(*fs);
+    // Short: a press waits for little. An open manager session keeps the lock
+    // for its whole life and gets the press instead.
+    core::Result<core::UniqueFd> operation = root.managerOperationLock();
+    for (unsigned tries = 0; !operation.ok() && tries < kShortcutLockTries; ++tries) {
+        const struct timespec step = {0, 250 * 1000 * 1000};
+        (void)nanosleep(&step, NULL);
+        operation = root.managerOperationLock();
+    }
+    if (!operation.ok()) {
+        const bool handed =
+            gui::flagRecordSet(gui::shortcutHandoverPath(), static_cast<char>('0' + slot));
+        nbt_logf("shortcut %u: the manager is open; %s", slot,
+                 handed ? "its worker takes the press" : "hand-over failed");
+        return handed ? 0 : 1;
+    }
+    char path[NBT_PATH_MAX], mode[16];
+    pid_t pid = 0;
+    snprintf(mode, sizeof(mode), "--shortcut%u", slot);
+    core::Result<uint64_t> start = core::monotonicMs();
+    if (!start.ok() || knownGoodWorker(fs, root, path, sizeof(path)) ||
+        spawnWorker(fs, path, mode, -1, &pid)) {
+        return 1;
+    }
+    for (;;) {
+        int status = 0;
+        const pid_t done = waitpid(pid, &status, WNOHANG);
+        if (done == pid) {
+            return WIFEXITED(status) && WEXITSTATUS(status) == 0 ? 0 : 1;
+        }
+        core::Result<uint64_t> now = core::monotonicMs();
+        if ((done < 0 && errno != EINTR) || !now.ok() ||
+            now.value() - start.value() >= kShortcutDispatchMs) {
+            killAndReap(pid);
+            return 1;
+        }
+        const struct timespec step = {0, 20 * 1000 * 1000};
         (void)nanosleep(&step, NULL);
     }
 }

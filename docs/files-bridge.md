@@ -27,9 +27,13 @@ bridge-optional=status,live-settings,gamepad
 bridge-files=sfc,smc,fig,swc|16|1024
 ```
 
-`bridge-files=<extensions>|<largest file, MiB>|<quota, MiB>`: 1 to 16 unique
-extensions of 1 to 8 `[a-z0-9]`, a largest file of 1 to 4096 MiB and a quota of
-1 to 65536 MiB, at least the largest file. Numbers are canonical decimal. The
+`bridge-files=<extensions>|<largest file, MiB>|<quota, MiB>[|folders=<ext>,...]`:
+1 to 16 unique extensions of 1 to 8 `[a-z0-9]`, a largest file of 1 to 4096 MiB
+and a quota of 1 to 65536 MiB, at least the largest file. Numbers are canonical
+decimal. `|folders=` names declared extensions whose file makes a folder one
+game: a cue sheet and its bins, a playlist and its discs (PCSX:
+`folders=m3u,cue,ccd,mds,toc`); see "Game folders" below. A manager before it
+(dev123) refuses a package that has it. The
 line is present exactly when `files` is declared, needs bridge 1.5 or later,
 and a manager that does not serve `files` refuses the package (as for a MOST
 policy). `tools/package.py --bridge-files` writes it after checking it as the
@@ -60,8 +64,21 @@ unavailable they stay, and a later install of the same application finds them.
 A stored name is 1 to 96 printable ASCII bytes without `/ \ : * ? " < > |`,
 not starting with a dot or a space, not ending with a dot or a space, with an
 extension after its last dot; its extension, in any case, must be one the
-application declared. At most 512 files per application, the declared quota,
-and 256 MiB of the disk always left free.
+application declared. At most 512 files per application (those in game folders
+included), the declared quota, and 256 MiB of the disk always left free.
+
+### Game folders
+
+`files/<app>/` may also hold game folders, one level: `files/<app>/<folder>/<name>`,
+a folder name being a stored name's rules without the extension, at most 95
+bytes. Listings (the car's Files page, `/v1/files/list`) show a folder as one
+entry, `<folder>/`, with the size of its files; deleting that entry deletes the
+folder. A folder arrives whole: its files are written into
+`staging/<app>.usb.d/`, synced, and the folder renamed into place (replacing a
+folder of that name). An application without `|folders=` gets no folders from
+a stick, and older ones read the folder the same way: folders are not regular
+files, so `nbt::app::FileList` leaves them out unless the application asks
+for game folders (SDK 0.3.0, `load(dir, extensions, folder_mains)`).
 
 ## The application's side
 
@@ -111,6 +128,17 @@ so the GUI polls its progress once a second and other installs wait.
 - A file matches when its name, made a valid stored name (bytes it may not
   hold become `_`; a long name keeps its extension), has an accepted
   extension. Two files made the same name replace each other.
+- A `.zip` archive holding accepted files is one match. Its accepted files
+  (stored or deflated; their folders inside the archive ignored) are unpacked
+  with the head unit's zlib (`libz.so.2`, which iDrive's own programs load)
+  and checked against their sizes and CRC-32s: into a game folder named after
+  the archive when one of them is of a `folders=` extension, else as files one
+  by one. Zip64, encrypted and multi-disk archives are left out.
+- A folder below the stick's top holding a file of a `folders=` extension is
+  one match too: its accepted files (not its subfolders, matched on their own)
+  arrive as a game folder of its name. Any other folder's files match one by
+  one, as does the stick's top level: a folder of `.chd` images is so many
+  games.
 - Each file is admitted (type, size, quota, count, space) and copied as a
   phone's file is. A full quota, disk or file count ends the import; a file
   that changed on the stick or cannot be read is skipped.

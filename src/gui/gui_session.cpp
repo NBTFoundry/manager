@@ -6,6 +6,7 @@
 #include "nbt/core/system.hpp"
 #include "nbt/display/layer_manager.hpp"
 #include "nbt/gui/qr_code.hpp"
+#include "nbt/gui/shortcut_ui.hpp"
 #include "nbt/gui/ui_renderer.hpp"
 #include "nbt/log.h"
 #include "nbt/most_input.h"
@@ -244,6 +245,7 @@ int GuiSession::stepWorkerAndUi() {
     if (gamepad_.poll(ui_, nowMs_, live)) {
         deadlineMs_ = nowMs_ + kIdleMs;
     }
+    shortcutStartPoll(ui_, nowMs_);
     gatherStatus(ui_, captureWatch_, gamepad_, inputFd_ >= 0);
     language_.poll(ui_, nowMs_);
     ui_.pump(channel_);

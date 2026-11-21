@@ -168,7 +168,10 @@ void Service::deliver(uint64_t now) {
     state_.sequence = sequence_++;
     published_.publish(state_, now);
     if (nbt_gamepad_wire_encode(&state_, bytes, sizeof(bytes)) > 0) {
-        const ssize_t n = send(socket_.get(), bytes, sizeof(bytes), 0);
+        // Never waits for the GUI: its loop can block for seconds (LayerManager,
+        // the worker), and a blocked send would stop the record the
+        // applications' hosts read, which they then take as an unplugged pad.
+        const ssize_t n = send(socket_.get(), bytes, sizeof(bytes), MSG_DONTWAIT);
         // A full datagram receiver gives ENOBUFS on BSD-derived stacks such as
         // QNX's io-pkt: a reader that falls behind, not a closed socket.
         if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR &&

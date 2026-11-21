@@ -12,6 +12,7 @@ namespace gamepad {
     X(detach)                                                                                      \
     X(device_descriptor)                                                                           \
     X(interface_descriptor)                                                                        \
+    X(endpoint_descriptor)                                                                         \
     X(parse_descriptors)                                                                           \
     X(select_config)                                                                               \
     X(select_interface)                                                                            \

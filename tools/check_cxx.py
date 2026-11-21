@@ -8,7 +8,8 @@ ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_FILES = [ROOT / "plugin/plugin.cpp", ROOT / "src/gui/hmi_hold.cpp", ROOT / "src/log/log.cpp",
                 ROOT / "plugin/car_language.cpp", ROOT / "src/gui/car_language.cpp",
                 ROOT / "src/gui/app_hold.cpp", ROOT / "src/gui/car_data_relay.cpp", ROOT / "plugin/car_data.cpp",
-                ROOT / "src/sdk/bridge_hold.cpp", ROOT / "src/model/cds_policy.cpp", ROOT / "src/model/net_policy.cpp"]
+                ROOT / "src/sdk/bridge_hold.cpp", ROOT / "src/model/cds_policy.cpp", ROOT / "src/model/net_policy.cpp",
+                ROOT / "plugin/shortcut.cpp", ROOT / "src/gui/shortcut_record.cpp"]
 STL = re.compile(r"\bstd::|#\s*include\s*<(?:string|vector|map|array|memory|algorithm|type_traits|utility)>")
 FORBIDDEN = re.compile(r"#\s*include\s*<(?:thread|mutex|atomic)>|\bthread_local\b")
 RAW_HEAP = re.compile(r"(?<![\w:])delete\s+|\bnew\s+(?!\()")

@@ -21,6 +21,9 @@ static bool defer, xbox;
 static uint16_t sonyProduct = 0x09cc;
 static uint8_t configuration, alternate;
 static bool stallGetInterface;
+// The car (dev122): the walk under the interface gives only its first endpoint.
+static bool shortWalk;
+static unsigned lookups;
 static unsigned selectedConfigs, selectedAlternates, idleRequests, writes;
 static void (*pending)(usbd_urb *, usbd_pipe *, void *);
 static usbd_urb *pendingUrb;
@@ -132,7 +135,10 @@ usbd_descriptors_t *usbd_parse_descriptors(usbd_device *, usbd_desc_node *root, 
         interfaces[i].interface.bInterfaceNumber = static_cast<uint8_t>(i);
         return &interfaces[i];
     }
-    assert(root == &node && type == USB_DESC_ENDPOINT && i >= 0 && i < 2);
+    assert(root == &node && type == USB_DESC_ENDPOINT && i >= 0);
+    if (i >= (shortWalk ? 1 : 2)) {
+        return NULL;
+    }
     static usbd_descriptors_t d[2];
     d[i].endpoint.bLength = 7;
     d[i].endpoint.bDescriptorType = USB_DESC_ENDPOINT;
@@ -145,6 +151,22 @@ usbd_descriptors_t *usbd_parse_descriptors(usbd_device *, usbd_desc_node *root, 
                              : (sonyProduct == 0x0ce6 || sonyProduct == 0x0df2) ? 6
                                                                                 : 5);
     return &d[i];
+}
+usbd_endpoint_descriptor_t *usbd_endpoint_descriptor(usbd_device *dev, uint8_t config,
+                                                     uint8_t iface, uint8_t alt, uint8_t address,
+                                                     usbd_desc_node **) {
+    ++lookups;
+    for (int i = 0; i < 2; ++i) {
+        const bool was = shortWalk;
+        shortWalk = false;
+        usbd_descriptors_t *d = usbd_parse_descriptors(dev, &node, USB_DESC_ENDPOINT, i, NULL);
+        shortWalk = was;
+        if (config == 1 && iface == (xbox ? 0 : 3) && alt == 0 &&
+            d->endpoint.bEndpointAddress == address) {
+            return &d->endpoint;
+        }
+    }
+    return NULL;
 }
 int usbd_open_pipe(usbd_device *, usbd_descriptors_t *ep, usbd_pipe **out) {
     if (ep->device.bDescriptorType == 1) {
@@ -315,10 +337,20 @@ int main() {
     instance.ident.subclass = 0x47;
     instance.ident.protocol = 0xd0;
     instance.iface = UINT32_MAX;
+    lookups = 0;
     assert(usb->start() && usb->poll(data, size) == 1 && usb->family() == nbt::gamepad::Gip);
     const uint8_t power[] = {5, 0x20, 0, 1, 0};
     assert(usb->write(power, sizeof(power)) && writes == 1);
     usb->stop();
+    assert(!lookups); // the walk gave both endpoints
+    // As on the car: the walk stops after the IN endpoint, the lookup by
+    // address finds the OUT one, and the pad opens with both.
+    shortWalk = true;
+    ++instance.generation;
+    assert(usb->start() && usb->poll(data, size) == 1 && usb->family() == nbt::gamepad::Gip);
+    assert(usb->write(power, sizeof(power)) && writes == 2 && lookups);
+    usb->stop();
+    shortWalk = false;
     stallGetInterface = false;
     xbox = false;
     sonyProduct = 0x0ce6;

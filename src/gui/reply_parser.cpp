@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/reply_parser.hpp"
+#include "nbt/manager_settings.h"
 
 #include "nbt/util.h"
 
@@ -245,10 +246,12 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
         count > NBT_SETTINGS_MAX || split(copy, reply, f, static_cast<size_t>(count) + 3)) {
         return -1;
     }
-    // "live" or "restart", then any of "+files", "+autostart", "+autostart-paused", "+update".
+    // "live" or "restart", then any of "+files", "+autostart", "+autostart-paused",
+    // "+shortcut<1-3>", "+update".
     char *rest = NULL, *token = strtok_r(f[2], "+", &rest);
     const bool live = token && !strcmp(token, "live");
     bool files = false, autostart = false, paused = false, update = false;
+    int shortcut = 0;
     if (!live && (!token || strcmp(token, "restart"))) {
         return -1;
     }
@@ -257,8 +260,11 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
         autostart = autostart || paused || !strcmp(token, "autostart");
         files = files || !strcmp(token, "files");
         update = update || !strcmp(token, "update");
+        const bool entry = !strncmp(token, "shortcut", 8) && token[8] >= '1' &&
+                           token[8] <= '0' + NBT_SHORTCUTS && !token[9];
+        shortcut = entry ? token[8] - '0' : shortcut;
         if (strcmp(token, "files") && strcmp(token, "autostart") &&
-            strcmp(token, "autostart-paused") && strcmp(token, "update")) {
+            strcmp(token, "autostart-paused") && strcmp(token, "update") && !entry) {
             return -1;
         }
     }
@@ -273,6 +279,7 @@ int ReplyParser::parseSettings(UiController &ui, const char *reply) {
     ui.files.offered = files;
     ui.autostart = autostart;
     ui.autostartPaused = paused;
+    ui.shortcut = shortcut;
     ui.settingsUpdate = update;
     return 0;
 }

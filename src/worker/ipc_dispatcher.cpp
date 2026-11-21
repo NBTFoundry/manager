@@ -58,6 +58,7 @@ core::Status IpcDispatcher::handleSettings(bool setting, char *cursor) {
     nbt_settings settings;
     nbt_autostart autostart = {0, 0};
     int mode = 0, live = 0, files = 0, update = 0; // update: disabled until updated (app_compat.h)
+    char shortcut = 0;                             // its App shortcut entry, '1'-'3'
     char *app = word(&cursor);
     char *key = setting ? word(&cursor) : NULL;
     char *val = setting ? word(&cursor) : NULL;
@@ -112,16 +113,22 @@ core::Status IpcDispatcher::handleSettings(bool setting, char *cursor) {
         if (nbt_autostart_load(root_.legacy(), app, &autostart)) {
             autostart.enabled = 0;
         }
+        char apps[NBT_SHORTCUTS][NBT_ID_MAX + 1];
+        for (unsigned i = 0; !nbt_manager_shortcuts_load(root_.legacy(), apps) && i < NBT_SHORTCUTS;
+             ++i) {
+            shortcut = strcmp(apps[i], app) ? shortcut : '1' + static_cast<char>(i);
+        }
     }
     const bool paused = autostart.failures >= NBT_AUTOSTART_FAILURE_LIMIT;
     char list[2048];
-    int length = snprintf(list, sizeof(list), "SETTINGS\t%u%s%s%s%s%s",
+    const char shortcutFlag[] = {'+', 's', 'h', 'o', 'r', 't', 'c', 'u', 't', shortcut, 0};
+    int length = snprintf(list, sizeof(list), "SETTINGS\t%u%s%s%s%s%s%s",
                           static_cast<unsigned>(settings.count), mode ? "\t" : "",
                           mode ? (live ? "live" : "restart") : "", files ? "+files" : "",
                           !autostart.enabled ? ""
                           : paused           ? "+autostart-paused"
                                              : "+autostart",
-                          update ? "+update" : "");
+                          shortcut ? shortcutFlag : "", update ? "+update" : "");
     if (length < 0 || length >= static_cast<int>(sizeof(list))) {
         return core::Status::error(ERANGE, "settings too large");
     }

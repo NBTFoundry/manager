@@ -289,7 +289,11 @@ of starting a second host:
   been recycled, and only while not stopping. The worker-to-host lookup uses
   the same POSIX lock-holder addressing as stop; this is not a portable
   pidfd guarantee against every host-exit/PID-reuse race.
-- An application that did not declare it is left alone (`SIGUSR1` would
+- An application granted `hold` (bridge 1.6), which places its own surface,
+  gets the same request: chosen again in the manager while it runs, it is
+  asked to come back (Android Auto's adapter tells its daemon `show`). Its
+  host advertises byte 1 as for `show`; no surface is granted.
+- An application that declared neither is left alone (`SIGUSR1` would
   terminate it by default). `START` then answers `ERR running`, and the GUI
   says "<app> is already running" instead of closing. A host awaiting
   readiness answers the same way; a failed lookup answers `ERR start`.

@@ -62,7 +62,7 @@ int PhoneFiles::refuse(int status, const char *reason, core::Span<char> out) con
 int PhoneFiles::list(const char *body, core::Span<char> out) {
     char text[NBT_ID_MAX + NBT_FILES_NAME_MAX + 8], *part[2];
     if (!copyBody(body, text, sizeof(text)) || !fields(text, part, 2) ||
-        (part[1][0] && !nbt_files_name_valid(part[1]))) {
+        (part[1][0] && !nbt_files_listed_name_valid(part[1]))) {
         return refuse(400, "request", out);
     }
     const int opened = openAppFiles(worker_.root(), part[0], files_);
@@ -186,7 +186,7 @@ void PhoneFiles::dataAbort() {
 int PhoneFiles::remove(const char *body, core::Span<char> out) {
     char text[NBT_ID_MAX + NBT_FILES_NAME_MAX + 8], *part[2];
     if (!copyBody(body, text, sizeof(text)) || !fields(text, part, 2) ||
-        !nbt_files_name_valid(part[1])) {
+        !nbt_files_listed_name_valid(part[1])) {
         return refuse(400, "request", out);
     }
     if (receiving_ || busy(part[0])) {

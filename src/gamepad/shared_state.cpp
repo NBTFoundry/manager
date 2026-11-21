@@ -87,15 +87,23 @@ nbt_gamepad_wire_state StateReader::read(const char *path, uint64_t now) {
         return disconnected();
     }
     uint8_t record[kStateRecordSize];
-    ssize_t n;
-    do {
-        n = pread(fd_.get(), record, sizeof(record), 0);
-    } while (n < 0 && errno == EINTR);
-    if (n < 0) {
-        fd_.reset(); // opened again within a second
-        return disconnected();
+    // The GUI rewrites the record up to every 5 ms: a read that met a write
+    // (its two counts differ) is read again, not taken as an unplugged pad.
+    for (unsigned attempt = 0;; ++attempt) {
+        ssize_t n;
+        do {
+            n = pread(fd_.get(), record, sizeof(record), 0);
+        } while (n < 0 && errno == EINTR);
+        if (n < 0) {
+            fd_.reset(); // opened again within a second
+            return disconnected();
+        }
+        if (attempt < 2 && static_cast<size_t>(n) == sizeof(record) &&
+            get(record + 4, 4) != get(record + 40, 4)) {
+            continue;
+        }
+        return decodeRecord(record, static_cast<size_t>(n), now);
     }
-    return decodeRecord(record, static_cast<size_t>(n), now);
 }
 } // namespace gamepad
 } // namespace nbt

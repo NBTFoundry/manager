@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/car_data_relay.hpp"
 #include "nbt/gui/hmi_hold.hpp"
+#include "nbt/gui/shortcut_record.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -435,7 +436,37 @@ static void test_bridge_files(void) {
     CHECK(system(command) == 0);
 }
 
+/* The App shortcut record (shortcut_record.hpp): parsed strictly, due once. */
+static void test_shortcut_record(void) {
+    nbt::gui::ShortcutRecord r;
+    CHECK(nbt::gui::shortcutRecordParse("12 open\n", 8, r) && r.word == nbt::gui::ShortcutOpen &&
+          r.ms == 12 && !r.app[0]);
+    CHECK(nbt::gui::shortcutRecordParse("5 start android-auto\n", 21, r) &&
+          r.word == nbt::gui::ShortcutStart && !strcmp(r.app, "android-auto"));
+    CHECK(nbt::gui::shortcutRecordParse("5 taken\n", 8, r) && r.word == nbt::gui::ShortcutTaken);
+    const char *bad[] = {"12 open",         "012 open\n",   "12 opened\n", "12 start\n",
+                         "12 start ../x\n", "12 start A\n", "x open\n",    "12  open\n"};
+    for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
+        CHECK(!nbt::gui::shortcutRecordParse(bad[i], strlen(bad[i]), r));
+    }
+    char text[96];
+    r.word = nbt::gui::ShortcutStart;
+    r.ms = 7;
+    strcpy(r.app, "pcsx");
+    CHECK(nbt::gui::shortcutRecordFormat(r, text, sizeof(text)) == 13 &&
+          !strcmp(text, "7 start pcsx\n"));
+    CHECK(nbt::gui::shortcutRecordDue(r, 7, 7 + nbt::gui::kShortcutFreshMs) &&
+          !nbt::gui::shortcutRecordDue(r, 8, 9) && /* before the press */
+          !nbt::gui::shortcutRecordDue(r, 0, 8 + nbt::gui::kShortcutFreshMs));
+    r.word = nbt::gui::ShortcutTaken;
+    CHECK(!nbt::gui::shortcutRecordDue(r, 0, 8));
+    strcpy(r.app, "../x");
+    r.word = nbt::gui::ShortcutStart;
+    CHECK(nbt::gui::shortcutRecordFormat(r, text, sizeof(text)) == -1);
+}
+
 int main(void) {
+    test_shortcut_record();
     test_back_is_held_and_exit_releases();
     test_hard_key_steps_aside();
     test_refused_focus_and_failed_start();

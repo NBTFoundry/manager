@@ -6,7 +6,9 @@
  * unit's hard disk rather than under the managed root:
  *
  *   <root>/files/<app>/<name>      what the application reads (NBT_FILES_DIR)
+ *   <root>/files/<app>/<folder>/<name>  a game folder (one level)
  *   <root>/staging/<app>.<source>  a transfer in progress, renamed into place
+ *   <root>/staging/<app>.<source>.d  a game folder being imported
  *
  * Every directory is the manager's own, private (0700), on the root's device;
  * every file regular, owned and with one link, as under the managed root.
@@ -62,13 +64,29 @@ public:
      * name; nothing else of that name is replaced. */
     core::Status commit(const char *app, FilesSource source, const char *name) const;
     void discard(const char *app, FilesSource source) const;
+    /* `name`, or a whole game folder named "<folder>/". */
     core::Status remove(const char *app, const char *name) const;
+    /* Whether a game folder of `files` files and `bytes` bytes may replace
+     * `folder` (or be added): the file count and quota counting what it
+     * replaces, and the disk's free space. */
+    core::Status admitFolder(const char *app, const nbt_files_policy &policy, const char *folder,
+                             unsigned files, uint64_t bytes) const;
+    /* A fresh, empty staging folder (its path in `out`), replacing an
+     * abandoned one; then a new file in it for writing. */
+    core::Status stageFolder(const char *app, FilesSource source, core::Span<char> out) const;
+    core::Result<core::UniqueFd> stageFolderFile(const char *staged, const char *name) const;
+    /* Renames the staging folder (its files synced) to `folder`, replacing a
+     * game folder of that name. */
+    core::Status commitFolder(const char *app, FilesSource source, const char *folder) const;
+    void discardFolder(const char *app, FilesSource source) const;
     /* The application's folder and staging files (uninstall). */
     core::Status removeApp(const char *app) const;
 
 private:
     core::Status folder(const char *name, bool create) const;
     core::Status filePath(const char *app, const char *name, core::Span<char> out) const;
+    core::Status folderPath(const char *app, const char *folder, core::Span<char> out) const;
+    core::Status removeFolder(const char *path) const;
     core::Status stagingPath(const char *app, FilesSource source, core::Span<char> out) const;
 
     nbt_fs fs_;

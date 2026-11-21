@@ -80,9 +80,14 @@ switch. The GUI's service (`src/gamepad/service.cpp`):
 An application's host relays the record (`src/gamepad/relay.cpp`) on
 `NBT_GAMEPAD_FD` unchanged, on change and at least every 100 ms. The pad counts as
 connected only while the host is active (a surface, not paused) and the
-application's surface holds the panel (checked every 250 ms). A torn, malformed
-or stale record (older than 500 ms: the GUI is gone) is sent as disconnected.
-Hosts never open USB.
+application's surface holds the panel. A second thread asks LayerManager that
+every 500 ms (a child process, up to 3 s); the sending thread never waits for
+it, and a question with no answer keeps the last one (dev122: the pad came and
+went several times a second and held buttons dropped). A record read while the
+GUI rewrites it (its two counts differ) is read again; a malformed or stale one
+(older than 500 ms: the GUI is gone) is sent as disconnected. The GUI's service
+publishes the record without ever waiting for the GUI to read its own
+datagrams. Hosts never open USB.
 
 Byte 0 of `state/manager/gamepad.lock` makes one process the owner: a second GUI
 waits, and the owner's death releases it. USB buffers are freed before the
@@ -160,7 +165,11 @@ dongles (such as `054c:0ba0`), touch and motion input, rumble, headset audio and
 unknown clone layouts are outside this capability.
 
 Expected endpoints (owners' descriptor captures; fixtures, not guarantees for
-every firmware revision or clone):
+every firmware revision or clone). The interface is read again once
+configured, then its endpoints walked; a direction still missing is looked up
+by address (`usbd_endpoint_descriptor`): on the car (dev122) the walk gave one
+of each pad's two endpoints, so the Xbox pad did not open and the DualShock 4's
+light bar was not set. Each endpoint found is logged.
 
 | Device | Config / interface / alt | Interrupt IN | Interrupt OUT | Packet | `bInterval` |
 | --- | --- | --- | --- | --- | --- |

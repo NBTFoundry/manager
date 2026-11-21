@@ -6,6 +6,7 @@ import signal
 import subprocess
 import time
 import unittest
+from unittest import mock
 
 import test_app_host as hosts
 
@@ -71,6 +72,25 @@ class AutostartTests(unittest.TestCase):
         for line in ("AUTOSTART", "AUTOSTART manager on", "AUTOSTART ../test on",
                      "AUTOSTART missing on", "AUTOSTART test yes", "AUTOSTART test on extra"):
             self.assertEqual(command(line), "ERR invalid-command")
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_the_boot_start_is_handed_to_an_open_manager(self):
+        # dev122: the manager was open when the boot's automatic start came;
+        # its launcher hands the start to that session's worker (door.cpp).
+        handover = Path(self.tmp.name) / "autostart-pending"
+        with mock.patch.dict(os.environ, {"NBT_TEST_AUTOSTART_HANDOVER": str(handover)}):
+            _, command = self.worker()
+        self.assertEqual(command("AUTOSTART test on"), "OK")
+        handover.write_text("1")
+        handover.chmod(0o600)
+        self.wait_for(lambda: hosts.lock_holder(self.lease))
+        self.wait_for(lambda: handover.read_text() == "0")
+        self.assertEqual(command("RUNNING"), "RUNNING\t1\ttest")
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: not hosts.lock_holder(self.host_lock))
+        # Taken once: the same record starts nothing again.
+        time.sleep(1.5)
+        self.assertFalse(hosts.lock_holder(self.lease))
         self.assertEqual(command("QUIT"), "OK")
 
     def test_three_failed_attempts_then_skip_and_corrupt_record_fails_closed(self):

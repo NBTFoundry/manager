@@ -29,6 +29,9 @@ ALLOWED_NEEDED = {
     "libcrypto.so.1",
     "libcrypto.so.2",
     "libstdc++.so.6",
+    # zlib, for game archives (src/storage/zip_archive.cpp): NBTCarHU and 22
+    # iDrive libraries need it on NBTevo_Y21432J (DT_NEEDED).
+    "libz.so.2",
 }
 ALLOWED_REMOVED_PLUGIN_IMPORTS = {
     "_ZnwjRKSt9nothrow_t", "_ZSt7nothrow", "__aeabi_unwind_cpp_pr0",

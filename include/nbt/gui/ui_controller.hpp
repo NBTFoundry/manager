@@ -65,6 +65,7 @@ enum RequestKind {
     R_IDRIVE_RESTART,
     R_LANGUAGE,  // SET manager language: languageReply, after setupReply
     R_AUTOSTART, // AUTOSTART <app> on|off: autostartReply (autostart_ui.hpp), after setupReply
+    R_SHORTCUT,  // SET manager shortcut<n>: shortcutReply (shortcut_ui.hpp), after setupReply
     R_FILES,     // FILES: filesReply (files_ui.hpp), after setupReply
     R_FILES_DELETE,
     R_FILES_SCAN,
@@ -168,12 +169,16 @@ public:
     void applyLanguage();
     size_t appIndex(const char *name) const;
     /* An application's page: its declared settings, Start with the car
-     * (autostart_ui.hpp), then Stop while it runs, Unblock, Files, Uninstall. */
+     * (autostart_ui.hpp), App shortcut (shortcut_ui.hpp), then Stop while it
+     * runs, Unblock, Files, Uninstall. */
     size_t autostartItem() const {
         return settings.count;
     }
+    size_t shortcutItem() const {
+        return settings.count + 1;
+    }
     size_t stopItem() const {
-        return settings.count + (managerSettings() ? 0u : 1u);
+        return settings.count + (managerSettings() ? 0u : 2u);
     }
     bool stopEntry() const;
     bool unblockEntry() const {
@@ -266,6 +271,8 @@ public:
     int autostart = 0;       // settingsApp starts with the car (SETTINGS <app> live)
     int autostartPaused = 0; // ...but is paused after failed automatic starts
     int autostartPick = 0;   // the choice being saved (R_AUTOSTART)
+    int shortcut = 0;        // settingsApp's App shortcut entry, 0 none (+shortcut<n>)
+    int shortcutPick = 0;    // the entry being saved (R_SHORTCUT)
     int settingsUpdate = 0;  // settingsApp is disabled until updated (SETTINGS "+update")
     StatusFacts facts;       // Settings > Status and the gamepad test (gatherStatus)
     // An application's files (files_ui.hpp). Not "= {}": GCC 4.8 (QNX) flags that

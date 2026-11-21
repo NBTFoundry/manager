@@ -257,6 +257,14 @@ void FilesRoot::discard(const char *app, FilesSource source) const {
 
 core::Status FilesRoot::remove(const char *app, const char *name) const {
     char path[NBT_PATH_MAX];
+    const size_t length = name ? strlen(name) : 0;
+    if (length > 1 && length <= NBT_FILES_FOLDER_MAX + 1 && name[length - 1] == '/') {
+        char folder[NBT_FILES_FOLDER_MAX + 1];
+        memcpy(folder, name, length - 1);
+        folder[length - 1] = 0;
+        const core::Status found = folderPath(app, folder, core::Span<char>(path, sizeof(path)));
+        return found.ok() ? removeFolder(path) : found;
+    }
     const core::Status status = filePath(app, name, core::Span<char>(path, sizeof(path)));
     if (!status.ok()) {
         return status;
@@ -271,6 +279,8 @@ core::Status FilesRoot::removeApp(const char *app) const {
     char path[NBT_PATH_MAX];
     discard(app, FilesSource::Phone);
     discard(app, FilesSource::Usb);
+    discardFolder(app, FilesSource::Phone);
+    discardFolder(app, FilesSource::Usb);
     const core::Status status = appDir(app, false, core::Span<char>(path, sizeof(path)));
     if (!status.ok()) {
         return status.code() == ENOENT ? core::Status() : status;

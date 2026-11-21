@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/app_output.hpp"
 
+#include "nbt/util.h"
+
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <unistd.h>
 
 namespace nbt {
@@ -68,6 +71,26 @@ void AppOutput::drain() {
         log_.write(buffer, static_cast<size_t>(n));
     }
     log_.syncDue();
+}
+
+void AppOutput::stopChild(nbt_process &child) {
+    uint64_t now = 0;
+    if (nbt_monotonic_ms(&now) || nbt_process_terminate(&child, now)) {
+        (void)nbt_process_stop(&child);
+        return;
+    }
+    for (;;) {
+        drain();
+        const int reaped = nbt_monotonic_ms(&now) ? -1 : nbt_process_reap(&child, now);
+        if (reaped <= 0) {
+            if (reaped < 0) {
+                (void)nbt_process_stop(&child);
+            }
+            return;
+        }
+        struct pollfd readable = {fd_, POLLIN, 0};
+        (void)poll(&readable, 1, 20);
+    }
 }
 
 void AppOutput::ended(const nbt_process &child) {

@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+import zipfile
 from phone_client import SoftwarePhone
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,8 @@ class PhoneFilesTests(unittest.TestCase):
         self.install('snes', 'bridge=1.5\nbridge-uses=show,files\nbridge-optional=\n'
                              f'bridge-files={POLICY}\n')
         self.install('plain', 'bridge=1.5\nbridge-uses=show\nbridge-optional=\n')
+        self.install('psx', 'bridge=1.5\nbridge-uses=show,files\nbridge-optional=\n'
+                            'bridge-files=cue,bin,chd|1|4|folders=cue\n')
         for path in [self.root, *self.root.rglob('*')]:
             path.chmod(0o700 if path.is_dir() else 0o600)
         self.parent, child = socket.socketpair()
@@ -258,6 +261,89 @@ class PhoneFilesTests(unittest.TestCase):
         fields = self.usb(until=('imported', 'failed'))
         self.assertEqual(fields[1:5], ['failed', 'quota', '1', '2'], fields)
         self.assertEqual(self.stored(), ['rom0.sfc', 'rom2.sfc'])
+        self.assertFalse(any((self.files / 'staging').iterdir()))
+
+    def usb_of(self, app, until):
+        deadline = time.monotonic() + 10
+        while True:
+            fields = self.command(f'FILES USB {app} 0').split('\t')
+            if fields[1] in until or time.monotonic() > deadline:
+                return fields
+            time.sleep(0.05)
+
+    def zip(self, relative, entries):
+        path = self.mounts / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as archive:
+            for name, data in entries.items():
+                archive.writestr(name, data)
+
+    def test_games_of_several_files_arrive_as_folders(self):
+        # dev122: a PlayStation game is a folder or an archive (cue and bins),
+        # for an application declaring `|folders`; Snes9x-like ones are not.
+        cue, track = b'FILE "Tekken 3 (Track 1).bin" BINARY\n', os.urandom(200 * 1024)
+        crash = os.urandom(150 * 1024)
+        self.stick({'umass0/PS1/Tekken 3/Tekken 3.cue': cue,
+                    'umass0/PS1/Tekken 3/Tekken 3 (Track 1).bin': track,
+                    'umass0/PS1/Tekken 3/readme.txt': b'text'})
+        self.zip('umass0/PS1/Crash Bandicoot.zip', {'Crash/Crash.cue': b'cue', 'Crash/Crash.bin': crash,
+                                                   'Crash/notes.txt': b'x'})
+        self.zip('umass0/PS1/Empty.zip', {'notes.txt': b'nothing to play'})
+        # Single-file games (no cue sheet) stay single files, in a folder or a zip.
+        self.stick({'umass0/CHD/Ridge Racer.chd': b'r' * 10, 'umass0/CHD/Wipeout.chd': b'w' * 20})
+        self.zip('umass0/Spyro.zip', {'Spyro.chd': b's' * 30})
+        self.assertEqual(self.command('FILES SCAN psx'), 'OK')
+        fields = self.usb_of('psx', ('scanned', 'failed'))
+        self.assertEqual(fields[6:7] + fields[7::3],
+                         ['5', 'Crash Bandicoot/', 'Ridge Racer.chd', 'Spyro.zip', 'Tekken 3/',
+                          'Wipeout.chd'], fields)
+        self.assertEqual(fields[8::3], [str(3 + len(crash)), '10', '30', str(len(cue) + len(track)), '20'])
+        self.assertEqual(self.command('FILES IMPORT psx all'), 'OK')
+        fields = self.usb_of('psx', ('imported', 'failed'))
+        self.assertEqual(fields[1:3], ['imported', '-'], fields)
+        games = self.files / 'files/psx'
+        self.assertEqual(sorted(p.name for p in (games / 'Tekken 3').iterdir()),
+                         ['Tekken 3 (Track 1).bin', 'Tekken 3.cue'])
+        self.assertEqual((games / 'Tekken 3/Tekken 3 (Track 1).bin').read_bytes(), track)
+        self.assertEqual((games / 'Crash Bandicoot/Crash.bin').read_bytes(), crash)
+        self.assertEqual(sorted(p.name for p in (games / 'Crash Bandicoot').iterdir()),
+                         ['Crash.bin', 'Crash.cue'])
+        self.assertEqual((games / 'Spyro.chd').read_bytes(), b's' * 30)
+        for single in ('Ridge Racer.chd', 'Spyro.chd', 'Wipeout.chd'):
+            (games / single).unlink()
+        self.assertFalse(any((self.files / 'staging').iterdir()))
+        # Listed as one entry each, the files counted; deleted whole.
+        page = self.command('FILES psx first').split('\t')
+        self.assertEqual(page[1], '4')
+        self.assertEqual(page[6::2], ['Crash Bandicoot/', 'Tekken 3/'])
+        self.phone.pair(self.command, self.host)
+        header, rows = self.listing('psx')
+        self.assertEqual([row[0] for row in rows], ['Crash Bandicoot/', 'Tekken 3/'])
+        self.assertEqual(self.listing('psx', after='Crash Bandicoot/')[1][0][0], 'Tekken 3/')
+        self.assertEqual(self.post('/v1/files/remove', b'psx\tTekken 3/\n'), (200, b'OK\n'))
+        self.assertFalse((games / 'Tekken 3').exists())
+        self.assertEqual(self.post('/v1/files/remove', b'psx\tTekken 3/\n'), (404, b'ERR missing\n'))
+        self.assertEqual(self.post('/v1/files/remove', b'psx\t../x/\n')[0], 400)
+        self.assertEqual(self.command('FILES DELETE psx 0'), 'OK')
+        self.assertEqual(list(games.iterdir()), [])
+        # Without `|folders`, an archive's files are stored one by one.
+        self.zip('umass0/SNES/Mario.zip', {'Super Mario World.sfc': b'\x01' * 1000, 'a.txt': b'x'})
+        self.assertEqual(self.command('FILES SCAN snes'), 'OK')
+        fields = self.usb(until=('scanned', 'failed'))
+        self.assertIn('Mario.zip', fields[7::3])
+        self.assertEqual(self.command('FILES IMPORT snes all'), 'OK')
+        self.assertEqual(self.usb(until=('imported', 'failed'))[1], 'imported')
+        self.assertEqual(self.stored(), ['Super Mario World.sfc'])
+
+    def test_a_game_folder_counts_against_the_quota(self):
+        self.stick({f'umass0/Big/disc{i}.bin': b'\x22' * (900 * 1024) for i in range(5)})
+        self.stick({'umass0/Big/Big.cue': b'cue'})
+        self.assertEqual(self.command('FILES SCAN psx'), 'OK')
+        self.assertEqual(self.usb_of('psx', ('scanned', 'failed'))[7], 'Big/')
+        self.assertEqual(self.command('FILES IMPORT psx all'), 'OK')
+        fields = self.usb_of('psx', ('imported', 'failed'))
+        self.assertEqual(fields[1:3], ['failed', 'quota'], fields)
+        self.assertFalse((self.files / 'files/psx/Big').exists())
         self.assertFalse(any((self.files / 'staging').iterdir()))
 
     def test_no_stick(self):

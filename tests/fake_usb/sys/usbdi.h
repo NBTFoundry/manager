@@ -96,6 +96,8 @@ usbd_interface_descriptor_t *usbd_interface_descriptor(usbd_device *, uint8_t, u
                                                        usbd_desc_node **);
 usbd_descriptors_t *usbd_parse_descriptors(usbd_device *, usbd_desc_node *, uint8_t, int,
                                            usbd_desc_node **);
+usbd_endpoint_descriptor_t *usbd_endpoint_descriptor(usbd_device *, uint8_t, uint8_t, uint8_t,
+                                                     uint8_t, usbd_desc_node **);
 int usbd_open_pipe(usbd_device *, usbd_descriptors_t *, usbd_pipe **);
 int usbd_abort_pipe(usbd_pipe *);
 int usbd_close_pipe(usbd_pipe *);

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
+#include <zlib.h>
+
 #include "nbt/bridge.h"
 #include "nbt/bridge_hold.h"
 #include "nbt/capture/classifier.h"
@@ -14,6 +16,7 @@
 #include "nbt/gamepad/reports.hpp"
 #include "nbt/gui/car_language.hpp"
 #include "nbt/gui/phone_wake.hpp"
+#include "nbt/gui/shortcut_record.hpp"
 #include "nbt/gui/text.hpp"
 #include "nbt/gui/worker_text.hpp"
 #include "nbt/lifecycle/transactions.hpp"
@@ -26,6 +29,7 @@
 #include "nbt/package/release_verifier.hpp"
 #include "nbt/settings.h"
 #include "nbt/storage/starter_config.hpp"
+#include "nbt/storage/zip_archive.hpp"
 #include "nbt/worker/control_protocol.hpp"
 #include "nbt/worker/http.hpp"
 #include "nbt/worker/phone_actions.hpp"
@@ -80,7 +84,8 @@ enum Target {
     LanguageTarget,
     CdsPolicy,
     NetPolicy,
-    BridgeHold
+    BridgeHold,
+    ZipArchiveTarget
 };
 
 struct TargetName {
@@ -118,7 +123,8 @@ const TargetName kTargets[] = {{"gamepad-wire", GamepadWire},
                                {"language", LanguageTarget},
                                {"cds-policy", CdsPolicy},
                                {"net-policy", NetPolicy},
-                               {"bridge-hold", BridgeHold}};
+                               {"bridge-hold", BridgeHold},
+                               {"zip-archive", ZipArchiveTarget}};
 
 class Mutator {
 public:
@@ -197,6 +203,68 @@ public:
         return nbt::core::Status();
     }
 };
+
+/* A one-entry zip archive, "Game/game.cue" holding "FILE x BINARY", stored
+ * (method 0) or with a deflate stream of stored blocks (method 8). */
+std::vector<uint8_t> zipSeed(unsigned method) {
+    static const char kName[] = "Game/game.cue";
+    static const char kData[] = "FILE x BINARY";
+    const uint32_t nameLength = sizeof(kName) - 1, size = sizeof(kData) - 1;
+    std::vector<uint8_t> data(kData, kData + size);
+    if (method == 8) { // one final stored deflate block
+        const uint8_t head[] = {1, static_cast<uint8_t>(size), 0, static_cast<uint8_t>(~size),
+                                0xff};
+        data.insert(data.begin(), head, head + sizeof(head));
+    }
+    const uint32_t crc = static_cast<uint32_t>(
+        crc32(0L, reinterpret_cast<const Bytef *>(kData), static_cast<uInt>(size)));
+    std::vector<uint8_t> out;
+    auto le = [&out](uint32_t value, unsigned bytes) {
+        for (unsigned i = 0; i < bytes; ++i) {
+            out.push_back(static_cast<uint8_t>(value >> (8 * i)));
+        }
+    };
+    le(0x04034b50, 4);
+    le(20, 2);
+    le(0, 2);
+    le(method, 2);
+    le(0, 4);
+    le(crc, 4);
+    le(static_cast<uint32_t>(data.size()), 4);
+    le(size, 4);
+    le(nameLength, 2);
+    le(0, 2);
+    out.insert(out.end(), kName, kName + nameLength);
+    out.insert(out.end(), data.begin(), data.end());
+    const uint32_t central = static_cast<uint32_t>(out.size());
+    le(0x02014b50, 4);
+    le(20, 2);
+    le(20, 2);
+    le(0, 2);
+    le(method, 2);
+    le(0, 4);
+    le(crc, 4);
+    le(static_cast<uint32_t>(data.size()), 4);
+    le(size, 4);
+    le(nameLength, 2);
+    le(0, 2);
+    le(0, 2);
+    le(0, 2);
+    le(0, 2);
+    le(0, 4);
+    le(0, 4);
+    out.insert(out.end(), kName, kName + nameLength);
+    const uint32_t directory = static_cast<uint32_t>(out.size()) - central;
+    le(0x06054b50, 4);
+    le(0, 2);
+    le(0, 2);
+    le(1, 2);
+    le(1, 2);
+    le(directory, 4);
+    le(central, 4);
+    le(0, 2);
+    return out;
+}
 
 void addSeed(std::vector<std::vector<uint8_t>> *seeds, const char *text) {
     seeds->push_back(std::vector<uint8_t>(reinterpret_cast<const uint8_t *>(text),
@@ -369,6 +437,7 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
         break;
     case FilesPolicy:
         addSeed(&out, "sfc,smc,fig,swc|16|1024");
+        addSeed(&out, "cue,bin,chd,m3u|700|8000|folders=m3u,cue");
         addSeed(&out, "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p|4096|65536");
         addSeed(&out, "Super Game (Europe) [!].sfc");
         break;
@@ -391,7 +460,12 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
         addSeed(&out, "tcp:5277@uap0+wfd0");
         addSeed(&out, "tcp:1@uap0,tcp:65535@wfd0,tcp:80@uap0+wfd0,tcp:8080@wfd0");
         break;
+    case ZipArchiveTarget:
+        out.push_back(zipSeed(0));
+        out.push_back(zipSeed(8));
+        break;
     case BridgeHold:
+        addSeed(&out, "1700000000000 start android-auto\n");
         addSeed(&out, "12 hold\n");
         addSeed(&out, "1700000000000 12 android-auto peek\n");
         addSeed(&out, "12 aside\n");
@@ -593,11 +667,18 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
         copyText(input, text);
         if (!nbt_files_policy_parse(text, &policy)) {
             (void)nbt_files_policy_accepts(&policy, "game.sfc");
+            (void)nbt_files_policy_marks_folder(&policy, "game.cue");
             (void)nbt_files_policy_quota_bytes(&policy);
         }
         (void)nbt_files_name_valid(text);
+        (void)nbt_files_listed_name_valid(text);
         if (nbt::worker::UsbFiles::storedName(text, name) && !nbt_files_name_valid(name)) {
             abort(); // a stored name is always valid
+        }
+        char folder[NBT_FILES_FOLDER_MAX + 1];
+        if (nbt::worker::UsbFiles::storedFolderName(text, strlen(text), folder) &&
+            !nbt_files_folder_valid(folder)) {
+            abort(); // a stored folder name too
         }
         break;
     }
@@ -637,6 +718,35 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
             nbt_cds_value_format(sequence, value, out, sizeof(out)) < 0) {
             abort();
         }
+        nbt::gui::ShortcutRecord shortcut; // the App shortcut record: parsed formats back
+        if (nbt::gui::shortcutRecordParse(line, input.size(), shortcut) &&
+            nbt::gui::shortcutRecordFormat(shortcut, out, sizeof(out)) < 0) {
+            abort();
+        }
+        break;
+    }
+    case ZipArchiveTarget: {
+        // A stick's archive: listed, then each entry unpacked (into /dev/null).
+        char path[64];
+        snprintf(path, sizeof(path), "/tmp/nbt-fuzz-zip-%d", static_cast<int>(getpid()));
+        const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+        const bool written = fd >= 0 && (input.empty() || write(fd, &input[0], input.size()) ==
+                                                              static_cast<ssize_t>(input.size()));
+        if (fd >= 0) {
+            close(fd);
+        }
+        nbt::storage::ZipArchive zip;
+        const int sink = open("/dev/null", O_WRONLY);
+        if (written && sink >= 0 && zip.open(path)) {
+            for (unsigned i = 0; i < zip.count(); ++i) {
+                (void)nbt::storage::ZipArchive::baseName(zip.entry(i).name);
+                (void)zip.extract(i, sink, NULL, NULL);
+            }
+        }
+        if (sink >= 0) {
+            close(sink);
+        }
+        unlink(path);
         break;
     }
     case BridgeRequirement: {

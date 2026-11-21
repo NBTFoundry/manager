@@ -127,6 +127,13 @@ static void files_policies(void) {
                          "abcdefghi|16|1024",
                          "sfc|+16|1024",
                          "sfc|16|1024\n",
+                         "sfc|16|1024|",
+                         "sfc|16|1024|folders",
+                         "sfc|16|1024|folders=",
+                         "sfc|16|1024|folders=smc",
+                         "sfc|16|1024|folders=sfc,sfc",
+                         "sfc|16|1024|folders=sfc|x",
+                         "sfc|16|folders=sfc",
                          "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q|1|1"};
     unsigned i;
     for (i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
@@ -135,8 +142,18 @@ static void files_policies(void) {
     assert(!nbt_files_policy_parse("a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p|4096|65536", &policy));
     assert(policy.count == 16 && policy.file_mib == 4096 && policy.quota_mib == 65536);
     assert(nbt_files_policy_quota_bytes(&policy) == UINT64_C(65536) << 20);
+    assert(!nbt_files_policy_parse("cue,bin,chd|700|8000|folders=cue", &policy));
+    assert(policy.folder_marks == 1 && policy.count == 3 && policy.quota_mib == 8000);
+    assert(nbt_files_policy_marks_folder(&policy, "Game.CUE") &&
+           !nbt_files_policy_marks_folder(&policy, "Game.bin") &&
+           !nbt_files_policy_marks_folder(&policy, "Game.chd"));
     assert(!nbt_files_policy_parse("sfc,smc,fig,swc|16|1024", &policy));
-    assert(policy.count == 4 && !strcmp(policy.extensions[3], "swc"));
+    assert(policy.count == 4 && !strcmp(policy.extensions[3], "swc") && !policy.folder_marks);
+    assert(nbt_files_listed_name_valid("Tekken 3/") && nbt_files_listed_name_valid("a.sfc"));
+    assert(!nbt_files_listed_name_valid("a/b/") && !nbt_files_listed_name_valid("/") &&
+           !nbt_files_listed_name_valid(".hidden/") && !nbt_files_listed_name_valid("x"));
+    assert(nbt_files_folder_valid("Tekken 3") && !nbt_files_folder_valid("a/b") &&
+           !nbt_files_folder_valid("end."));
     assert(nbt_files_policy_file_bytes(&policy) == UINT64_C(16) << 20);
     const char *names[] = {"Super Game (E).sfc", "a.SMC", "x.y.fig", "1.swc"};
     for (i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {

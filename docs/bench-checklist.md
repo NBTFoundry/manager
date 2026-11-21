@@ -179,6 +179,21 @@ With the debug log on and the test application installed
 | Restart iDrive only (Settings > Status, or `OnOffDSICommander appreset`) | No second automatic start: `/dev/shmem/nbt-manager.autostart` is still there |
 | Install a test package that fails its start, with the row on; reboot three times | The fourth boot starts nothing; the page says it is paused; starting it once by hand resumes it |
 | Stage a manager update and reboot while it is pending | The automatic start runs with the previous, known-good worker; the update stays pending |
+| Open the manager within 20 s of a boot, leave it open | The application still starts: `autostart: the manager is open; its worker starts the applications`, then the worker's `autostart: handed over` |
+
+### App shortcut
+
+After "Restart iDrive" for the plugin with the three entries:
+
+| Action | Expected |
+| --- | --- |
+| Media list | **App shortcut 1**, **2** and **3** after **App Manager**, with its icon and preview |
+| Highlight **App shortcut 1**, hold a favourite button | iDrive stores it (no "unable to save") |
+| The button with nothing assigned | The manager opens (`App shortcut 1 pressed`, `shortcut 1: the manager opens`) |
+| An application's page: **App shortcut** pressed once | The row reads 1; the note names iDrive's entry; `manager/shortcuts` holds it on line 1 |
+| The button, the application stopped | The manager opens and starts it, as if chosen in its list (`App shortcut: starting <app>`) |
+| The button, Android Auto running behind iDrive (after a camera, a warning, the phone's exit) | Android Auto comes back; the manager does not open (`shortcut 1: android-auto asked to come back`, the host's `show forwarded`) |
+| The button with the manager already open | The same, through the open session's worker (`its worker takes the press`) |
 
 ## 11. MOST subscriptions and parameter capture (A1/A3/B3/B4)
 

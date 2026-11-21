@@ -551,6 +551,8 @@ Android Auto connecting gives runtime facts the dump cannot:
 | Subscribing to an unknown car-data name | Avoidable: `cdsIsPropertyAvailable` exists |
 | An uncoded plugin in `Plugins/` | Loads and receives `hmi.graphicalContext` (NbtAad, with the same manifest shape as the manager's) |
 | The car's firmware and the dump | The dump is a car's `/opt` (28735 of 28737 HMI files the same size; copied libraries byte-identical) |
+| zlib as `libz.so.2` on the car (the manager's worker unpacks game archives with it) | Needed by `NBTCarHU` and 22 iDrive libraries of NBTevo_Y21432J (`DT_NEEDED`); the same soname as QNX 6.5 SP1's |
+| The browser audio source `0xb8` (applications' sound, NBT-AAD's native audio) has a minimum volume of 25 | Seen on the car; `audioconn` also knows `eSRC_BON_BROWSER_ENT` and `eSRC_A4A_ENT1/2` (entertainment sources), whose connection ids only `audioconn -l` on the car gives |
 
 To learn more about a car: the `MOST registry` lines of a debug log list the
 FBlocks and instances present without any new MOST request; capturing candidate

@@ -59,7 +59,7 @@ In a generic session the upload is staged in `state/manager/session.upload`. Whe
 
 `APPROVE` is meaningful only after a session has verified a package, and is bound to that package's SHA-256. A client must not expose this command to HTTP. The worker recovers an application before selecting it for a session or starting it; startup does not currently scan and recover all provisioned applications.
 
-Running applications outlive the worker. `START` launches the worker binary as `--host <app>`, detached from the worker (double fork, own session). The host takes an exclusive lock on `state/<app>/host.lock` for its lifetime (a second host for the same application exits with status 3), recovers an interrupted transaction under the application's transaction lock, starts the application with the contract below and watches its heartbeats. It ends when the application exits or breaks the contract; on `SIGTERM` it first stops the application (`SIGTERM`, then `SIGKILL` after five seconds). "Running" means the host lock is held, and the worker signals only the pid the kernel reports as its holder. If a host is killed, its application sees the heartbeat pipe close and exits.
+Running applications outlive the worker. `START` launches the worker binary as `--host <app>`, detached from the worker (double fork, own session). The host takes an exclusive lock on `state/<app>/host.lock` for its lifetime (a second host for the same application exits with status 3), recovers an interrupted transaction under the application's transaction lock, starts the application with the contract below and watches its heartbeats. It ends when the application exits or breaks the contract; on `SIGTERM` it first stops the application (`SIGTERM`, then `SIGKILL` after five seconds), reading its output meanwhile so that what it writes as it ends reaches its log. "Running" means the host lock is held, and the worker signals only the pid the kernel reports as its holder. If a host is killed, its application sees the heartbeat pipe close and exits.
 
 Commands do not wait for an application to exit, so the control channel stays responsive. `STOP` sends `SIGTERM` to the host; the worker's loop sends `SIGKILL` to a host still running after eight seconds and reports failure after fifteen. `STATUS` reports `Stopping application` and then `Application stopped`. Installing over a running application stops its host first, checks the candidate's health as the worker's own child, then starts a new host for it; a failed candidate is restored and the previous version restarted in a host. After `OK installing`, the state is `3` (installing) while the worker stops a running application, installs the package, starts the candidate and checks its health. A failed candidate start or health check also stays in state `3` while the previous executable is restored. The outcome is state `4` or `5` with a message. `APPROVE` returns `ERR install` only when it is not accepted: wrong digest, no verified package, an expired session, or while the worker is still stopping an application that failed its lifecycle contract. Approval during a requested `STOP` is accepted, and the application stays stopped after installation. `START`, `STOP` and new sessions are refused while an installation is in progress. Worker shutdown still stops a child synchronously.
 
@@ -291,8 +291,8 @@ never cross the command line:
 
 | Command | Reply |
 | --- | --- |
-| `FILES <app> first` or `next` | `FILES\t<count>\t<used>\t<quota>\t<free>\t<more>`, then `\t<name>\t<size>` for up to 12 files, the first page or the next one |
-| `FILES DELETE <app> <i>` | `OK`: file `i` of the last page deleted |
+| `FILES <app> first` or `next` | `FILES\t<count>\t<used>\t<quota>\t<free>\t<more>`, then `\t<name>\t<size>` for up to 12 files, the first page or the next one; a game folder is one entry, `<folder>/` with the size of its files ([docs/files-bridge.md](docs/files-bridge.md)) |
+| `FILES DELETE <app> <i>` | `OK`: file `i` of the last page deleted (a game folder, `<folder>/`, with its files) |
 | `FILES SCAN <app>` | `OK`: the USB sticks are scanned on the worker's job |
 | `FILES USB <app> <offset>` | `USB\t<phase>\t<reason>\t<done>\t<total>\t<percent>\t<count>`, then `\t<name>\t<size>\t<0 or 1: stored>` for up to 12 files from `offset`; phase `idle`, `scanning`, `scanned`, `importing`, `imported` or `failed`, reason `-` or a word |
 | `FILES IMPORT <app> all` or `<i>` | `OK`: every file found, or one, copied on the worker's job |
@@ -346,6 +346,26 @@ In the GUI, holding the push on an application opens its settings (`SETTINGS <ap
 
 Applications therefore need no iDrive plugin of their own: the manager's main menu starts them, and their settings, and stopping them, live in the manager.
 
+### App shortcut
+
+iDrive's entries **App shortcut 1-3** (plugin/NbtManager.xml) each open one
+application. `SET manager shortcut<n> <app>` assigns entry `n` (an application
+takes one entry at most: assigning another frees the first), `SET manager
+shortcut<n> off` frees it; `manager/shortcuts` holds one line per entry (an
+empty line for none). `SETTINGS <app> live` adds `+shortcut<n>` to the mode
+field of the application on entry `n`. A press spawns
+`nbt-manager-launcher --shortcut<n>`: under the manager operation lock (1 s
+at most) the known-good worker's `--shortcut<n>` asks a running application
+to come back (`START`'s show, for an application granted `show` or `hold`)
+and writes nothing; otherwise it writes `/dev/shmem/nbt-manager.shortcut`,
+`<monotonic ms> open` (no application, or one that cannot come back by
+itself) or `<ms> start <app>` (not running). The plugin, which polls it every
+250 ms for 15 s after the press, opens the manager; the GUI, once its list
+shows, starts `<app>` as if chosen there and writes `<ms> taken`. While an
+open session holds the lock, the launcher writes `n` to
+`/dev/shmem/nbt-manager.shortcut-pending` and that session's worker, which
+looks every 250 ms, does the same.
+
 ### Autostart
 
 The worker accepts `--autostart` as a one-shot dispatcher and `--host-auto <app>`
@@ -376,7 +396,12 @@ the plugin runs `nbt-manager-launcher --autostart` with iDrive's environment
 operation lock (retrying for up to 10 s), verifies the known-good worker (the
 active slot, or the previous one while a manager update is pending, so a boot
 job never confirms a candidate), runs its `--autostart` and holds the lock
-until that dispatch has ended (at most 15 s). No GUI opens.
+until that dispatch has ended (at most 15 s). No GUI opens. An open manager
+session holds that lock for its whole life: when the launcher still cannot
+take it after 10 s, it sets `/dev/shmem/nbt-manager.autostart-pending` to `1`
+and the session's worker, which looks once a second, runs the same dispatch
+and sets it to `0` (dev122: the manager was opened before the boot's start,
+which then gave up).
 
 GUI: an application's settings page shows **Start with the car** after the
 settings its package declares (`include/nbt/gui/autostart_ui.hpp`).

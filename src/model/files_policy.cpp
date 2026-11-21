@@ -90,23 +90,47 @@ int nbt_files_policy_parse(const char *text, nbt_files_policy *out) {
     if (!length || length > NBT_FILES_POLICY_MAX) {
         return -1;
     }
-    // Exactly two separators: extensions | largest file | quota.
-    size_t bars[2] = {0, 0}, found = 0;
+    // Two separators: extensions | largest file | quota, then "|folders" or nothing.
+    size_t bars[3] = {0, 0, 0}, found = 0;
     for (size_t i = 0; i < length; ++i) {
         if (text[i] == '|') {
-            if (found == 2) {
+            if (found == 3) {
                 return -1;
             }
             bars[found++] = i;
         }
     }
-    if (found != 2 || !nbt::model::parseExtensions(text, bars[0], &policy) ||
+    static const char kFolders[] = "folders=";
+    const size_t quotaEnd = found == 3 ? bars[2] : length;
+    if (found < 2 || !nbt::model::parseExtensions(text, bars[0], &policy) ||
         !nbt::model::parseNumber(text + bars[0] + 1, bars[1] - bars[0] - 1, NBT_FILES_FILE_MIB_MAX,
                                  &policy.file_mib) ||
-        !nbt::model::parseNumber(text + bars[1] + 1, length - bars[1] - 1, NBT_FILES_QUOTA_MIB_MAX,
-                                 &policy.quota_mib) ||
+        !nbt::model::parseNumber(text + bars[1] + 1, quotaEnd - bars[1] - 1,
+                                 NBT_FILES_QUOTA_MIB_MAX, &policy.quota_mib) ||
         policy.quota_mib < policy.file_mib) {
         return -1;
+    }
+    if (found == 3) {
+        // "folders=<ext>,...": the declared extensions that make a folder one game.
+        const char *marks = text + bars[2] + 1;
+        const size_t n = length - bars[2] - 1;
+        nbt_files_policy listed;
+        memset(&listed, 0, sizeof(listed));
+        if (n <= sizeof(kFolders) - 1 || memcmp(marks, kFolders, sizeof(kFolders) - 1) ||
+            !nbt::model::parseExtensions(marks + sizeof(kFolders) - 1, n - sizeof(kFolders) + 1,
+                                         &listed)) {
+            return -1;
+        }
+        for (unsigned i = 0; i < listed.count; ++i) {
+            unsigned j = 0;
+            while (j < policy.count && strcmp(policy.extensions[j], listed.extensions[i])) {
+                ++j;
+            }
+            if (j == policy.count) {
+                return -1; // only a declared extension marks a game folder
+            }
+            policy.folder_marks |= static_cast<uint16_t>(1u << j);
+        }
     }
     if (out) {
         *out = policy;
@@ -130,6 +154,57 @@ int nbt_files_name_valid(const char *name) {
     }
     const char *dot = strrchr(name, '.');
     return dot != NULL && dot != name && dot[1] != 0;
+}
+
+int nbt_files_folder_valid(const char *name) {
+    if (!name) {
+        return 0;
+    }
+    const size_t length = nbt::model::boundedLength(name, NBT_FILES_FOLDER_MAX + 1);
+    if (!length || length > NBT_FILES_FOLDER_MAX || name[0] == '.' || name[0] == ' ' ||
+        name[length - 1] == '.' || name[length - 1] == ' ') {
+        return 0;
+    }
+    for (size_t i = 0; i < length; ++i) {
+        if (nbt::model::forbidden(static_cast<unsigned char>(name[i]))) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int nbt_files_policy_marks_folder(const nbt_files_policy *policy, const char *name) {
+    if (!policy || !policy->folder_marks || !nbt_files_policy_accepts(policy, name)) {
+        return 0;
+    }
+    const char *extension = strrchr(name, '.') + 1;
+    for (unsigned i = 0; i < policy->count; ++i) {
+        const char *declared = policy->extensions[i];
+        size_t k = 0;
+        while (declared[k] && extension[k] &&
+               (extension[k] == declared[k] || (extension[k] >= 'A' && extension[k] <= 'Z' &&
+                                                extension[k] - 'A' + 'a' == declared[k]))) {
+            ++k;
+        }
+        if (!declared[k] && !extension[k]) {
+            return (policy->folder_marks >> i) & 1u;
+        }
+    }
+    return 0;
+}
+
+int nbt_files_listed_name_valid(const char *name) {
+    if (nbt_files_name_valid(name)) {
+        return 1;
+    }
+    const size_t length = name ? nbt::model::boundedLength(name, NBT_FILES_FOLDER_MAX + 2) : 0;
+    if (length < 2 || length > NBT_FILES_FOLDER_MAX + 1 || name[length - 1] != '/') {
+        return 0;
+    }
+    char folder[NBT_FILES_FOLDER_MAX + 1];
+    memcpy(folder, name, length - 1);
+    folder[length - 1] = 0;
+    return nbt_files_folder_valid(folder);
 }
 
 int nbt_files_policy_accepts(const nbt_files_policy *policy, const char *name) {

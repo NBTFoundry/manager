@@ -56,13 +56,20 @@ def most_policy(text):
 def files_policy(text):
     """Validates a files policy as the C parser does; returns it unchanged."""
     parts = text.split("|")
+    marks = None
+    if len(parts) == 4 and parts[3].startswith("folders="):  # docs/files-bridge.md, game folders
+        marks = parts[3][len("folders="):].split(",")
+        parts = parts[:3]
     if len(text) > FILES_MAX or len(parts) != 3:
-        raise ValueError("invalid files policy: extensions|largest file MiB|quota MiB")
+        raise ValueError("invalid files policy: extensions|largest file MiB|quota MiB[|folders=ext,...]")
     extensions = parts[0].split(",")
     if (not 1 <= len(extensions) <= FILES_EXTENSIONS or len(set(extensions)) != len(extensions) or
             not all(FILES_EXTENSION.fullmatch(e) for e in extensions) or
             not all(FILES_NUMBER.fullmatch(n) for n in parts[1:])):
         raise ValueError("invalid files policy (see docs/files-bridge.md)")
+    if marks is not None and (not marks or len(set(marks)) != len(marks) or
+                              not all(m in extensions for m in marks)):
+        raise ValueError("files policy: folders= names declared extensions, each once")
     largest, quota = int(parts[1]), int(parts[2])
     if largest > FILES_FILE_MIB or quota > FILES_QUOTA_MIB or quota < largest:
         raise ValueError("files policy limits: largest file 1-4096 MiB, quota 1-65536 MiB and at least the largest file")

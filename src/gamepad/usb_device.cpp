@@ -55,31 +55,66 @@ bool UsbDevice::open(usbd_connection *connection, usbd_device_instance_t instanc
     if (family_ == Unsupported) {
         return fail("unsupported interface");
     }
-    if (!configureUsb(device_, static_cast<uint8_t>(instance.config),
-                      static_cast<uint8_t>(instance.iface), family_ != Gip)) {
+    const uint8_t config = static_cast<uint8_t>(instance.config);
+    const uint8_t number = static_cast<uint8_t>(instance.iface);
+    const uint8_t alternate = static_cast<uint8_t>(instance.alternate);
+    if (!configureUsb(device_, config, number, family_ != Gip)) {
         return fail("configuration failed");
     }
-    for (unsigned i = 0; i < iface->bNumEndpoints; ++i) {
-        usbd_descriptors_t *descriptor = usbdi().parse_descriptors(
-            device_, interfaceNode, USB_DESC_ENDPOINT, static_cast<int>(i), NULL);
-        usbd_endpoint_descriptor_t *ep = descriptor ? &descriptor->endpoint : NULL;
+    // Read again once configured: selecting the configuration can rebuild
+    // io-usb's descriptors. On the car (dev122) the walk below gave one of
+    // each pad's two endpoints: no OUT endpoint for the Xbox pad, no light
+    // bar for the DualShock 4. Then io-usb's lookup by address fills a gap.
+    iface = usbdi().interface_descriptor(device_, config, number, alternate, &interfaceNode);
+    if (!iface || iface->bLength < 9) {
+        return fail("invalid interface descriptor once configured");
+    }
+    bool openFailed = false;
+    auto use = [this, &openFailed](const usbd_endpoint_descriptor_t *ep, const char *how) {
         if (!ep || ep->bLength < 7) {
-            return fail("invalid endpoint descriptor");
+            return;
         }
-        if ((ep->bmAttributes & 3) != 3) {
-            continue;
-        }
-        if (!(ep->bEndpointAddress & 15) || !ep->wMaxPacketSize || ep->wMaxPacketSize > 64 ||
-            !ep->bInterval) {
-            return fail("unsupported endpoint limits");
-        }
+        nbt_logf("gamepad: USB %04x:%04x endpoint 0x%02x type %u size %u interval %u (%s)", vendor_,
+                 product_, ep->bEndpointAddress, ep->bmAttributes & 3u,
+                 static_cast<unsigned>(ep->wMaxPacketSize), ep->bInterval, how);
         usbd_pipe **pipe = ep->bEndpointAddress & 0x80 ? &in_ : &out_;
-        if (*pipe || usbdi().open_pipe(device_, reinterpret_cast<usbd_descriptors_t *>(ep), pipe)) {
-            return fail("open pipe failed");
+        if ((ep->bmAttributes & 3) != 3 || *pipe || !(ep->bEndpointAddress & 15) ||
+            !ep->wMaxPacketSize || ep->wMaxPacketSize > 64 || !ep->bInterval) {
+            return; // not an interrupt endpoint this pad can use, or one already open
+        }
+        usbd_descriptors_t *descriptor =
+            reinterpret_cast<usbd_descriptors_t *>(const_cast<usbd_endpoint_descriptor_t *>(ep));
+        if (usbdi().open_pipe(device_, descriptor, pipe)) {
+            *pipe = NULL;
+            openFailed = true;
+            return;
         }
         if (pipe == &in_) {
             packetSize_ = ep->wMaxPacketSize;
         }
+    };
+    for (int i = 0; i < 16 && (!in_ || !out_); ++i) {
+        usbd_descriptors_t *descriptor =
+            usbdi().parse_descriptors(device_, interfaceNode, USB_DESC_ENDPOINT, i, NULL);
+        if (!descriptor) {
+            break;
+        }
+        use(&descriptor->endpoint, "walk");
+    }
+    for (unsigned n = 1; n < 16 && (!in_ || !out_); ++n) {
+        if (!in_) {
+            use(usbdi().endpoint_descriptor(device_, config, number, alternate,
+                                            static_cast<uint8_t>(0x80 | n), NULL),
+                "lookup");
+        }
+        if (!out_) {
+            use(usbdi().endpoint_descriptor(device_, config, number, alternate,
+                                            static_cast<uint8_t>(n), NULL),
+                "lookup");
+        }
+    }
+    if (openFailed && (!in_ || (family_ == Gip && !out_))) {
+        return fail("open pipe failed");
     }
     if (!in_ || (family_ == Gip && !out_) || packetSize_ < (family_ == Gip ? 18u : 64u)) {
         return fail("missing interrupt endpoints");

@@ -12,6 +12,7 @@
 #include "nbt/manager_supervisor.h"
 #include "nbt/storage/capture_install.hpp"
 #include "nbt/util.h"
+#include "nbt/worker/shortcut_dispatch.hpp"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -82,9 +83,10 @@ int main(int argc, char **argv) {
         return 1;
     }
     const int autostart = argc == 2 && !strcmp(argv[1], "--autostart");
+    const unsigned shortcut = argc == 2 ? nbt::worker::shortcutSlot(argv[1]) : 0;
     if (!(argc == 2 && !strcmp(argv[1], "--open")) && !(argc == 2 && !strcmp(argv[1], "--door")) &&
-        !autostart && !transfer && !bootstrap && !provision && !refresh && !removeCapture &&
-        !tryShim && !shimCheck && !shimSwitch) {
+        !autostart && !shortcut && !transfer && !bootstrap && !provision && !refresh &&
+        !removeCapture && !tryShim && !shimCheck && !shimSwitch) {
         return 2;
     }
     /* --provision-app <app> <compat> <key-size> <package-size> <package-sha256> */
@@ -209,6 +211,10 @@ int main(int argc, char **argv) {
     if (autostart) {
         (void)nbt_log_open(&fs, "launcher");
         return nbt::launcher::runAutostart(&fs);
+    }
+    if (shortcut) {
+        (void)nbt_log_open(&fs, "launcher");
+        return nbt::launcher::runShortcut(&fs, shortcut);
     }
     if (transfer) {
         if (nbt_manager_receive_update(&fs, 0, size, digest, !strcmp(argv[1], "--stage-recovery"),

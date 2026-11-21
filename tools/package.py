@@ -47,7 +47,8 @@ def main():
     parser.add_argument("--bridge-most", default="",
                         help="MOST policy, required with capability most: rx:FB.II.FFF,tx:...,ctl:FB.II,sub:FB.II.FFF")
     parser.add_argument("--bridge-files", default="",
-                        help="files policy, required with capability files: ext,ext|largest file MiB|quota MiB")
+                        help="files policy, required with capability files: "
+                             "ext,ext|largest file MiB|quota MiB[|folders=ext,ext]")
     parser.add_argument("--bridge-cds", default="",
                         help="car-data policy, required with capability car-data: name.name,name.name")
     parser.add_argument("--bridge-net", default="",

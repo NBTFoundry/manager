@@ -346,11 +346,13 @@ class ManagerUiTests(unittest.TestCase):
             view = self.send("select")
             self.assertEqual(view.exit, 0, view.text())
             self.assertIn("test is already running", view.lines)
-            # Holding the push opens its settings: Start with the car, then stopping it.
+            # Holding the push opens its settings: Start with the car, App shortcut, then
+            # stopping it.
             view = self.send("hold")
             self.assertEqual((view.screen, view.title, view.items),
                              (SETTINGS, "test settings",
-                              ["Start with the car: off", "Stop test", "Uninstall test"]))
+                              ["Start with the car: off", "App shortcut: off", "Stop test",
+                               "Uninstall test"]))
             self.assertFalse(view.modal_title)
             view = self.send("release", "select")
             for _ in range(10):
@@ -360,6 +362,14 @@ class ManagerUiTests(unittest.TestCase):
             self.assertEqual(view.items[0], "Start with the car: on")
             self.assertEqual((self.root / "state/test/autostart").read_text(),
                              "NBTAUTO1\nenabled=1\n")
+            # The App shortcut row (the worker's own SET manager shortcut1): one press, entry 1.
+            view = self.send("down", "select")
+            for _ in range(10):
+                if view.items[1] == "App shortcut: 1":
+                    break
+                view = self.send("poll")
+            self.assertEqual(view.items[1], "App shortcut: 1")
+            self.assertEqual((self.root / "manager/shortcuts").read_text(), "test\n\n\n")
             view = self.send("down", "select")
             self.assertEqual(view.screen, SETTINGS)
             for _ in range(10):
@@ -367,7 +377,7 @@ class ManagerUiTests(unittest.TestCase):
                     break
                 view = self.send("poll")
             self.assertIn("test stopped", view.lines)
-            self.assertEqual(view.items, ["Start with the car: on", "Uninstall test"])
+            self.assertEqual(view.items, ["Start with the car: on", "App shortcut: 1", "Uninstall test"])
             self.assertFalse(self.lock_holder(host_lock))
             # Stopped, it can be uninstalled: asked first, then gone with its data.
             view = self.send("select")
