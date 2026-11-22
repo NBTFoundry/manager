@@ -383,9 +383,12 @@ $(OBJ_DIR)/qnx/%.o: %.cpp $(call stamp,qnx)
 	@mkdir -p $(dir $@)
 	$(QCC) $(QNX_CXXFLAGS) $(QNX_DEPFLAGS) -c $< -o $@
 
+QNX_C_COMPILE = $(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fstack-protector-all -Iinclude
+QNX_LVGL_COMPILE = $(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -fstack-protector-all -w $(QNX_LVGL_CPPFLAGS)
+
 $(OBJ_DIR)/qnx/%.o: %.c $(call stamp,qnx)
 	@mkdir -p $(dir $@)
-	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fstack-protector-all -Iinclude $(QNX_DEPFLAGS) -c $< -o $@
+	$(QNX_C_COMPILE) $(QNX_DEPFLAGS) -c $< -o $@
 
 $(QNX_LIB): $(QNX_OBJ) | $(BUILD_DIR)
 	rm -f $@
@@ -393,11 +396,11 @@ $(QNX_LIB): $(QNX_OBJ) | $(BUILD_DIR)
 
 $(BUILD_DIR)/lvgl-qnx/%.o: $(LVGL_DIR)/src/%.c $(LVGL_DEPS) $(call stamp,lvgl-qnx)
 	@mkdir -p $(dir $@)
-	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -fstack-protector-all -w $(QNX_LVGL_CPPFLAGS) -c $< -o $@
+	$(QNX_LVGL_COMPILE) -c $< -o $@
 
 $(BUILD_DIR)/gui-fonts-qnx/%.o: src/gui/fonts/%.c $(LVGL_DEPS) $(call stamp,lvgl-qnx)
 	@mkdir -p $(dir $@)
-	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -fstack-protector-all -w $(QNX_LVGL_CPPFLAGS) -c $< -o $@
+	$(QNX_LVGL_COMPILE) -c $< -o $@
 
 $(BUILD_DIR)/liblvgl-qnx.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl-qnx/%.o,$(LVGL_SRC)) $(patsubst src/gui/fonts/%.c,$(BUILD_DIR)/gui-fonts-qnx/%.o,$(GUI_FONT_SRC))
 	rm -f $@
@@ -489,12 +492,12 @@ DEPS = $(shell find $(OBJ_DIR) -name '*.d' 2>/dev/null)
 -include $(DEPS)
 
 # The stamps, now that every flag is set. The QNX ones name the SDP the
-# environment points at (QNX_HOST, QNX_TARGET).
+# environment points at (QNX_HOST, QNX_TARGET); a run without it leaves them.
 $(call nbt_stamp,$(call stamp,host),$(CPPFLAGS) $(CXXFLAGS) $(NBT_CXXFLAGS) | $(CFLAGS) $(NBT_CFLAGS),$(CC) $(CXX))
 $(call nbt_stamp,$(call stamp,lvgl),$(LVGL_CPPFLAGS) $(LVGL_CFLAGS),$(CC))
-$(call nbt_stamp,$(call stamp,qnx),$(QNX_HOST) $(QNX_TARGET) $(QCC) $(QNX_CXXFLAGS) | -O2 -Vgcc_ntoarmv7le \
-	-D_QNX_SOURCE -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fstack-protector-all -Iinclude)
-$(call nbt_stamp,$(call stamp,lvgl-qnx),$(QNX_HOST) $(QNX_TARGET) $(QCC) $(QNX_LVGL_CPPFLAGS))
+# (Flags with commas go through a variable: $(call) splits its text at them.)
+$(call nbt_stamp,$(call stamp,qnx),$(if $(QNX_HOST),$(QNX_HOST) $(QNX_TARGET) $(QCC) $(QNX_CXXFLAGS) | $(QNX_C_COMPILE)))
+$(call nbt_stamp,$(call stamp,lvgl-qnx),$(if $(QNX_HOST),$(QNX_HOST) $(QNX_TARGET) $(QNX_LVGL_COMPILE)))
 
 clean:
 	rm -rf $(BUILD_DIR) obj
