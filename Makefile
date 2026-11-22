@@ -27,6 +27,10 @@ override BUILD_DIR := $(abspath $(BUILD_DIR))
 DIST_DIR ?= dist
 OBJ_DIR ?= $(BUILD_DIR)/obj
 override OBJ_DIR := $(abspath $(OBJ_DIR))
+# Each kind of object rebuilds when its compiler or flags change (stamp.mk;
+# the stamps are written at the end of this file).
+include stamp.mk
+stamp = $(OBJ_DIR)/$(1).stamp
 
 MANAGER_VERSION ?=
 MANAGER_SEQUENCE ?=
@@ -98,19 +102,19 @@ $(APPS_KEY_OBJ): $(BUILD_DIR)/apps-key.inc
 $(APPS_KEY_OBJ): CPPFLAGS += -I$(BUILD_DIR)
 $(APPS_KEY_OBJ): QNX_CXXFLAGS += -I$(BUILD_DIR)
 
-$(OBJ_DIR)/host/%.o: %.cpp
+$(OBJ_DIR)/host/%.o: %.cpp $(call stamp,host)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(NBT_CXXFLAGS) -MMD -MP -c $< -o $@
 
-$(OBJ_DIR)/testing/%.o: %.cpp
+$(OBJ_DIR)/testing/%.o: %.cpp $(call stamp,host)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(NBT_CXXFLAGS) -DNBT_TESTING -MMD -MP -c $< -o $@
 
-$(OBJ_DIR)/host/%.o: %.c
+$(OBJ_DIR)/host/%.o: %.c $(call stamp,host)
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(NBT_CFLAGS) -MMD -MP -c $< -o $@
 
-$(OBJ_DIR)/testing/%.o: %.c
+$(OBJ_DIR)/testing/%.o: %.c $(call stamp,host)
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(NBT_CFLAGS) -DNBT_TESTING -MMD -MP -c $< -o $@
 
@@ -136,14 +140,14 @@ LVGL_DEPS = config/lvgl/lv_conf.h $(LVGL_DIR)/include/lvgl/lvgl.h
 $(LVGL_DIR)/include/lvgl/lvgl.h:
 	@echo "LVGL is missing: run 'git submodule update --init'" >&2; exit 1
 
-$(BUILD_DIR)/lvgl/%.o: $(LVGL_DIR)/src/%.c $(LVGL_DEPS)
+$(BUILD_DIR)/lvgl/%.o: $(LVGL_DIR)/src/%.c $(LVGL_DEPS) $(call stamp,lvgl)
 	@mkdir -p $(dir $@)
 	$(CC) $(LVGL_CPPFLAGS) -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE $(LVGL_CFLAGS) -MMD -MP -c $< -o $@
 
 # The GUI's fonts in its languages (tools/make_fonts.py), built as LVGL is.
 GUI_FONT_SRC = $(sort $(wildcard src/gui/fonts/*.c))
 
-$(BUILD_DIR)/gui-fonts/%.o: src/gui/fonts/%.c $(LVGL_DEPS)
+$(BUILD_DIR)/gui-fonts/%.o: src/gui/fonts/%.c $(LVGL_DEPS) $(call stamp,lvgl)
 	@mkdir -p $(dir $@)
 	$(CC) $(LVGL_CPPFLAGS) -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE $(LVGL_CFLAGS) -MMD -MP -c $< -o $@
 
@@ -164,10 +168,10 @@ $(BUILD_DIR)/phone-test: $(OBJ_DIR)/host/tests/test_phone.o $(HOST_LIB)
 $(BUILD_DIR)/bridge-test: $(OBJ_DIR)/host/tests/test_bridge.o $(HOST_LIB)
 	$(HOST_LINK)
 
-$(OBJ_DIR)/usb-shim/%.o: src/gamepad/%.cpp
+$(OBJ_DIR)/usb-shim/%.o: src/gamepad/%.cpp $(call stamp,host)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) -Itests/fake_usb -D__QNX__ $(CXXFLAGS) $(NBT_CXXFLAGS) -MMD -MP -c $< -o $@
-$(OBJ_DIR)/host/tests/test_usb_gamepad.o: tests/test_usb_gamepad.cpp
+$(OBJ_DIR)/host/tests/test_usb_gamepad.o: tests/test_usb_gamepad.cpp $(call stamp,host)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) -Itests/fake_usb $(CXXFLAGS) $(NBT_CXXFLAGS) -MMD -MP -c $< -o $@
 $(BUILD_DIR)/usb-gamepad-test: $(OBJ_DIR)/host/tests/test_usb_gamepad.o $(OBJ_DIR)/usb-shim/usb_device.o $(OBJ_DIR)/usb-shim/usb_transport.o $(OBJ_DIR)/usb-shim/usb_discovery.o $(OBJ_DIR)/usb-shim/usb_configuration.o $(OBJ_DIR)/usb-shim/usbdi.o $(HOST_LIB)
@@ -375,11 +379,11 @@ QNX_DEPFLAGS = -Wp,-MMD,$(@:.o=.d) -Wp,-MP -Wp,-MT,$@
 QNX_OBJ = $(patsubst %.cpp,$(OBJ_DIR)/qnx/%.o,$(NBT_SRC)) $(patsubst %.c,$(OBJ_DIR)/qnx/%.o,$(NBT_LIB_C))
 QNX_LIB = $(BUILD_DIR)/libnbt-qnx.a
 
-$(OBJ_DIR)/qnx/%.o: %.cpp
+$(OBJ_DIR)/qnx/%.o: %.cpp $(call stamp,qnx)
 	@mkdir -p $(dir $@)
 	$(QCC) $(QNX_CXXFLAGS) $(QNX_DEPFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/qnx/%.o: %.c
+$(OBJ_DIR)/qnx/%.o: %.c $(call stamp,qnx)
 	@mkdir -p $(dir $@)
 	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fstack-protector-all -Iinclude $(QNX_DEPFLAGS) -c $< -o $@
 
@@ -387,11 +391,11 @@ $(QNX_LIB): $(QNX_OBJ) | $(BUILD_DIR)
 	rm -f $@
 	$(QNX_AR) rcs $@ $^
 
-$(BUILD_DIR)/lvgl-qnx/%.o: $(LVGL_DIR)/src/%.c $(LVGL_DEPS)
+$(BUILD_DIR)/lvgl-qnx/%.o: $(LVGL_DIR)/src/%.c $(LVGL_DEPS) $(call stamp,lvgl-qnx)
 	@mkdir -p $(dir $@)
 	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -fstack-protector-all -w $(QNX_LVGL_CPPFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/gui-fonts-qnx/%.o: src/gui/fonts/%.c $(LVGL_DEPS)
+$(BUILD_DIR)/gui-fonts-qnx/%.o: src/gui/fonts/%.c $(LVGL_DEPS) $(call stamp,lvgl-qnx)
 	@mkdir -p $(dir $@)
 	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -Wc,-std=c99 -fstack-protector-all -w $(QNX_LVGL_CPPFLAGS) -c $< -o $@
 
@@ -399,20 +403,20 @@ $(BUILD_DIR)/liblvgl-qnx.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl-qnx
 	rm -f $@
 	$(QNX_AR) rcs $@ $^
 
-$(OBJ_DIR)/qnx/apps/test/main-v1.o: apps/test/main.cpp
+$(OBJ_DIR)/qnx/apps/test/main-v1.o: apps/test/main.cpp $(call stamp,qnx)
 	@mkdir -p $(dir $@)
 	$(QCC) $(QNX_CXXFLAGS) '-DNBT_TEST_VERSION="v1"' $(QNX_DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/qnx/apps/test/main-v2.o: apps/test/main.cpp
+$(OBJ_DIR)/qnx/apps/test/main-v2.o: apps/test/main.cpp $(call stamp,qnx)
 	@mkdir -p $(dir $@)
 	$(QCC) $(QNX_CXXFLAGS) '-DNBT_TEST_VERSION="v2"' $(QNX_DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/qnx/apps/test/main-v3.o: apps/test/main.cpp
+$(OBJ_DIR)/qnx/apps/test/main-v3.o: apps/test/main.cpp $(call stamp,qnx)
 	@mkdir -p $(dir $@)
 	$(QCC) $(QNX_CXXFLAGS) '-DNBT_TEST_VERSION="v3"' -DNBT_TEST_FAIL_AFTER=10 $(QNX_DEPFLAGS) -c $< -o $@
 # The GUI's banner shows MANAGER_VERSION; the stamp changes only with its value.
 $(BUILD_DIR)/manager-version: FORCE | $(BUILD_DIR)
 	@echo '$(MANAGER_VERSION)' | cmp -s - $@ || echo '$(MANAGER_VERSION)' > $@
 FORCE:
-$(OBJ_DIR)/qnx/apps/manager/main-versioned.o: apps/manager/main.cpp $(BUILD_DIR)/manager-version
+$(OBJ_DIR)/qnx/apps/manager/main-versioned.o: apps/manager/main.cpp $(BUILD_DIR)/manager-version $(call stamp,qnx)
 	@mkdir -p $(dir $@)
 	$(QCC) $(QNX_CXXFLAGS) $(if $(MANAGER_VERSION),'-DNBT_MANAGER_VERSION="$(MANAGER_VERSION)"') $(QNX_DEPFLAGS) -c $< -o $@
 
@@ -483,6 +487,14 @@ qnx-plugin: plugin-resources
 
 DEPS = $(shell find $(OBJ_DIR) -name '*.d' 2>/dev/null)
 -include $(DEPS)
+
+# The stamps, now that every flag is set. The QNX ones name the SDP the
+# environment points at (QNX_HOST, QNX_TARGET).
+$(call nbt_stamp,$(call stamp,host),$(CPPFLAGS) $(CXXFLAGS) $(NBT_CXXFLAGS) | $(CFLAGS) $(NBT_CFLAGS),$(CC) $(CXX))
+$(call nbt_stamp,$(call stamp,lvgl),$(LVGL_CPPFLAGS) $(LVGL_CFLAGS),$(CC))
+$(call nbt_stamp,$(call stamp,qnx),$(QNX_HOST) $(QNX_TARGET) $(QCC) $(QNX_CXXFLAGS) | -O2 -Vgcc_ntoarmv7le \
+	-D_QNX_SOURCE -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fstack-protector-all -Iinclude)
+$(call nbt_stamp,$(call stamp,lvgl-qnx),$(QNX_HOST) $(QNX_TARGET) $(QCC) $(QNX_LVGL_CPPFLAGS))
 
 clean:
 	rm -rf $(BUILD_DIR) obj
