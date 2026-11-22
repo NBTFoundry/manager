@@ -100,6 +100,7 @@ public:
         }
         const int result = superviseLoop();
         shutdown(result);
+        output_.finishReport(); // once it no longer counts as running: sloginfo takes seconds
         return exitCode_;
     }
 
@@ -198,6 +199,8 @@ private:
         close(txLock);
         nbt_logf("host %s: started %s (pid %ld)", app_, start.record.version,
                  static_cast<long>(child_.pid));
+        output_.beginRun(start.record.version, start.record.sequence, static_cast<long>(child_.pid),
+                         automatic_ ? "autostart" : "by hand");
         output_.log().note("started %s (pid %ld)", start.record.version,
                            static_cast<long>(child_.pid));
         return -1;
@@ -227,7 +230,10 @@ private:
                              child_.exit_status, child_.exit_signal, child_.fault);
                 }
                 if (status == 0 || child_.fault) {
-                    output_.ended(child_);
+                    if (output_.ended(child_)) { // a crash; a signal's report gets the system log
+                        (void)output_.report(fs_, app_,
+                                             child_.exit_signal || child_.exit_status >= 128);
+                    }
                 } else {
                     output_.log().note("stopped: its host lost track of it");
                 }

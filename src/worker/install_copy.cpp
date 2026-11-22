@@ -70,7 +70,7 @@ void Worker::installCopied(uint64_t nowMs) {
         return;
     }
     state_.child = std::move(child.value());
-    checkLog_.started(state_.pending.version, state_.child);
+    checkLog_.started(state_.pending.version, state_.pending.sequence, state_.child);
     snprintf(state_.message, sizeof(state_.message), "Checking application health");
 }
 

@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <stdio.h>
 #include <unistd.h>
 
 namespace nbt {
@@ -14,6 +15,9 @@ namespace process {
 AppOutput::~AppOutput() {
     if (fd_ >= 0) {
         close(fd_);
+    }
+    if (reportFd_ >= 0) {
+        close(reportFd_);
     }
 }
 
@@ -93,30 +97,44 @@ void AppOutput::stopChild(nbt_process &child) {
     }
 }
 
-void AppOutput::ended(const nbt_process &child) {
+bool AppOutput::ended(const nbt_process &child) {
     drain();
-    switch (child.fault) {
-    case NBT_PROCESS_FAULT_NOT_READY:
-        log_.note("stopped: it did not signal ready (write 'R' to fd 3) within 5 s");
-        return;
-    case NBT_PROCESS_FAULT_HEARTBEAT:
-        log_.note("stopped: no heartbeat ('R' on fd 3) for 3 s");
-        return;
-    case NBT_PROCESS_FAULT_PROTOCOL:
-        log_.note("stopped: it wrote something other than 'R' to fd 3");
-        return;
-    case NBT_PROCESS_FAULT_RELEASED:
-        log_.note("stopped: it closed fd 3 or released its lease on fd 4 but kept running");
-        return;
-    default:
-        break;
+    const log::CrashEnding how = {child.exit_status, child.exit_signal, child.fault};
+    const bool crash = log::describeEnding(how, ending_, sizeof(ending_));
+    log_.note("%s", ending_);
+    return crash;
+}
+
+void AppOutput::beginRun(const char *version, uint64_t sequence, long pid, const char *start) {
+    snprintf(version_, sizeof(version_), "%s", version ? version : "");
+    sequence_ = sequence;
+    pid_ = pid; // the process record forgets it once reaped
+    start_ = start;
+    if (nbt_monotonic_ms(&startedMs_)) {
+        startedMs_ = UINT64_MAX;
     }
-    if (child.exit_signal) {
-        const char *name = log::signalName(child.exit_signal);
-        log_.note("ended by signal %d%s%s%s", child.exit_signal, name ? " (" : "", name ? name : "",
-                  name ? ")" : "");
-    } else {
-        log_.note("exited with status %d", child.exit_status);
+    log_.beginRun();
+}
+
+int AppOutput::report(nbt_fs *fs, const char *app, bool systemLog) {
+    uint64_t now = 0;
+    const bool timed = startedMs_ != UINT64_MAX && !nbt_monotonic_ms(&now) && now >= startedMs_;
+    const log::CrashFacts facts = {
+        app, version_, sequence_, start_, pid_, timed ? now - startedMs_ : UINT64_MAX, ending_};
+    log::CrashSection output = {"Its output and its host's notes, the end of this run", {}, {}};
+    log_.runTail(output.data[0], output.size[0], output.data[1], output.size[1]);
+    if (reportFd_ >= 0) {
+        close(reportFd_);
+        reportFd_ = -1;
+    }
+    return log::writeCrashReport(fs, facts, &output, 1, systemLog ? &reportFd_ : NULL);
+}
+
+void AppOutput::finishReport() {
+    if (reportFd_ >= 0) {
+        log::appendCrashSystemLog(reportFd_);
+        close(reportFd_);
+        reportFd_ = -1;
     }
 }
 

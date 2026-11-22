@@ -200,8 +200,20 @@ class PhoneAccessTests(unittest.TestCase):
             self.assertEqual(self.phone.request(host, 'POST', '/v1/wake'), (200, b'WAKE\toff\n'))
             self.assertEqual(self.phone.request(host, 'POST', '/v1/remove', b'test\n')[0], 403)
             self.assertEqual(self.phone.request(host, 'POST', '/v1/pair', b'x')[0], 403)
-            # The door serves the logs too.
+            # The door serves the logs too, and the crash reports.
             self.assertEqual(self.phone.request(host, 'POST', '/v1/logs/app', b'missing\n')[0], 400)
+            report = self.root / 'state/manager/crash.2'
+            report.write_text('NBT Manager crash report\nApplication: manager\nVersion: 0.3.1\n'
+                              'Report: 4\nTime: 2026-11-22 14:03:11\n'
+                              'Ended: manager GUI terminated by signal 11\n\nmore\n')
+            report.chmod(0o600)
+            self.assertEqual(self.phone.request(host, 'POST', '/v1/crashes'),
+                             (200, b'CRASHES\t1\nmanager\t2\t4\t2026-11-22 14:03:11\t0.3.1\t'
+                                   b'manager GUI terminated by signal 11\n'))
+            self.assertEqual(self.phone.request(host, 'POST', '/v1/crashes/read', b'manager\t2\n'),
+                             (200, report.read_bytes()))
+            self.assertEqual(self.phone.request(host, 'POST', '/v1/crashes/clear'), (200, b'OK\n'))
+            self.assertFalse(report.exists())
             # And the installed manager (none here).
             self.assertEqual(self.phone.request(host, 'GET', '/v1/manager')[0], 503)
             self.assertEqual(self.command('SET manager phone_open on'), 'OK')

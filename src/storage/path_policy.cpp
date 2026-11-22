@@ -89,6 +89,7 @@ const KindPath kAppStateNames[] = {
     {NBT_FS_LOCK, "lock"},
     {NBT_FS_LEASE, "lease"},
     {NBT_FS_SYNC, "sync"},
+    {NBT_FS_CRASH_REPORT_NEXT, "crash.next"},
 };
 
 const KindPath kNonManagerStateNames[] = {
@@ -225,6 +226,11 @@ core::Status PathPolicy::relative(PathKind kind, const char *app, const char *tx
                 count = snprintf(out, cap, "apps/%s", app);
             }
             break;
+        case NBT_FS_CRASH_REPORT:
+            if (tx && tx[0] >= '0' && tx[0] <= '4' && !tx[1]) {
+                count = snprintf(out, cap, "state/%s/crash.%s", app, tx);
+            }
+            break;
         default:
             break;
         }
@@ -253,7 +259,7 @@ bool PathPolicy::canCreate(PathKind kind) {
            kind == NBT_FS_CAPTURE_PROBE || kind == NBT_FS_APP_LOG || kind == NBT_FS_HMI_ENV_NEXT ||
            kind == NBT_FS_SHIM_STATE_NEXT || kind == NBT_FS_CAPTURE_SHIM_NEXT ||
            kind == NBT_FS_MANAGER_LANGUAGE_NEXT || kind == NBT_FS_MANAGER_SHORTCUTS_NEXT ||
-           kind == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT;
+           kind == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT || kind == NBT_FS_CRASH_REPORT_NEXT;
 }
 
 bool PathPolicy::canLock(PathKind kind) {
@@ -267,7 +273,7 @@ bool PathPolicy::canUnlink(PathKind kind) {
     return kind == NBT_FS_PHONE || kind == NBT_FS_JOURNAL || kind == NBT_FS_APP_LOG_OLD ||
            kind == NBT_FS_CAPTURE_STARTER_ORIG || kind == NBT_FS_CAPTURE_TX ||
            kind == NBT_FS_HMI_ENV || kind == NBT_FS_SHIM_STATE || kind == NBT_FS_CAPTURE_SHIM ||
-           (canCreate(kind) && kind != NBT_FS_MANAGER_LOG);
+           kind == NBT_FS_CRASH_REPORT || (canCreate(kind) && kind != NBT_FS_MANAGER_LOG);
 }
 
 bool PathPolicy::canReplace(PathKind from, PathKind to) {
@@ -295,7 +301,8 @@ bool PathPolicy::canReplace(PathKind from, PathKind to) {
             to == NBT_FS_MANAGER_CONTROLLER_CONFIG) ||
            (from == NBT_FS_MANAGER_LANGUAGE_NEXT && to == NBT_FS_MANAGER_LANGUAGE) ||
            (from == NBT_FS_MANAGER_SHORTCUTS_NEXT && to == NBT_FS_MANAGER_SHORTCUTS) ||
-           (from == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT && to == NBT_FS_MANAGER_NATIVE_AUDIO);
+           (from == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT && to == NBT_FS_MANAGER_NATIVE_AUDIO) ||
+           (from == NBT_FS_CRASH_REPORT_NEXT && to == NBT_FS_CRASH_REPORT);
 }
 
 bool PathPolicy::canRename(PathKind from, PathKind to, const char *app) {

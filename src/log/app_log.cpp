@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -21,6 +22,7 @@ AppLog::~AppLog() {
     if (fd_ >= 0) {
         close(fd_);
     }
+    free(tail_);
 }
 
 void AppLog::retarget(nbt_fs *fs, const char *app) {
@@ -33,6 +35,45 @@ void AppLog::retarget(nbt_fs *fs, const char *app) {
     app_ = app;
     dirty_ = false;
     failures_ = 0;
+    tailHead_ = tailUsed_ = 0;
+}
+
+void AppLog::beginRun() {
+    if (!tail_) {
+        tail_ = static_cast<char *>(malloc(kRunTailMax)); // none: reports without output
+    }
+    tailHead_ = tailUsed_ = 0;
+}
+
+void AppLog::keep(const char *data, size_t size) {
+    if (!tail_) {
+        return;
+    }
+    if (size >= kRunTailMax) {
+        memcpy(tail_, data + size - kRunTailMax, kRunTailMax);
+        tailHead_ = 0;
+        tailUsed_ = kRunTailMax;
+        return;
+    }
+    const size_t first = size < kRunTailMax - tailHead_ ? size : kRunTailMax - tailHead_;
+    memcpy(tail_ + tailHead_, data, first);
+    memcpy(tail_, data + first, size - first);
+    tailHead_ = (tailHead_ + size) % kRunTailMax;
+    tailUsed_ = tailUsed_ + size < kRunTailMax ? tailUsed_ + size : kRunTailMax;
+}
+
+void AppLog::runTail(const char *&first, size_t &firstSize, const char *&second,
+                     size_t &secondSize) const {
+    second = tail_;
+    secondSize = 0;
+    if (tailUsed_ < kRunTailMax) { // not wrapped: it starts at 0
+        first = tail_;
+        firstSize = tailUsed_;
+        return;
+    }
+    first = tail_ + tailHead_;
+    firstSize = kRunTailMax - tailHead_;
+    secondSize = tailHead_;
 }
 
 void AppLog::failed(Failure operation, const char *name, int error) {
@@ -180,6 +221,9 @@ void AppLog::syncDue() {
 
 void AppLog::write(const char *data, size_t size) {
     struct stat st;
+    if (size) {
+        keep(data, size);
+    }
     if (!size || !open()) {
         return;
     }

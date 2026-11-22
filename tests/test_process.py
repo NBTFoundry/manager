@@ -89,6 +89,25 @@ while True:
             self.assertTrue(lines[3].endswith(" ended by signal 11 (SIGSEGV, invalid memory access)"), lines)
             self.assertTrue(lines[4].endswith(" install check failed"), lines)
             self.assertEqual(len(lines), 5, lines)
+            # The crash also left a report of its own (PROTOCOL.md, "Crash reports").
+            report = root / "state/test/crash.0"
+            self.assertEqual(report.stat().st_mode & 0o777, 0o600)
+            header, _, body = report.read_text().partition("\n\n")
+            fields = header.splitlines()
+            self.assertEqual(fields[0], "NBT Manager crash report")
+            self.assertEqual(fields[1:5], ["Application: test", "Version: v2", "Sequence: 2", "Report: 1"])
+            self.assertRegex(fields[5], r"^Time: \d{4}-\d\d-\d\d \d\d:\d\d:\d\d$")
+            self.assertEqual(fields[6], "Started: install check")
+            self.assertRegex(fields[7], r"^Process: \d+$")
+            self.assertRegex(fields[8], r"^Ran: \d+\.\d s$")
+            self.assertEqual(fields[9], "Ended: ended by signal 11 (SIGSEGV, invalid memory access)")
+            self.assertEqual(len(fields), 10, fields)
+            output = body.splitlines()
+            self.assertEqual(output[0], "Its output and its host's notes, the end of this run:")
+            self.assertRegex(output[1], r"install check of v2 started \(pid \d+\)$")
+            self.assertEqual(output[2:4], ["checking out", "[demo] FATAL sig=11"])
+            self.assertTrue(output[4].endswith(" ended by signal 11 (SIGSEGV, invalid memory access)"))
+            self.assertFalse((root / "state/test/crash.next").exists())
 
     def test_sandbox_enforces_limits_priority_and_kills_process_group(self):
         with tempfile.TemporaryDirectory() as directory:

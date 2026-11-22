@@ -1121,6 +1121,78 @@ event("exit")
                          (200, self.app_log().encode()))
         self.assertEqual(command("QUIT"), "OK")
 
+    def test_a_crash_leaves_a_report_a_phone_reads_and_clears(self):
+        # PROTOCOL.md, "Crash reports": a file of its own, kept after later runs.
+        sloginfo = Path(self.tmp.name) / "sloginfo"
+        sloginfo.write_text("#!/bin/sh\n"
+                            "echo 'Nov 22 14:03:10 2 14 0 something else'\n"
+                            "echo 'Nov 22 14:03:11 2 14 0 run fault pid 4242 tid 1 why 11 what 1 "
+                            "ip 0x8104 /var/opt/nbt-manager/apps/test/bin/app'\n"
+                            "echo 'Nov 22 14:03:12 2 14 0 and more'\n")
+        sloginfo.chmod(0o700)
+        self.script_app("print('before the crash', flush=True)\n"
+                        "os.write(3, b'R')\n"
+                        "time.sleep(0.3)\n"
+                        "sys.stderr.write('[test] FATAL sig=11 pc=0x8104\\n')\n"
+                        "sys.stderr.flush()\n"
+                        "os.kill(os.getpid(), signal.SIGSEGV)\n")
+        with mock.patch.dict(os.environ, {"NBT_TEST_SLOGINFO": str(sloginfo)}):
+            _, command = self.worker()
+        report = self.root / "state/test/crash.0"
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: report.exists() and "fault lines" in report.read_text())
+        text = report.read_text()
+        header, _, body = text.partition("\n\n")
+        fields = header.splitlines()
+        self.assertEqual(fields[:5], ["NBT Manager crash report", "Application: test", "Version: v1",
+                                      "Sequence: 1", "Report: 1"])
+        self.assertRegex(fields[5], r"^Time: \d{4}-\d\d-\d\d \d\d:\d\d:\d\d$")
+        self.assertEqual(fields[6], "Started: by hand")
+        self.assertRegex(fields[7], r"^Process: \d+$")
+        self.assertRegex(fields[8], r"^Ran: 0\.[3-9] s$")
+        self.assertEqual(fields[9], "Ended: ended by signal 11 (SIGSEGV, invalid memory access)")
+        self.assertEqual(len(fields), 10, fields)
+        output, _, system = body.partition("\n\n")
+        self.assertIn("before the crash", output.splitlines())
+        self.assertIn("[test] FATAL sig=11 pc=0x8104", output.splitlines())
+        self.assertRegex(output.splitlines()[1], r"started v1 \(pid \d+\)$")
+        self.assertEqual(system.splitlines(), [
+            "The system log's newest fault lines (sloginfo, any process):",
+            "Nov 22 14:03:11 2 14 0 run fault pid 4242 tid 1 why 11 what 1 ip 0x8104 "
+            "/var/opt/nbt-manager/apps/test/bin/app"])
+        from phone_client import SoftwarePhone
+        host = command("SESSION lo 0").split("\t")[1]
+        phone = SoftwarePhone(self.tmp.name)
+        phone.pair(command, host)
+        time_line = next(f for f in fields if f.startswith("Time: "))[6:]
+        listed = ("CRASHES\t1\ntest\t0\t1\t%s\tv1\tended by signal 11 (SIGSEGV, invalid memory access)\n"
+                  % time_line).encode()
+        self.assertEqual(phone.request(host, "POST", "/v1/crashes"), (200, listed))
+        self.assertEqual(phone.request(host, "POST", "/v1/crashes", b"test\n"), (200, listed))
+        self.assertEqual(phone.request(host, "POST", "/v1/crashes", b"manager\n"), (200, b"CRASHES\t0\n"))
+        self.assertEqual(phone.request(host, "POST", "/v1/crashes/read", b"test\t0\n"),
+                         (200, report.read_bytes()))
+        self.assertEqual(phone.request(host, "POST", "/v1/crashes/read", b"test\t1\n")[0], 409)
+        for body in (b"test\t5\n", b"test\t0", b"missing\t0\n", b"../x\t0\n", b"test\n", b""):
+            self.assertEqual(phone.request(host, "POST", "/v1/crashes/read", body)[0], 400, body)
+        for body in (b"missing\n", b"test", b"x\ty\n"):
+            self.assertEqual(phone.request(host, "POST", "/v1/crashes", body)[0], 400, body)
+            self.assertEqual(phone.request(host, "POST", "/v1/crashes/clear", body)[0], 400, body)
+        self.assertEqual(phone.request(host, "POST", "/v1/crashes/clear", b"test\n"), (200, b"OK\n"))
+        self.assertFalse(report.exists())
+        self.assertEqual(phone.request(host, "POST", "/v1/crashes"), (200, b"CRASHES\t0\n"))
+        # The application's own log is untouched by both.
+        self.assertIn("before the crash", self.app_log())
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_an_ordinary_exit_leaves_no_crash_report(self):
+        self.script_app("os.write(3, b'R')\nsys.exit(3)\n")
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "exited with status 3" in self.app_log())
+        self.assertEqual(sorted(p.name for p in (self.root / "state/test").glob("crash*")), [])
+        self.assertEqual(command("QUIT"), "OK")
+
     def debug_log(self):
         debug = self.root / "manager/debug.log"
         (self.root / "manager").mkdir(mode=0o700, exist_ok=True)

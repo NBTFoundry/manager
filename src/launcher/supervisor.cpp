@@ -2,6 +2,7 @@
 #include "nbt/launcher/supervisor.hpp"
 
 #include "nbt/display/layer_manager.hpp"
+#include "nbt/launcher/manager_crash.hpp"
 #include "nbt/launcher/manager_worker.hpp"
 #include "nbt/launcher/slot_store.hpp"
 #include "nbt/log.h"
@@ -44,35 +45,6 @@ core::Result<core::UniqueFd> waitGuiLock(const storage::ManagedRoot &root) {
     }
     return core::Result<core::UniqueFd>::failure(
         core::Status::fromErrno("manager GUI lock failed"));
-}
-
-void logCrashMarker(const storage::ManagedRoot &root) {
-    core::Result<core::UniqueFd> opened =
-        root.open(NBT_FS_MANAGER_CRASH, "manager", NULL, NBT_FS_READ);
-    if (!opened.ok()) {
-        return;
-    }
-    core::UniqueFd fd(opened.value().release());
-    char record[513];
-    size_t used = 0;
-    while (used < sizeof(record) - 1) {
-        const ssize_t count = read(fd.get(), record + used, sizeof(record) - 1 - used);
-        if (count < 0 && errno == EINTR) {
-            continue;
-        }
-        if (count <= 0) {
-            break;
-        }
-        used += static_cast<size_t>(count);
-    }
-    if (!used) {
-        return;
-    }
-    record[used] = 0;
-    fprintf(stderr, "nbt-manager-launcher: %s", record);
-    if (record[used - 1] != '\n') {
-        fputc('\n', stderr);
-    }
 }
 
 core::Status restart(SlotStore &store, bool trial, const char *reason) {
@@ -270,7 +242,7 @@ core::Status Supervisor::run(storage::ManagedRoot &root) {
             nbt_logf("manager closed");
             return state.restarts ? store.clearRestarts() : core::Status();
         }
-        logCrashMarker(root);
+        reportManagerCrash(root, state, reason);
         status = restart(store, trial, reason);
         if (!status.ok()) {
             return status;

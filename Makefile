@@ -156,7 +156,7 @@ $(BUILD_DIR)/liblvgl.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl/%.o,$(L
 	$(AR) rcs $@ $^
 
 HOST_BINS = phone-test most-monitor core-test bridge-test most-test target-test nbt-verify nbt-verify-release release-copy-probe manager-state-test manager-store-probe manager-stage-probe manager-setup-probe manager-plugin-probe manager-plugin-swap-probe manager-refresh-probe fs-probe transaction-probe frame-test ui-test hold-test controller-config-test log-test test-app-host session-test http-test process-probe manager-probe managerd-test client-probe ui-probe qr-probe most-input-probe manager-gui-host launcher-host
-HOST_BINS += app-log-test controller-feed-test gamepad-test usb-gamepad-test focus-test app-pause-test input-trace-test capture-test capture-shim-test capture-install-probe hmi-restart-test language-test
+HOST_BINS += app-log-test crash-report-test controller-feed-test gamepad-test usb-gamepad-test focus-test app-pause-test input-trace-test capture-test capture-shim-test capture-install-probe hmi-restart-test language-test
 host: $(addprefix $(BUILD_DIR)/,$(HOST_BINS)) $(BUILD_DIR)/libfake_dsi.so $(BUILD_DIR)/libfake_dsi_base.so $(BUILD_DIR)/libnbt-capture-observer.so $(BUILD_DIR)/libnbt-capture-active.so
 
 define HOST_LINK
@@ -246,6 +246,8 @@ $(BUILD_DIR)/log-test: $(OBJ_DIR)/testing/tests/test_log.o $(TESTING_LIB)
 	$(HOST_LINK) -pthread
 $(BUILD_DIR)/app-log-test: $(OBJ_DIR)/testing/tests/test_app_log.o $(TESTING_LIB)
 	$(HOST_LINK) -Wl,--wrap=fstat,--wrap=write,--wrap=fsync,--wrap=lseek
+$(BUILD_DIR)/crash-report-test: $(OBJ_DIR)/testing/tests/test_crash_report.o $(TESTING_LIB)
+	$(HOST_LINK)
 $(BUILD_DIR)/process-probe: $(OBJ_DIR)/testing/tests/process_probe.o $(TESTING_LIB)
 	$(HOST_LINK)
 $(BUILD_DIR)/manager-probe: $(OBJ_DIR)/testing/tests/manager_probe.o $(TESTING_LIB)
@@ -305,6 +307,7 @@ test: host check-cxx
 	$(BUILD_DIR)/controller-config-test
 	$(BUILD_DIR)/log-test
 	$(BUILD_DIR)/app-log-test
+	$(BUILD_DIR)/crash-report-test
 	$(BUILD_DIR)/session-test
 	$(BUILD_DIR)/http-test
 	$(BUILD_DIR)/capture-test

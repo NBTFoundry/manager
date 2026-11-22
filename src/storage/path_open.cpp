@@ -210,7 +210,8 @@ int nbt_fs_open(nbt_fs *fs, nbt_fs_path_kind kind, const char *app, const char *
         } else {
             return -1;
         }
-    } else if (mode == NBT_FS_APPEND && kind == NBT_FS_MANAGER_LOG) {
+    } else if (mode == NBT_FS_APPEND &&
+               (kind == NBT_FS_MANAGER_LOG || kind == NBT_FS_CRASH_REPORT)) {
         if (nbt::storage::SafePathOpen::safeExisting(fs, path)) {
             return -1;
         }

@@ -19,7 +19,7 @@ namespace worker {
 
 class InstallCheckLog {
 public:
-    InstallCheckLog() : output_(NULL, ""), active_(false), write_(-1) {
+    InstallCheckLog() : output_(NULL, ""), fs_(NULL), active_(false), write_(-1) {
         app_[0] = 0;
     }
     ~InstallCheckLog();
@@ -30,12 +30,13 @@ public:
      * output then goes where the worker's goes). */
     int begin(nbt_fs *fs, const char *app);
     /* After the start attempt: `child` running, or the start failed (errno). */
-    void started(const char *version, const process::ChildProcess &child);
+    void started(const char *version, uint64_t sequence, const process::ChildProcess &child);
     void notStarted(const char *version, int error);
     /* Copies what the candidate wrote so far into its log. */
     void drain();
     void passed();
-    /* The check failed: `child` ended (how), or still ran when it gave up. */
+    /* The check failed: `child` ended (how), or still ran when it gave up.
+     * A crash (log::describeEnding) leaves a crash report too. */
     void failed(const process::ChildProcess &child, bool timedOut);
     /* What the candidate wrote last, then lets the log go. */
     void end();
@@ -47,6 +48,7 @@ private:
     void closeWrite();
 
     process::AppOutput output_;
+    nbt_fs *fs_;
     bool active_;
     int write_;
     char app_[NBT_ID_MAX + 1];

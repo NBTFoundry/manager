@@ -25,11 +25,14 @@ namespace log {
 
 static const size_t kAppLogMax = 64 * 1024;
 static const uint64_t kAppLogSyncMs = 1000;
+/* What a crash report keeps of the run that crashed (nbt/log/crash_report.hpp). */
+static const size_t kRunTailMax = 32 * 1024;
 
 class AppLog {
 public:
     AppLog(nbt_fs *fs, const char *app)
-        : fs_(fs), app_(app), fd_(-1), dirty_(false), seekEnd_(false), syncedMs_(0), failures_(0) {
+        : fs_(fs), app_(app), fd_(-1), dirty_(false), seekEnd_(false), syncedMs_(0), failures_(0),
+          tail_(NULL), tailHead_(0), tailUsed_(0) {
     }
     ~AppLog();
     AppLog(const AppLog &) = delete;
@@ -42,8 +45,15 @@ public:
     void syncDue();
     /* Syncs and closes this log; later writes go to `app`'s (`app` must outlive them). */
     void retarget(nbt_fs *fs, const char *app);
+    /* A run starts: from now on its newest kRunTailMax bytes (output and
+     * notes) are also kept in memory, even when the file cannot be written. */
+    void beginRun();
+    /* That run's newest bytes, oldest first: `first`, then `second`. */
+    void runTail(const char *&first, size_t &firstSize, const char *&second,
+                 size_t &secondSize) const;
 
 private:
+    void keep(const char *data, size_t size);
     enum Failure { Open = 1, Stat = 2, Write = 4, Sync = 8, Rotate = 16 };
     void failed(Failure operation, const char *name, int error);
     bool open();
@@ -59,6 +69,8 @@ private:
     bool seekEnd_; // opened without O_APPEND: seek to the end before each write
     uint64_t syncedMs_;
     unsigned failures_; // report each kind of failure once per host
+    char *tail_;        // kRunTailMax bytes once a run began, a ring
+    size_t tailHead_, tailUsed_;
 };
 
 /* "SIGSEGV" and the like for the signals an application dies of; NULL for

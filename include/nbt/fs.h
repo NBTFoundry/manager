@@ -146,7 +146,12 @@ typedef enum {
     /* manager/native-audio: the head unit's audio connection applications'
      * sound uses (nbt/manager_settings.h), replaced through its .next. */
     NBT_FS_MANAGER_NATIVE_AUDIO,
-    NBT_FS_MANAGER_NATIVE_AUDIO_NEXT
+    NBT_FS_MANAGER_NATIVE_AUDIO_NEXT,
+    /* state/<app>/crash.<n>: crash reports (nbt/log/crash_report.hpp), `tx`
+     * the slot "0" to "4"; for the manager too (state/manager). Written as
+     * crash.next, then renamed over the slot. */
+    NBT_FS_CRASH_REPORT,
+    NBT_FS_CRASH_REPORT_NEXT
 } nbt_fs_path_kind;
 
 /* NBT_FS_APPEND opens an existing debug log (NBT_FS_MANAGER_LOG) for

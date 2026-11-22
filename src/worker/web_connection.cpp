@@ -137,7 +137,7 @@ core::Status WebConnection::body(PhoneApi &api, const unsigned char *data, size_
         status = request_.route == http::Upload ? api.finishUpload(request_, now, out)
                                                 : api.filesFinish(request_, hash, out);
     } else if (request_.route == http::LogsApp || request_.route == http::LogsSystem ||
-               request_.route == http::LogsManager) {
+               request_.route == http::LogsManager || request_.route == http::CrashesRead) {
         status = api.logs(request_, shortBody_, now, log_);
         if (status == 202) {
             phase_ = Phase::Wait;

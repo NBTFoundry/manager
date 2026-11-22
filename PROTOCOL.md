@@ -667,6 +667,9 @@ connections, a 5-second header deadline, a 15-second inactivity timeout and a
 | `POST /v1/logs/system` | empty | `sloginfo` output, its newest 8 MiB as raw bytes; one at a time (409) | Yes |
 | `POST /v1/logs/manager` | empty | NBT Manager's debug log, `debug.log.1` then `debug.log`, the newest 4 MiB of each, raw; empty while the debug log is off | Yes |
 | `POST /v1/logs/clear` | `app\n` | `OK\n`; the application's log emptied, `output.log.1` removed | Yes |
+| `POST /v1/crashes` | empty, or `app\n` (`manager` too) | `CRASHES\t<count>\n`, then `app\tslot\treport\ttime\tversion\tended\n` per crash report, newest first: all applications' newest 16, or that application's ("Crash reports") | Yes |
+| `POST /v1/crashes/read` | `app\tslot\n` | The report as raw bytes; 409 when that slot holds none | Yes |
+| `POST /v1/crashes/clear` | empty, or `app\n` | `OK\n`; all reports removed, or that application's | Yes |
 | `POST /v1/files/list` | `app\t<after>\n` | `FILES\t<count>\t<used>\t<quota>\t<largest>\t<free>\t<more>\t<extensions>\n`, then up to 20 `name\tsize\n` after `<after>` | No |
 | `POST /v1/files/put` | `app\tname\tsize\tsha256\n` | `OK\n`; the file is admitted and this phone holds a 60-second ticket for its bytes | No |
 | `POST /v1/files/data` | the file announced, `application/octet-stream` | `OK\n` once stored; from the ticket's phone, of its size and SHA-256 | No |
@@ -766,6 +769,79 @@ to send, and read failures with errno. The host reports open, stat, write,
 sync and rotation failures once per operation per host in the same debug log.
 If rotation fails, it drops the new chunk and retains the existing log within
 its size limit.
+
+### Crash reports
+
+A crash leaves a report of its own beside the logs: `state/<app>/crash.<slot>`,
+or `state/manager/crash.<slot>` for NBT Manager itself, five slots per
+application. A new report takes an empty slot, else the oldest report's; its
+number is one more than any kept. It is written as `crash.next`, synced and
+renamed over the slot, so a phone reads only whole reports. Rotation of the
+application log never touches it: what a crash left stays until five later
+crashes of the same application, a clear from the phone, or an uninstall
+(which removes `state/<app>`).
+
+What counts as a crash, by who sees it:
+
+- An application's host: an end by a signal, a broken contract (no ready byte
+  within 5 s, no heartbeat for 3 s, anything but `R` on fd 3, fd 3 or the lease
+  given up), or exit status 124 or more (nbt-runner: 124 a hung guest, 125 a
+  payload that did not load, 126 one that cannot run, 128 + the signal that
+  ended a guest). An exit with another status is the application's own doing
+  and stays in its log only; so does a stop by the manager.
+- The install health check (above), by the same rule, as `Started: install check`.
+- The launcher: any end of the GUI or the worker other than the user closing
+  the manager (a signal, a status, a missed heartbeat).
+
+A report is text. A header of `Key: value` lines ends at the first empty line;
+sections, each a title line ending in `:` and its text, follow:
+
+```
+NBT Manager crash report
+Application: doom
+Version: 1.0.23
+Sequence: 1000023
+Report: 3
+Time: 2026-11-22 14:03:11
+Started: by hand
+Process: 412
+Ran: 73.4 s
+Ended: ended by signal 11 (SIGSEGV, invalid memory access)
+NBT Manager: 0.3.1 (sequence 3001)
+
+Its output and its host's notes, the end of this run:
+--- 2026-11-22 14:01:58 started 1.0.23 (pid 412)
+...
+[doom] FATAL sig=11 code=1 addr=0x0 pc=0x... lr=0x... sp=0x... stage=render
+[doom] pc in /var/opt/nbt-manager/apps/doom/bin/app+0x3e8dc (R_DrawColumn+0x1c)
+--- 2026-11-22 14:03:11 ended by signal 11 (SIGSEGV, invalid memory access)
+
+The system log's newest fault lines (sloginfo, any process):
+Nov 22 14:03:11 ... run fault pid 412 tid 1 why 11 what 1 ip 0x8104 ...
+```
+
+`Time` is the car's local clock; `Started` is `by hand`, `autostart` or
+`install check`; `Sequence`, `Started`, `Process` and `Ran` are left out when
+unknown, and `NBT Manager` from the manager's own reports. `Ended` is the note
+the application log has. The output section holds the run's newest 32 KiB
+(what the application wrote and its host's notes), kept in memory by the host,
+so it is there even when the application log could not be written. Only an end
+by a signal (or a status of 128 or more) adds the system log section: once the
+application's locks are released, so it no longer counts as running, the host
+runs `sloginfo` for at most 10 s and keeps the newest 8 lines that tell of a
+fault (the dumper's `run fault pid`, the process manager's `terminated SIG`),
+from any process, since a guest's pid is not the host's to know. The
+manager's own report holds the GUI's crash record (`manager/crash.gui`) and,
+while the debug log is on, its newest 16 KiB. Every report is a regular file
+of mode 0600; failures to write one go to the debug log and stop nothing.
+
+`POST /v1/crashes` reads only the headers (the first 1024 bytes of each
+report); `time`, `version` and `ended` are printable ASCII without tabs, at
+most 19, 48 and 80 characters. Listing all applications orders by time, then
+report number, and keeps the newest 16; listing one application orders by
+report number. A phone app shows the list and reads a report when the user
+opens it. Managers before these routes refuse them as unknown: 400
+`ERR invalid-request`.
 
 HTTP errors: 400 malformed route/body/package, 403 authentication or unavailable
 door route, 409 busy/invalid choice/capacity, 429 wake rate limit, 500 local I/O,

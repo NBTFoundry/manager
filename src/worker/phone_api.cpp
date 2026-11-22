@@ -2,6 +2,7 @@
 #include "nbt/worker/phone_api.hpp"
 #include "nbt/crypto/ec_public_key.hpp"
 #include "nbt/util.h"
+#include "nbt/worker/phone_crashes.hpp"
 #include "nbt/worker/phone_network.hpp"
 #include "nbt/worker/phone_routes.hpp"
 #include "nbt/worker/worker.hpp"
@@ -138,6 +139,9 @@ int PhoneApi::logs(const http::Request &request, const char *body, uint64_t now,
     if (request.route == http::LogsApp) {
         return phoneAppLog(root_, body, reply);
     }
+    if (request.route == http::CrashesRead) {
+        return phoneCrashRead(root_, body, reply);
+    }
     if (request.route == http::LogsManager) {
         return body[0] ? 400 : phoneManagerLog(root_, reply);
     }
@@ -191,6 +195,10 @@ int PhoneApi::execute(const http::Request &request, const char *body, uint64_t n
         return files_.put(request.keyId, body, now, out);
     case http::FilesRemove:
         return files_.remove(body, out);
+    case http::CrashesList:
+        return phoneCrashList(root_, body, out);
+    case http::CrashesClear:
+        return phoneCrashClear(root_, body, out);
     default:
         return 400;
     }

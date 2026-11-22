@@ -18,6 +18,7 @@ int InstallCheckLog::begin(nbt_fs *fs, const char *app) {
     }
     memcpy(app_, app, strlen(app) + 1);
     output_.retarget(fs, app_);
+    fs_ = fs;
     active_ = true;
     write_ = output_.open();
     return write_;
@@ -30,9 +31,11 @@ void InstallCheckLog::closeWrite() {
     }
 }
 
-void InstallCheckLog::started(const char *version, const process::ChildProcess &child) {
+void InstallCheckLog::started(const char *version, uint64_t sequence,
+                              const process::ChildProcess &child) {
     closeWrite(); // the candidate has its own copy: end of file once it ends
     if (active_) {
+        output_.beginRun(version, sequence, static_cast<long>(child.pid()), "install check");
         output_.log().note("install check of %s started (pid %ld)", version,
                            static_cast<long>(child.pid()));
     }
@@ -66,7 +69,9 @@ void InstallCheckLog::failed(const process::ChildProcess &child, bool timedOut) 
     // Ended (reaped: its exit or signal), or still running with a broken
     // contract (fault), or still running when the check gave up.
     if (!child.running() || child.legacy().fault) {
-        output_.ended(child.legacy());
+        if (output_.ended(child.legacy())) {
+            (void)output_.report(fs_, app_, false); // no sloginfo: the worker would wait
+        }
     } else {
         output_.drain();
         if (timedOut) {

@@ -895,6 +895,12 @@ open(root + "/worker-stopped", "w").close()
             parents = (self.root / "worker-parents").read_text().split()
             self.assertEqual(parents, [str(process.pid)] * 2)
             self.assertIsNone(process.poll())
+            # The manager's own crash report (PROTOCOL.md, "Crash reports").
+            fields = (self.root / "state/manager/crash.0").read_text().partition("\n\n")[0].splitlines()
+            self.assertEqual(fields[:5], ["NBT Manager crash report", "Application: manager",
+                                          "Version: 0.0.1", "Sequence: 1", "Report: 1"])
+            # The GUI saw its worker go first and closed (PROTOCOL.md, status 1).
+            self.assertEqual(fields[-1], "Ended: manager GUI exited with status 1")
         finally:
             process.send_signal(signal.SIGTERM)
             process.wait(timeout=10)

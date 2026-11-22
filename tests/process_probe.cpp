@@ -26,7 +26,7 @@ static int installCheck(const char *rootPath, const char *app) {
     if (output < 0 || !child.get()) {
         return 1;
     }
-    log.started("v2", child.value());
+    log.started("v2", 2, child.value());
     nbt::core::Result<bool> running = nbt::core::Result<bool>::success(true);
     for (unsigned i = 1; i < 50 && running.get() && running.value(); ++i) {
         nanosleep(&delay, NULL);
