@@ -141,7 +141,7 @@ as described in `README.md`; `test-runner` is the same application run by `nbt-r
 | Kill the worker while the GUI is idle | The GUI reports the failure and starts a replacement without a new launcher |
 | Kill the GUI while it holds focus | The launcher restarts it with backoff; the plugin releases the hold within its liveness bound; `manager/crash.gui` is reported after a fatal signal |
 | Kill the GUI while hidden during an installation | The launcher restarts it; the installation finishes or is restored; the next open shows the result |
-| Crash an application (`kill -SEGV` its process), then on the phone: the car's page, Crash reports | A report for it, newest first; opening it shows `Ended: ended by signal 11 (SIGSEGV, ...)`, its last output, and the system log's fault lines (record whether the dumper's `run fault pid` line for it is there); Share sends the file; Clear empties the list |
+| Start the test application, then on the phone set its **Crash on purpose** to `fault` (and later `hang`); then the car's page, Crash reports | A report for it, newest first; opening it shows `Ended: ended by signal 11 (SIGSEGV, ...)`, its last output, and the system log's fault lines (record whether the dumper's `run fault pid` line for it is there); Share sends the file; Clear empties the list |
 | Kill the GUI with `kill -SEGV` | Also a report of NBT Manager: `Ended: manager GUI terminated by signal 11`, the GUI's crash record |
 | Fill the storage, then upload | The upload fails cleanly; nothing installed; the log shows the failure |
 | Manager update and interrupted manager update | As in `docs/manager-release.md`: the known-good slot stays active until the new one is healthy |

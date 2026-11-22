@@ -5,7 +5,10 @@
 // 1.7). It shows HELLO WORLD on its Background color, its version and form;
 // publishes "Hello <version>" as its status; follows live settings; and ends
 // on BACK or MENU while its Use the controller setting is on. v3 fails 5 s after it
-// starts, so its health check fails. The host tests use tests/fake_app.cpp.
+// starts, so its health check fails. Its Crash on purpose setting, changed from the
+// phone while it runs, makes it crash for a crash report (PROTOCOL.md, "Crash
+// reports"): `fault` writes to an unmapped address (SIGSEGV, as a real bug would),
+// `hang` stops its heartbeat. The host tests use tests/fake_app.cpp.
 #include "nbt/app/clock.hpp"
 #include "nbt/app/lifecycle.hpp"
 #include "nbt/app/log.hpp"
@@ -62,6 +65,21 @@ void onController(void *context, const nbt_controller_wire_state &,
                   const nbt::controller::Event &event) {
     if (event.pressed & (NBT_CONTROLLER_BACK | NBT_CONTROLLER_MENU)) {
         *static_cast<bool *>(context) = true;
+    }
+}
+
+/* Crash on purpose: never returns when the setting asks for a crash. */
+void crashIfAsked(const nbt::app::Lifecycle &lifecycle) {
+    const char *crash = lifecycle.settings().get("crash", "off");
+    if (!strcmp(crash, "fault")) {
+        nbt::app::log_stage("crash on purpose");
+        nbt::app::log_info("Crash on purpose: writing to address 0x10");
+        *reinterpret_cast<volatile int *>(static_cast<uintptr_t>(0x10)) = 1;
+    } else if (!strcmp(crash, "hang")) {
+        nbt::app::log_info("Crash on purpose: no more heartbeats");
+        for (;;) {
+            sleep(1);
+        }
     }
 }
 
@@ -146,6 +164,9 @@ int main(int argc, char **argv) {
         lifecycle.tick(now, "Hello " NBT_TEST_VERSION, &changed);
         if (changed) {
             nbt::app::log_info("settings changed: background %s", background(lifecycle).name);
+        }
+        if (lifecycle.is_user_mode()) { // never in a health check
+            crashIfAsked(lifecycle);
         }
         (void)lifecycle.consume_show_requested(); // every frame is drawn again anyway
         if (video.ready()) {

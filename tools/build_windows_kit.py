@@ -97,9 +97,11 @@ def check_phone_tools():
         raise ValueError("install cargo-ndk: cargo install cargo-ndk")
 
 
-# The test application's settings (apps/test/main.cpp reads background and controller).
+# The test application's settings (apps/test/main.cpp reads background, controller
+# and crash, which makes it crash for a crash report).
 TEST_SETTINGS = ("background|Background color|blue|blue,red,green,black",
-                 "controller|Use the controller|on|on,off")
+                 "controller|Use the controller|on|on,off",
+                 "crash|Crash on purpose|off|off,fault,hang")
 # Its two forms, built by `make test-apps` (apps/test/test-app.mk) into TEST_APP:
 # "test", an ordinary QNX program, and "test-runner", a module for the release's
 # nbt-runner. Application id: (bridge, capabilities used, payload file prefix, suffix).
