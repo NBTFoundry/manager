@@ -15,6 +15,7 @@ only while it installs or removes, then read-only again.
 
 - This kit, unzipped on the laptop: `NBT-Manager-Installer.exe`,
   `phone\NBT-Manager-0.1.0.apk`, `phone\test-v2.nbt`, `phone\test-v3-broken.nbt`,
+  `phone\test-runner-v1.nbt`, `phone\test-runner-v2.nbt`, `phone\test-runner-v3-broken.nbt`,
   `controller.conf.example`, `usb\car_inventory.sh` with `CAR-INVENTORY.md`
   (optional: collects head unit files for the bridge's car-data work),
   `VERSION.txt`, `SHA256SUMS.txt`.
@@ -26,7 +27,7 @@ only while it installs or removes, then read-only again.
   phone and open it; allow installing from that source when Android asks). A newer
   APK installs over an older one and keeps the paired cars; uninstalling the app
   deletes its keys, so each car must be paired again.
-- `phone\test-v2.nbt` and `phone\test-v3-broken.nbt` copied to the phone
+- `phone\test-v2.nbt`, `phone\test-v3-broken.nbt` and the three `phone\test-runner-*.nbt` copied to the phone
   (cloud drive, email to yourself or USB), where NBT Manager can pick or receive them.
 - Car parked, ignition on, engine off, battery charger connected.
 
@@ -229,7 +230,7 @@ shim stays off until a new one is installed or you use **Shim on**.
 5. Press BACK on the main menu: the manager closes. Open it again and press
    MENU: the manager closes and iDrive's menu opens.
 6. Open it again and leave it alone for two minutes: it closes by itself.
-7. Push on `test`: "HELLO WORLD" and "TEST v1" on a green background take
+7. Push on `test`: "HELLO WORLD" and "TEST v1 - native" on a green background take
    the manager's place, with "BACK TO EXIT" at the bottom. Turn the knob:
    nothing moves in iDrive underneath. Press BACK: it closes and the
    manager's list comes back within a second or two (the log says
@@ -245,7 +246,7 @@ steps it runs without the controller: it stays on screen until MENU puts
 iDrive back, and keeps running.
 
 8. Open the manager, press OPTION on `test` and set **Use the controller**
-   to `off`. Press BACK. Push on `test`: "TEST v1" shows on green, without
+   to `off`. Press BACK. Push on `test`: "TEST v1 - native" shows on green, without
    "BACK TO EXIT". Press MENU: iDrive's menu returns.
 9. Open the manager: within a second the menu shows `test  (Hello v1)`.
    ("(running)" alone means the status line was not read: note it.) Push on
@@ -260,7 +261,7 @@ iDrive back, and keeps running.
 11. Open the manager and press OPTION on `test`: the settings now end with
     **Stop test**. Push on it: the page says "test stopped". Set **Use the
     controller** back to `on` (it applies at the next start), then press
-    BACK: `test` has no label any more. Push on `test`: "TEST v1" on red
+    BACK: `test` has no label any more. Push on `test`: "TEST v1 - native" on red
     with "BACK TO EXIT". Press BACK.
 
 If the window shows "Starting" and then closes after 45 s without reacting
@@ -329,6 +330,14 @@ agreement, pairing result, revocation result and any fixed error shown by the ap
 5. Stop the test application on the car. Request Uninstall from the phone.
    The car names the phone and application, with No focused. Reject once,
    then request it again and approve on the car. Check the result and app list.
+6. The same application run by the manager's `nbt-runner`, built without the
+   QNX SDP: send `test-runner-v1.nbt`. The car reviews a new application,
+   `test-runner`; install it. Push on it in the manager: "HELLO WORLD" and
+   "TEST v1 - runner", with "BACK TO EXIT". Press BACK.
+7. Send `test-runner-v2.nbt` and install it: the health check passes and
+   "TEST v2 - runner" shows when started. Send `test-runner-v3-broken.nbt`:
+   the health check fails and v2 returns. Uninstall `test-runner` from the
+   phone.
 
 Do not treat the phone's local manifest preview as verified. The car verifies
 the exact package and its digest before review; only the car approves it.

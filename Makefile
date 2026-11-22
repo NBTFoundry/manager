@@ -49,7 +49,7 @@ export BUILD_DIR DIST_DIR MANAGER_VERSION MANAGER_SEQUENCE MANAGER_COMPAT
 export MANAGER_SIGNING_KEY MANAGER_PUBLIC_KEY APPS_PUBLIC_KEY CARGO NBT_INSTALLER_DIR
 export INSTALLER_TARGET_DIR
 
-.PHONY: all host release installer-release test clean simulator run-simulator qnx qnx-plugin qnx-capture qnx-runner qnx-check plugin-resources windows-kit kit check-cxx check-static-init stack-report pre-commit format fuzz FORCE tsan
+.PHONY: all host release installer-release test clean simulator run-simulator qnx qnx-plugin qnx-capture qnx-runner qnx-check test-apps plugin-resources windows-kit kit check-cxx check-static-init stack-report pre-commit format fuzz FORCE tsan
 all: release
 
 # The whole kit procedure from a clean commit: QNX checks, kit, copy to the
@@ -260,7 +260,7 @@ $(BUILD_DIR)/manager-gui-host: $(OBJ_DIR)/testing/apps/manager/main.o $(OBJ_DIR)
 	$(HOST_LINK) -pthread -ldl -lm
 $(BUILD_DIR)/launcher-host: $(OBJ_DIR)/testing/apps/manager/launcher.o $(LAUNCHER_TESTING_LIB)
 	$(HOST_LINK)
-$(BUILD_DIR)/test-app-host: $(OBJ_DIR)/testing/apps/test/main.o $(OBJ_DIR)/testing/tests/fake_screen.o $(TESTING_LIB)
+$(BUILD_DIR)/test-app-host: $(OBJ_DIR)/testing/tests/fake_app.o $(OBJ_DIR)/testing/tests/fake_screen.o $(TESTING_LIB)
 	$(HOST_LINK) -pthread -ldl
 
 $(BUILD_DIR)/libfake_dsi.so: tests/fake_dsi.c | $(BUILD_DIR)
@@ -371,7 +371,7 @@ QNX_STRIP ?= ntoarmv7-strip
 # QNX binaries are linked here with their symbols, to read crash addresses;
 # the stripped copies in BUILD_DIR are the ones packaged and shipped.
 QNX_UNSTRIPPED = $(BUILD_DIR)/qnx-unstripped
-QNX_EXECUTABLES = nbt-managerd-qnx test-v1-qnx test-v2-qnx test-v3-broken-qnx nbt-manager-launcher nbt-manager-gui nbt-verify-release-qnx most-monitor-qnx
+QNX_EXECUTABLES = nbt-managerd-qnx nbt-manager-launcher nbt-manager-gui nbt-verify-release-qnx most-monitor-qnx
 # qcc ignores -MMD/-MP (it once wrote a file named "-MP"), so no QNX object
 # was rebuilt when a header changed: dev31 shipped a GUI whose objects
 # disagreed on UiController's layout. The preprocessor takes them directly.
@@ -406,15 +406,6 @@ $(BUILD_DIR)/liblvgl-qnx.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl-qnx
 	rm -f $@
 	$(QNX_AR) rcs $@ $^
 
-$(OBJ_DIR)/qnx/apps/test/main-v1.o: apps/test/main.cpp $(call stamp,qnx)
-	@mkdir -p $(dir $@)
-	$(QCC) $(QNX_CXXFLAGS) '-DNBT_TEST_VERSION="v1"' $(QNX_DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/qnx/apps/test/main-v2.o: apps/test/main.cpp $(call stamp,qnx)
-	@mkdir -p $(dir $@)
-	$(QCC) $(QNX_CXXFLAGS) '-DNBT_TEST_VERSION="v2"' $(QNX_DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/qnx/apps/test/main-v3.o: apps/test/main.cpp $(call stamp,qnx)
-	@mkdir -p $(dir $@)
-	$(QCC) $(QNX_CXXFLAGS) '-DNBT_TEST_VERSION="v3"' -DNBT_TEST_FAIL_AFTER=10 $(QNX_DEPFLAGS) -c $< -o $@
 # The GUI's banner shows MANAGER_VERSION; the stamp changes only with its value.
 $(BUILD_DIR)/manager-version: FORCE | $(BUILD_DIR)
 	@echo '$(MANAGER_VERSION)' | cmp -s - $@ || echo '$(MANAGER_VERSION)' > $@
@@ -423,13 +414,10 @@ $(OBJ_DIR)/qnx/apps/manager/main-versioned.o: apps/manager/main.cpp $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	$(QCC) $(QNX_CXXFLAGS) $(if $(MANAGER_VERSION),'-DNBT_MANAGER_VERSION="$(MANAGER_VERSION)"') $(QNX_DEPFLAGS) -c $< -o $@
 
-qnx: $(QNX_LIB) $(QNX_TARGET)/armle-v7/lib/libusbdi.a $(BUILD_DIR)/liblvgl-qnx.a $(OBJ_DIR)/qnx/apps/managerd/main.o $(OBJ_DIR)/qnx/apps/manager/launcher.o $(OBJ_DIR)/qnx/apps/test/main-v1.o $(OBJ_DIR)/qnx/apps/test/main-v2.o $(OBJ_DIR)/qnx/apps/test/main-v3.o $(OBJ_DIR)/qnx/apps/manager/main-versioned.o $(OBJ_DIR)/qnx/tools/verify_release.o $(OBJ_DIR)/qnx/apps/most-monitor/main.o | $(BUILD_DIR)
+qnx: $(QNX_LIB) $(QNX_TARGET)/armle-v7/lib/libusbdi.a $(BUILD_DIR)/liblvgl-qnx.a $(OBJ_DIR)/qnx/apps/managerd/main.o $(OBJ_DIR)/qnx/apps/manager/launcher.o $(OBJ_DIR)/qnx/apps/manager/main-versioned.o $(OBJ_DIR)/qnx/tools/verify_release.o $(OBJ_DIR)/qnx/apps/most-monitor/main.o | $(BUILD_DIR)
 	test -n "$(QNX_SCREEN_LIBDIR)"
 	mkdir -p $(QNX_UNSTRIPPED)
 	$(QCC) $(QNX_VARIANT) -lang-c++ $(OBJ_DIR)/qnx/apps/managerd/main.o $(QNX_LIB) $(QNX_TARGET)/armle-v7/lib/libusbdi.a -lcrypto -lz -lsocket -o $(QNX_UNSTRIPPED)/nbt-managerd-qnx
-	$(QCC) $(QNX_VARIANT) -lang-c++ $(OBJ_DIR)/qnx/apps/test/main-v1.o $(QNX_LIB) -L$(QNX_SCREEN_LIBDIR) -lscreen -lcrypto -o $(QNX_UNSTRIPPED)/test-v1-qnx
-	$(QCC) $(QNX_VARIANT) -lang-c++ $(OBJ_DIR)/qnx/apps/test/main-v2.o $(QNX_LIB) -L$(QNX_SCREEN_LIBDIR) -lscreen -lcrypto -o $(QNX_UNSTRIPPED)/test-v2-qnx
-	$(QCC) $(QNX_VARIANT) -lang-c++ $(OBJ_DIR)/qnx/apps/test/main-v3.o $(QNX_LIB) -L$(QNX_SCREEN_LIBDIR) -lscreen -lcrypto -o $(QNX_UNSTRIPPED)/test-v3-broken-qnx
 	$(QCC) $(QNX_VARIANT) -lang-c++ $(OBJ_DIR)/qnx/apps/manager/launcher.o $(QNX_LIB) -lcrypto -o $(QNX_UNSTRIPPED)/nbt-manager-launcher
 	$(QCC) $(QNX_VARIANT) -lang-c++ $(OBJ_DIR)/qnx/apps/manager/main-versioned.o $(QNX_LIB) $(QNX_TARGET)/armle-v7/lib/libusbdi.a $(BUILD_DIR)/liblvgl-qnx.a -L$(QNX_SCREEN_LIBDIR) -lscreen -lcrypto -lsocket -lm -o $(QNX_UNSTRIPPED)/nbt-manager-gui
 	$(QCC) $(QNX_VARIANT) -lang-c++ $(OBJ_DIR)/qnx/tools/verify_release.o $(QNX_LIB) -lcrypto -o $(QNX_UNSTRIPPED)/nbt-verify-release-qnx
@@ -452,6 +440,11 @@ qnx-capture: | $(BUILD_DIR)
 # names. Its own check: imports only what QNX 6.5.0 SP1 provides.
 NBT_SDK_DIR ?= $(abspath ../sdk)
 QNX_ENV ?=
+# The kits' test application, built on the SDK at NBT_SDK_DIR without the QNX
+# SDP: an ordinary QNX program and a module for nbt-runner (apps/test/test-app.mk).
+test-apps: | $(BUILD_DIR)
+	+$(MAKE) -f apps/test/test-app.mk BUILD_DIR=$(BUILD_DIR) NBT_SDK_DIR=$(NBT_SDK_DIR) check
+
 qnx-runner: | $(BUILD_DIR)
 	test -n "$(QNX_ENV)" -a -n "$(QNX_SCREEN_LIBDIR)"
 	$(MAKE) -C "$(NBT_SDK_DIR)" BUILD_DIR=$(BUILD_DIR)/sdk QNX_ENV="$(QNX_ENV)" \
@@ -460,7 +453,9 @@ qnx-runner: | $(BUILD_DIR)
 	cp $(BUILD_DIR)/sdk/nbt-runner $(QNX_UNSTRIPPED)/nbt-runner
 	$(QNX_STRIP) -o $(BUILD_DIR)/nbt-runner $(BUILD_DIR)/sdk/nbt-runner
 
+# (test-apps after qnx-runner: both build in $(BUILD_DIR)/sdk.)
 qnx-check: qnx qnx-plugin qnx-capture qnx-runner
+	+$(MAKE) test-apps
 	QNX_READELF="$(QNX_READELF)" QNX_NM="$(QNX_NM)" QNX_SIZE="$(QNX_SIZE)" python3 tools/check_qnx_artifacts.py
 
 plugin-resources: | $(BUILD_DIR)

@@ -8,7 +8,8 @@ description: Build an NBT Manager in-car test kit (Windows installer, signed man
 The kit, `nbt-manager-windows-kit-devN.zip` and its folder `nbt-manager-devN/`:
 the Windows installer (manager release and test app v1 inside), the phone APK,
 `phone/NBT-Manager-devN.nbtr` (to update from the phone), test app v2 and a
-broken v3, the in-car procedure as `PROCEDURE.md`, the USB scripts.
+broken v3, the same three versions run by nbt-runner (`test-runner-*.nbt`),
+the in-car procedure as `PROCEDURE.md`, the USB scripts.
 `tools/make_kit.py` and `tools/build_windows_kit.py` describe it.
 
 N comes from `~/.local/share/nbt-manager/keys/manager-sequence`, raised by
@@ -18,7 +19,8 @@ longer takes dev kits as updates.
 1. **What goes in is committed.** `make kit` refuses a dirty manager tree.
    The phone app and installer are built from `../mobile-app` and
    `../installer` as they are checked out: check their branch (normally
-   `main`) and `git status`.
+   `main`) and `git status`. The test apps build on the SDK at `../sdk`
+   (`NBT_SDK_DIR`) with its NBT toolchain (`make toolchain` there).
 2. **Build**, in the manager, in the background (several minutes), with the
    values from the workspace `CLAUDE.md`:
    ```sh

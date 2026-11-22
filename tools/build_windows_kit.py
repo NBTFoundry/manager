@@ -5,7 +5,8 @@
 Produces dist/nbt-manager-windows-kit-<version>.zip (staged in build/windows-kit/):
 the Windows installer (manager release and test application v1 embedded),
 test application v2 and a deliberately broken v3 to upload from the phone,
-the controller settings example and the in-car procedure.
+the same three versions of the test application run by nbt-runner
+("test-runner"), the controller settings example and the in-car procedure.
 
 Signing keys live outside the repository, in NBT_KEYS_DIR (default
 ~/.local/share/nbt-manager/keys), and are created on first use: one manager
@@ -96,16 +97,23 @@ def check_phone_tools():
         raise ValueError("install cargo-ndk: cargo install cargo-ndk")
 
 
-# The test application's settings (apps/test/main.cpp reads NBT_SETTING_BACKGROUND and
-# NBT_SETTING_CONTROLLER).
+# The test application's settings (apps/test/main.cpp reads background and controller).
 TEST_SETTINGS = ("background|Background color|blue|blue,red,green,black",
                  "controller|Use the controller|on|on,off")
+# Its two forms, built by `make test-apps` (apps/test/test-app.mk) into TEST_APP:
+# "test", an ordinary QNX program, and "test-runner", a module for the release's
+# nbt-runner. Application id: (bridge, capabilities used, payload file prefix, suffix).
+TEST_APP = BUILD / "test-app"
+TEST_FORMS = {"test": ("1.5", "show,status,live-settings", "test-", ""),
+              "test-runner": ("1.7", "show,status,live-settings,runner", "test-runner-", ".so")}
 
 
-def package(source, version, sequence, key, output):
+def package(app, version, sequence, key, output):
+    bridge, uses, prefix, suffix = TEST_FORMS[app]
     settings = [argument for setting in TEST_SETTINGS for argument in ("--setting", setting)]
-    run(sys.executable, ROOT / "tools/package.py", "--app", "test", "--version", version, "--sequence", sequence,
-        "--compat", TEST_COMPAT, "--key", key, "--output", output, "--bridge", "1.5", "--bridge-uses", "show,status,live-settings", *settings, source)
+    run(sys.executable, ROOT / "tools/package.py", "--app", app, "--version", version, "--sequence", sequence,
+        "--compat", TEST_COMPAT, "--key", key, "--output", output, "--bridge", bridge, "--bridge-uses", uses,
+        "--bridge-optional", "controller", *settings, TEST_APP / f"{prefix}{version}{suffix}")
 
 
 def phone_options():
@@ -202,11 +210,14 @@ def main():
         shutil.rmtree(staging)
     staging.mkdir()
     v1 = staging / "test-v1.nbt"
-    package(BUILD / "test-v1-qnx", "v1", 1, app_private, v1)
-    package(BUILD / "test-v2-qnx", "v2", 2, app_private, kit / "phone/test-v2.nbt")
-    package(BUILD / "test-v3-broken-qnx", "v3", 3, app_private, kit / "phone/test-v3-broken.nbt")
-    for path in (v1, kit / "phone/test-v2.nbt", kit / "phone/test-v3-broken.nbt"):
-        run(BUILD / "nbt-verify", path, app_public, "test", TEST_COMPAT, stdout=subprocess.DEVNULL)
+    packages = {v1: ("test", "v1", 1)}
+    for app in TEST_FORMS:
+        for version, sequence, name in (("v1", 1, "v1"), ("v2", 2, "v2"), ("v3", 3, "v3-broken")):
+            if (app, version) != ("test", "v1"):
+                packages[kit / f"phone/{app}-{name}.nbt"] = (app, version, sequence)
+    for path, (app, version, sequence) in packages.items():
+        package(app, version, sequence, app_private, path)
+        run(BUILD / "nbt-verify", path, app_public, app, TEST_COMPAT, stdout=subprocess.DEVNULL)
     embedded = dict(NBT_MANAGER_RELEASE=str(RELEASE / "manager.nbtr"), NBT_MANAGER_PUBLIC_KEY=str(manager_public),
                     NBT_TEST_APP_PACKAGE=str(v1), NBT_TEST_APP_KEY=str(app_public), NBT_TEST_APP_COMPAT=TEST_COMPAT)
     installer = options.installer.resolve()
@@ -246,7 +257,8 @@ def main():
         f"Manager release SHA-256: {release_sha}\n"
         + (f"Step release {version}-step (sequence {sequence - 1}): phone/NBT-Manager-{version}-step.nbtr\n"
            if step else "") +
-        f"Test application compatibility: {TEST_COMPAT}; v1 is inside the installer.\n", newline="\r\n")
+        f"Test applications (compatibility {TEST_COMPAT}): test, an ordinary QNX program (v1 is inside\n"
+        "the installer), and test-runner, run by the manager's nbt-runner.\n", newline="\r\n")
     # No line of either private key may appear in any kit file. (The installer
     # contains PEM labels such as "PRIVATE KEY" from its libraries, so search
     # for the keys' own base64 lines rather than for labels.)

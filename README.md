@@ -175,11 +175,12 @@ make qnx qnx-plugin qnx-capture qnx-check \
   QNX_SCREEN_LIBDIR=/path/to/screen/lib RHMI_LIBDIR=/path/to/framework/lib
 ```
 
-This builds the worker, launcher, GUI, test applications, the iDrive plugin and
-its resources (`build/NbtManager/`) and the capture shim. `qnx-check` verifies the
-binaries' dynamic dependencies and that every imported C++ symbol exists in QNX
-6.5's `libstdc++` (it uses `$QNX_TARGET`'s copy). Shipped binaries are stripped;
-the unstripped links stay in `build/qnx-unstripped/`.
+This builds the worker, launcher, GUI, the iDrive plugin and its resources
+(`build/NbtManager/`) and the capture shim. `qnx-check` verifies the binaries'
+dynamic dependencies and that every imported C++ symbol exists in QNX 6.5's
+`libstdc++` (it uses `$QNX_TARGET`'s copy), and builds the kits' test
+application (`make test-apps`). Shipped binaries are stripped; the unstripped
+links stay in `build/qnx-unstripped/`.
 
 **Release.** A manager release is signed with the manager key:
 
@@ -212,7 +213,7 @@ package.
 
 ```sh
 python3 tools/package.py --app test --compat demo-1 --version v1 --sequence 1 \
-  --key apps-private.pem --output test-v1.nbt build/test-v1-qnx
+  --key apps-private.pem --output test-v1.nbt build/test-app/test-v1
 build/nbt-verify test-v1.nbt apps-public.pem test demo-1
 ```
 
@@ -223,8 +224,11 @@ application accepts ([docs/files-bridge.md](docs/files-bridge.md)). Sequences mu
 signed release needs the explicit recovery operation. Applications built with
 `NBTFoundry/sdk` get the lifecycle contract, bridge channels, display and audio.
 
-The test application shows "Hello world" on its configured background, publishes
-a status label and exits on BACK or MENU. An application is uninstalled from its
+The kits' test application (`apps/test`) is built on `NBTFoundry/sdk` without
+the QNX SDP (`make test-apps`, the SDK at `NBT_SDK_DIR`, default `../sdk`) in two
+forms: `test`, an ordinary QNX program, and `test-runner`, a module run by the
+release's `nbt-runner`. Each shows "Hello world" on its configured background,
+publishes a status label and exits on BACK. An application is uninstalled from its
 settings in the manager (hold its name), or from a paired phone with confirmation
 on the car; its executable, keys, state and data are removed, never following a
 link.

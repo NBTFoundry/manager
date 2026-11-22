@@ -154,7 +154,7 @@ after a plain `OK` it closes as before. Health checks never get a surface. A run
 the grant, or still awaiting readiness, gives `ERR running`; the GUI displays
 "<app> is already running" and stays open. Transport/host lookup failures give
 `ERR start`. `RUNNING`, `STOP` and the readiness/health contract are unchanged.
-The test app restores its existing Screen window on a granted user show request;
+The host tests' application (`tests/fake_app.cpp`) restores its existing Screen window on a granted user show request;
 health-check launches ignore show requests and keep the controller untouched.
 
 **Paused while iDrive is shown.** When iDrive takes the screen from an

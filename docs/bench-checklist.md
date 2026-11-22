@@ -113,14 +113,15 @@ With an application declaring `hold`, `car-data` and `net` (Android Auto,
 
 ## 6. Install, update and rollback
 
-Use the test application (`apps/test`, `TEST - v1` / `TEST - v2`) provisioned
-as described in `README.md`.
+Use the test application (`apps/test`, `TEST v1 - native` / `TEST v2 - native`) provisioned
+as described in `README.md`; `test-runner` is the same application run by `nbt-runner`
+(`TEST v1 - runner`).
 
 | Action | Expected | Log |
 | --- | --- | --- |
 | Upload `test-v2.nbt` from the phone | Review screen: application, versions, sequence, SHA-256 | `worker ... http upload started (<n> bytes)`, `http upload of <n> bytes verified`, `state verified` |
 | Compare the digest with `sha256sum test-v2.nbt` | Equal | — |
-| Install, Yes | Progress, health check, "Update installed"; `TEST - v2` runs | `worker ... command APPROVE`, `state installing: ...`, `state installed: Update installed` |
+| Install, Yes | Progress, health check, "Update installed"; `TEST v2 - native` runs | `worker ... command APPROVE`, `state installing: ...`, `state installed: Update installed` |
 | Upload a package signed with another key | "Upload rejected" | `http upload of <n> bytes failed verification` |
 | Install a v3 whose executable exits at once | "Update failed; previous application restored"; v2 runs again | `state failed: Update failed; previous application restored` |
 | Install an older sequence | Refused unless "Install as recovery" is chosen | — |
@@ -130,6 +131,7 @@ as described in `README.md`.
 | Update the manager to an `NBTRLS3` release (installer, once) | `manager/slots/<n>/runner` beside `gui` and `worker` | `nbt-verify-release` prints `format=NBTRLS3` |
 | Install an application built without the QNX SDP (a module, then a guest) | Health check passes; it runs as before | application log: `runner` lines, then the application's own |
 | Its log after a start | The runner names the payload and its ABI; no `needs runtime` line | `nbt-runner ... app` stage, `application ended, status 0` at stop |
+| Install `test-runner-v1.nbt`, then `v2`, then `v3-broken` from the phone | A new application, then "Update installed" (`TEST v2 - runner`), then "Update failed; previous application restored" | application log: `[test] test v2 (runner)`; for v3 `failing on purpose after 5 s`, `application ended, status 1` |
 
 ## 7. Interruption and recovery
 

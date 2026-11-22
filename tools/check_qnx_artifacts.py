@@ -13,9 +13,6 @@ NM = os.environ.get("QNX_NM", "ntoarmv7-nm")
 SIZE = os.environ.get("QNX_SIZE", "ntoarmv7-size")
 EXECUTABLES = [
     "nbt-managerd-qnx",
-    "test-v1-qnx",
-    "test-v2-qnx",
-    "test-v3-broken-qnx",
     "nbt-manager-launcher",
     "nbt-manager-gui",
     "nbt-verify-release-qnx",

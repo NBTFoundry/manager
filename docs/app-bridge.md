@@ -308,9 +308,11 @@ of starting a second host:
 - Plain `RUNNING` returns names; `RUNNING status` also supplies valid status labels (component 2).
 
 Implemented in `src/process/app_host.cpp`, `src/worker/worker.cpp`,
-`src/worker/daemon.cpp`, `src/gui/ui_controller.cpp` and `apps/test/main.cpp`.
-The test app reposts its existing Screen buffer and makes the window visible,
-resetting its no-input hide timer; a health-check launch ignores show. This uses
+`src/worker/daemon.cpp`, `src/gui/ui_controller.cpp` and `tests/fake_app.cpp`.
+The host tests' application reposts its existing Screen buffer and makes the
+window visible, resetting its no-input hide timer; the kits' test application
+(`apps/test`, on the SDK) draws every frame anyway. A health-check launch
+ignores show. This uses
 the existing
 [QNX Screen visibility API](https://www.qnx.com/developers/docs/6.5.0SP1.update/com.qnx.doc.screen/topic/screen_8h_1Screen_Property_Types.html).
 

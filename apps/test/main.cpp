@@ -1,272 +1,160 @@
 // SPDX-License-Identifier: MPL-2.0
-#include "nbt/bridge.h"
-#include "nbt/controller_config.h"
-#include "nbt/fs.h"
-#include "nbt/gui/frame.hpp"
-#include "nbt/gui/screen_window.hpp"
-#include "nbt/most_input.h"
-#include "nbt/settings.h"
+// The kits' test application (tools/build_windows_kit.py) on the NBT App SDK,
+// built without the QNX SDP (apps/test/test-app.mk) in two forms: an ordinary
+// QNX 6.5 program, and a module that the release's nbt-runner runs (bridge
+// 1.7). It shows HELLO WORLD on its Background color, its version and form;
+// publishes "Hello <version>" as its status; follows live settings; and ends
+// on BACK or MENU while its Use the controller setting is on. v3 fails 5 s after it
+// starts, so its health check fails. The host tests use tests/fake_app.cpp.
+#include "nbt/app/clock.hpp"
+#include "nbt/app/lifecycle.hpp"
+#include "nbt/app/log.hpp"
+#include "nbt/app/video.hpp"
+#include "nbt/controller/input.hpp"
+#include "nbt/frontend/overlay.hpp"
 
-#include <errno.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <signal.h>
+#include <GLES2/gl2.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/select.h>
-#include <time.h>
 #include <unistd.h>
 
 #ifndef NBT_TEST_VERSION
 #define NBT_TEST_VERSION "v1"
 #endif
-#define MANAGER_ROOT "/var/opt/nbt-manager"
-
-static volatile sig_atomic_t stopping;
-static volatile sig_atomic_t show_requested;
-static void on_signal(int signalNumber) {
-    if (signalNumber == SIGUSR1) {
-        show_requested = 1;
-    } else {
-        stopping = 1;
-    }
-}
-
-static int parse_int(const char *text, long min, int *out) {
-    char *end = NULL;
-    errno = 0;
-    const long value = strtol(text, &end, 10);
-    if (errno || !end || end == text || *end || value < min || value > INT_MAX) {
-        return -1;
-    }
-    *out = static_cast<int>(value);
-    return 0;
-}
-
-static uint64_t now_ms(void) {
-    struct timespec time;
-    if (clock_gettime(CLOCK_MONOTONIC, &time)) {
-        return 0;
-    }
-    return static_cast<uint64_t>(time.tv_sec) * 1000u +
-           static_cast<uint64_t>(time.tv_nsec) / 1000000u;
-}
-
-static int start_input(void) {
-    const char *root = MANAGER_ROOT, *library = NULL;
-    nbt_ccs_config config;
-    nbt_fs fs;
-    char error[128];
-#ifdef NBT_TESTING
-    if (getenv("NBT_TEST_ROOT")) {
-        root = getenv("NBT_TEST_ROOT");
-    }
-    library = getenv("NBT_TEST_INPUT_LIBRARY");
+#ifndef NBT_TEST_FORM
+#define NBT_TEST_FORM "native"
 #endif
-    if (nbt_fs_init(&fs, root, error, sizeof(error))) {
-        nbt_ccs_defaults(&config);
-    } else {
-        (void)nbt_controller_config_load(&fs, &config);
+
+namespace {
+
+using nbt::frontend::Overlay;
+
+struct Colour {
+    const char *name;
+    float red, green, blue;
+};
+// The manager GUI's own blue, red and green (src/gui/frame.cpp).
+const Colour kColours[] = {{"blue", 0x1d / 255.0f, 0x4f / 255.0f, 0x91 / 255.0f},
+                           {"red", 0x9a / 255.0f, 0x23 / 255.0f, 0x23 / 255.0f},
+                           {"green", 0x1f / 255.0f, 0x7a / 255.0f, 0x3e / 255.0f},
+                           {"black", 0.0f, 0.0f, 0.0f}};
+const uint32_t kWhite = 0xffffffffu, kGrey = 0xd0d8e0ffu;
+
+const Colour &background(const nbt::app::Lifecycle &lifecycle) {
+    const char *name = lifecycle.settings().get("background", "blue");
+    for (size_t i = 0; i < sizeof(kColours) / sizeof(kColours[0]); ++i) {
+        if (!strcmp(name, kColours[i].name)) {
+            return kColours[i];
+        }
     }
-    int fd = nbt_most_input_start(library, &config);
-    if (fd >= FD_SETSIZE) {
-        close(fd);
-        fd = -1;
-    }
-    return fd;
+    return kColours[0];
 }
+
+// The controller reaches an application granted `controller` while it is on
+// the panel; the setting decides whether BACK or MENU ends it.
+bool keysEnd(const nbt::app::Lifecycle &lifecycle) {
+    return lifecycle.controller_fd() >= 0 &&
+           strcmp(lifecycle.settings().get("controller", "on"), "off") != 0;
+}
+
+void onController(void *context, const nbt_controller_wire_state &,
+                  const nbt::controller::Event &event) {
+    if (event.pressed & (NBT_CONTROLLER_BACK | NBT_CONTROLLER_MENU)) {
+        *static_cast<bool *>(context) = true;
+    }
+}
+
+void centred(Overlay &overlay, int width, int top, int scale, const char *text, uint32_t rgba) {
+    overlay.text((width - Overlay::text_width(text, scale)) / 2, top, scale, text, rgba);
+}
+
+void draw(nbt::app::VideoEgl &video, Overlay &overlay, const nbt::app::Lifecycle &lifecycle) {
+    const int width = video.window_width(), height = video.window_height();
+    const Colour &colour = background(lifecycle);
+    glViewport(0, 0, width, height);
+    glClearColor(colour.red, colour.green, colour.blue, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    // "HELLO WORLD" across most of the width, as the manager's own test frame.
+    int scale = width / (11 * Overlay::kGlyph + 2 * Overlay::kGlyph);
+    if (scale > height / (2 * Overlay::kGlyph)) {
+        scale = height / (2 * Overlay::kGlyph);
+    }
+    if (scale < 3) {
+        scale = 3;
+    }
+    const int small = scale / 3, glyph = Overlay::kGlyph;
+    overlay.begin(width, height);
+    centred(overlay, width, height / 2 - glyph * scale, scale, "HELLO WORLD", kWhite);
+    centred(overlay, width, height / 2 + glyph * scale / 2, 2 * small,
+            "TEST " NBT_TEST_VERSION " - " NBT_TEST_FORM, kGrey);
+    if (keysEnd(lifecycle)) {
+        centred(overlay, width, height - 3 * glyph * small, small, "BACK TO EXIT", kGrey);
+    }
+    overlay.end();
+    video.swap();
+}
+
+} // namespace
 
 int main(int argc, char **argv) {
-    nbt::gui::ScreenWindow screen;
-    int readyFd = -1, leaseFd = -1, statusFd = -1, inputFd = -1;
-    nbt_settings settings;
-    const char *settingsFile = NULL;
-    int visible = 1, result = 1;
-    const char *launch = getenv("NBT_LAUNCH");
-    const char *caps = getenv("NBT_BRIDGE_CAPS");
-    struct sigaction action;
-    if (argc == 5 && !strcmp(argv[1], "--ready-fd") && !strcmp(argv[3], "--lease-fd")) {
-        struct flock lease;
-        if (parse_int(argv[2], 3, &readyFd) || parse_int(argv[4], 3, &leaseFd) ||
-            readyFd == leaseFd) {
-            return 2;
-        }
-        memset(&lease, 0, sizeof(lease));
-        lease.l_type = F_RDLCK;
-        lease.l_whence = SEEK_SET;
-        if (fcntl(leaseFd, F_SETLK, &lease) < 0) {
+    nbt::app::log_init("test");
+    nbt::app::Lifecycle lifecycle;
+    const int started = lifecycle.init(argc, argv);
+    if (started != 0) {
+        return started;
+    }
+    nbt::app::log_install_crash_handlers();
+    nbt::app::log_info("test %s (%s), caps %s", NBT_TEST_VERSION, NBT_TEST_FORM,
+                       lifecycle.bridge_caps());
+    nbt::app::VideoEgl video;
+    Overlay overlay;
+    // A health check runs without a window.
+    if (lifecycle.is_user_mode()) {
+        const nbt::app::VideoConfig window = {"NBT Manager test " NBT_TEST_VERSION, 800, 480};
+        if (!video.init(lifecycle.surface_id(), &window) || !overlay.init()) {
+            nbt::app::log_info("no window: the car will not show it");
             return 1;
         }
-    } else if (argc != 1) {
-        fprintf(stderr, "usage: nbt-test [--ready-fd FD --lease-fd FD]\n");
-        return 2;
     }
-    const int user = readyFd >= 0 && launch && !strcmp(launch, "user");
-    // The manager GUI puts a window bound to this LayerManager surface on the
-    // panel and takes it off again (MENU); without one the car never draws it.
-    // Such a window cannot step aside by itself, so it does not hide.
-    int surface = 0;
-    if (user && getenv("NBT_SURFACE") && parse_int(getenv("NBT_SURFACE"), 1, &surface)) {
+    if (!lifecycle.send_ready()) {
         return 1;
     }
-    if (user && nbt_bridge_caps_valid(caps) && nbt_bridge_cap_has(caps, "status") &&
-        getenv("NBT_STATUS_FD") && !strcmp(getenv("NBT_STATUS_FD"), "5")) {
-        statusFd = 5;
-    }
-    memset(&settings, 0, sizeof(settings));
-    if (nbt_settings_add(&settings, "background|Background color|blue|blue,red,green,black") ||
-        nbt_settings_add(&settings, "controller|Use the controller|on|on,off")) {
-        return 1;
-    }
-    if (getenv("NBT_SETTING_BACKGROUND") &&
-        nbt_setting_allows(&settings.items[0], getenv("NBT_SETTING_BACKGROUND"))) {
-        strcpy(settings.items[0].value, getenv("NBT_SETTING_BACKGROUND"));
-    }
-    if (getenv("NBT_SETTING_CONTROLLER") &&
-        nbt_setting_allows(&settings.items[1], getenv("NBT_SETTING_CONTROLLER"))) {
-        strcpy(settings.items[1].value, getenv("NBT_SETTING_CONTROLLER"));
-    }
-    if (nbt_bridge_caps_valid(caps) && nbt_bridge_cap_has(caps, "live-settings")) {
-        settingsFile = getenv("NBT_SETTINGS_FILE");
-        if (settingsFile) {
-            (void)nbt_settings_values_read(settingsFile, &settings);
-        }
-    }
-    const int canShow = user && nbt_bridge_caps_valid(caps) && nbt_bridge_cap_has(caps, "show");
-    memset(&action, 0, sizeof(action));
-    action.sa_handler = on_signal;
-    sigemptyset(&action.sa_mask);
-    if (sigaction(SIGTERM, &action, NULL) || sigaction(SIGINT, &action, NULL) ||
-        sigaction(SIGUSR1, &action, NULL)) {
-        return 1;
-    }
-    action.sa_handler = SIG_IGN;
-    if (sigaction(SIGPIPE, &action, NULL)) {
-        return 1;
-    }
-
-    if (surface && !screen.open(640, 240, surface).ok()) {
-        fprintf(stderr, "no window on surface %d: the car will not draw it\n", surface);
-        surface = 0; // still runs; the manager reports that it did not appear
-    }
-    if (!screen.opened() && !screen.open(640, 240).ok()) {
-        fprintf(stderr, "could not create test window\n");
-        goto done;
-    }
-    if (user && strcmp(settings.items[1].value, "off")) {
-        inputFd = start_input();
-    }
-    if (!screen.frame()
-             .hello(NBT_TEST_VERSION, settings.items[0].value, inputFd >= 0 ? "BACK TO EXIT" : NULL)
-             .ok() ||
-        !screen.post().ok() || !screen.setVisible(true).ok()) {
-        fprintf(stderr, "could not display test message\n");
-        goto done;
-    }
-    {
-        uint64_t started = now_ms(), heartbeat = started, shownMs = started;
-        while (!stopping) {
-            const uint64_t now = now_ms();
-            if (now - heartbeat >= 1000u || now == started) {
+    nbt::controller::Input controller;
+    const uint64_t start = nbt::app::monotonic_ms();
+    int result = 0;
+    while (!lifecycle.stopping()) {
+        const uint64_t now = nbt::app::monotonic_ms();
 #ifdef NBT_TEST_FAIL_AFTER
-                if (now - started >= NBT_TEST_FAIL_AFTER * 1000u) {
-                    goto done;
-                }
-#endif
-                if (settingsFile) {
-                    nbt_settings latest = settings;
-                    if (!nbt_settings_values_read(settingsFile, &latest) &&
-                        strcmp(latest.items[0].value, settings.items[0].value)) {
-                        settings = latest;
-                        if (!screen.frame()
-                                 .hello(NBT_TEST_VERSION, settings.items[0].value,
-                                        inputFd >= 0 ? "BACK TO EXIT" : NULL)
-                                 .ok() ||
-                            (visible && !screen.post().ok())) {
-                            goto done;
-                        }
-                    }
-                }
-                if (statusFd >= 0) {
-                    char message[NBT_BRIDGE_STATUS_MAX + 1], line[NBT_BRIDGE_STATUS_LINE_MAX + 1];
-                    snprintf(message, sizeof(message), "%s %s", visible ? "Hello" : "Hidden",
-                             NBT_TEST_VERSION);
-                    const int length = nbt_bridge_status_format(now, message, line, sizeof(line));
-                    if (length > 0) {
-                        (void)nbt_fs_status_write(statusFd, line, static_cast<size_t>(length));
-                    }
-                }
-                if (readyFd >= 0 && write(readyFd, "R", 1) != 1) {
-                    break;
-                }
-                if (now != started) {
-                    heartbeat = now;
-                }
-            }
-            if (show_requested) {
-                show_requested = 0;
-                if (canShow) {
-                    visible = 1;
-                    if (!screen.post().ok() || !screen.setVisible(true).ok()) {
-                        goto done;
-                    }
-                    shownMs = now;
-                }
-            }
-            if (inputFd < 0 && visible && !surface && now - shownMs >= 5000u) {
-                visible = 0;
-                if (!screen.setVisible(false).ok()) {
-                    goto done;
-                }
-                if (readyFd < 0) {
-                    break;
-                }
-            }
-            {
-                fd_set readers;
-                struct timeval wait = {0, 100000};
-                FD_ZERO(&readers);
-                if (inputFd >= 0) {
-                    FD_SET(inputFd, &readers);
-                }
-                if (select(inputFd >= 0 ? inputFd + 1 : 0, &readers, NULL, NULL, &wait) < 0 &&
-                    errno != EINTR) {
-                    goto done;
-                }
-            }
-            if (inputFd >= 0) {
-                unsigned char byte;
-                ssize_t n;
-                while ((n = read(inputFd, &byte, 1)) == 1) {
-                    if (byte == NBT_INPUT_BACK || byte == NBT_INPUT_HOME) {
-                        stopping = 1;
-                    }
-                }
-                if (n == 0) {
-                    close(inputFd);
-                    inputFd = -1;
-                }
-            }
+        if (now - start >= NBT_TEST_FAIL_AFTER * 1000u) {
+            nbt::app::log_info("failing on purpose after %d s", NBT_TEST_FAIL_AFTER);
+            result = 1;
+            break;
         }
+#else
+        (void)start;
+#endif
+        bool leave = false;
+        if (lifecycle.controller_fd() >= 0) {
+            controller.poll(lifecycle.controller_fd(), &onController, &leave);
+        }
+        if (leave && keysEnd(lifecycle)) {
+            nbt::app::log_info("BACK or MENU: ending");
+            break;
+        }
+        bool changed = false;
+        lifecycle.tick(now, "Hello " NBT_TEST_VERSION, &changed);
+        if (changed) {
+            nbt::app::log_info("settings changed: background %s", background(lifecycle).name);
+        }
+        (void)lifecycle.consume_show_requested(); // every frame is drawn again anyway
+        if (video.ready()) {
+            draw(video, overlay, lifecycle);
+        }
+        usleep(50000);
     }
-    result = 0;
-done:
-    if (inputFd >= 0) {
-        (void)nbt_most_input_stop(300);
-    }
-    if (readyFd >= 0) {
-        close(readyFd);
-    }
-    if (leaseFd >= 0) {
-        close(leaseFd);
-    }
-    if (statusFd >= 0) {
-        close(statusFd);
-    }
-    screen.close();
-    if (inputFd >= 0) {
-        close(inputFd);
-    }
+    overlay.shutdown();
+    video.shutdown();
+    lifecycle.close_fds();
     return result;
 }
