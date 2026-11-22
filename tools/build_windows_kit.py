@@ -116,6 +116,25 @@ def package(app, version, sequence, key, output):
         "--bridge-optional", "controller", *settings, TEST_APP / f"{prefix}{version}{suffix}")
 
 
+def test_packages(kit, staging, key, public):
+    """Signs and checks both forms' v1, v2 and broken v3; returns test v1, which
+    the installers embed. (A function of its own: main's version and sequence
+    are the kit's, and a loop there once overwrote them.)"""
+    v1 = staging / "test-v1.nbt"
+    packages = {v1: ("test", "v1", 1)}
+    for app in TEST_FORMS:
+        for version, sequence, name in (("v1", 1, "v1"), ("v2", 2, "v2"), ("v3", 3, "v3-broken")):
+            if (app, version) != ("test", "v1"):
+                packages[kit / f"phone/{app}-{name}.nbt"] = (app, version, sequence)
+    for path, (app, version, sequence) in packages.items():
+        package(app, version, sequence, key, path)
+        run(BUILD / "nbt-verify", path, public, app, TEST_COMPAT, stdout=subprocess.DEVNULL)
+    # v1 for the phone too: a car set up once needs no laptop for the test
+    # application either (uninstalled, then installed again from the phone).
+    shutil.copy2(v1, kit / "phone/test-v1.nbt")
+    return v1
+
+
 def phone_options():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--without-phone-app", action="store_true", help="build the car-only milestone-1 kit")
@@ -209,18 +228,7 @@ def main():
     if staging.exists():
         shutil.rmtree(staging)
     staging.mkdir()
-    v1 = staging / "test-v1.nbt"
-    packages = {v1: ("test", "v1", 1)}
-    for app in TEST_FORMS:
-        for version, sequence, name in (("v1", 1, "v1"), ("v2", 2, "v2"), ("v3", 3, "v3-broken")):
-            if (app, version) != ("test", "v1"):
-                packages[kit / f"phone/{app}-{name}.nbt"] = (app, version, sequence)
-    for path, (app, version, sequence) in packages.items():
-        package(app, version, sequence, app_private, path)
-        run(BUILD / "nbt-verify", path, app_public, app, TEST_COMPAT, stdout=subprocess.DEVNULL)
-    # v1 for the phone too: a car set up once needs no laptop for the test
-    # application either (uninstalled, then installed again from the phone).
-    shutil.copy2(v1, kit / "phone/test-v1.nbt")
+    v1 = test_packages(kit, staging, app_private, app_public)
     embedded = dict(NBT_MANAGER_RELEASE=str(RELEASE / "manager.nbtr"), NBT_MANAGER_PUBLIC_KEY=str(manager_public),
                     NBT_TEST_APP_PACKAGE=str(v1), NBT_TEST_APP_KEY=str(app_public), NBT_TEST_APP_COMPAT=TEST_COMPAT)
     installer = options.installer.resolve()
