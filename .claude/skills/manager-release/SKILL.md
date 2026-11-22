@@ -10,8 +10,11 @@ Only when the user asks.
 
 1. **Ready:** `main` holds what ships, its CI is green, and locally
    `nice make -j"$(nproc)" pre-commit test` and, with the QNX environment,
-   `make qnx-check stack-report` pass. A car-facing change not yet tried in
-   the car: say so (a kit first: manager-kit).
+   `make qnx-check stack-report` pass. These use the SDK at `../sdk`, CI the
+   commit in `sdk.ref`: `../sdk` must be checked out at `sdk.ref`, or
+   `sdk.ref` moves to the SDK commit the kits were built and car-tested with
+   (v0.3.0 failed in CI on a stale `sdk.ref`). A car-facing change not yet
+   tried in the car: say so (a kit first: manager-kit).
 2. **Version** `vX.Y.Z`, each part below 1000; the sequence
    `X*1000000+Y*1000+Z` must be above the last release's
    (`gh release list -R NBTFoundry/manager`). It is a pre-release while X is 0.
