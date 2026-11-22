@@ -51,15 +51,18 @@ network, which is why it is asked. `/etc` is not a mounted filesystem on this
 firmware (the car's `mount` lists none), so `/etc/inetd.conf` comes from the
 boot image: starting the services installs nothing.
 
-## What only the car can confirm
+## Checked in the car
 
-- That the running process manager accepts `RUN` for package 0: the services
-  appear in `pidin arg` (`/bin/inetd /etc/inetd.conf`, `sshd -i`, `/bin/qconn`)
-  and SSH and telnet accept the published password as root.
-- That nothing was written: `mount` still shows `/fs/sda0` read-only and no file
-  under `/var/opt/nbt-manager` changed (`ls -l` before and after).
-- That a restart closes it again: after the restart `pidin arg` has no `sshd`
-  and Tools can enable it again.
-- If the request is refused (`ERR ssh`), the fallback considered is the worker
-  starting `/bin/inetd /etc/inetd.conf` itself, which writes nothing either; it
-  is not implemented pending that result.
+Kit dev134 (2026-11-22): both tools work. The running process manager accepts
+`RUN` for package 0 and SSH opens as root with the published password, so the
+fallback considered (the worker starting `/bin/inetd /etc/inetd.conf` itself)
+is not needed and not implemented.
+
+On another firmware, check the same way:
+
+- the services appear in `pidin arg` (`/bin/inetd /etc/inetd.conf`, `sshd -i`,
+  `/bin/qconn`) and SSH and telnet accept the published password as root;
+- nothing was written: `mount` still shows `/fs/sda0` read-only and no file
+  under `/var/opt/nbt-manager` changed (`ls -l` before and after);
+- a restart closes it again: after the restart `pidin arg` has no `sshd` and
+  Tools can enable it again.
