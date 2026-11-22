@@ -141,10 +141,10 @@ package description is the repository's `release/package.args` (`tools/package.p
 is the secret `APPS_SIGNING_KEY` of the application repository's `release`
 environment and must be the pair of `release/apps-public.pem` here; the sign job
 takes `tools/package.py` from the called workflow's own commit, and the verify job
-checks the package with `nbt-verify` built from that commit. An application built without
-the QNX SDP passes `qnx: false`: its build runs on a plain runner with the SDK's
-own toolchain and never touches the private image. One whose build embeds Git LFS
-files (Doom's shareware data) also passes `lfs: true`.
+checks the package with `nbt-verify` built from that commit. By default the build
+runs on a plain runner with the SDK's own toolchain and never touches the private
+image; only a build that needs the QNX SDP passes `qnx: true` (none does today).
+One whose build embeds Git LFS files (Doom's shareware data) passes `lfs: true`.
 
 The desktop installer and target launcher enforce the manager signing key,
 release sequence, installation and rollback policies described below. A valid

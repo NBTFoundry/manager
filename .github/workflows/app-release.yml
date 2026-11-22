@@ -15,14 +15,15 @@
 #       secrets: inherit
 #       with:
 #         sdk-ref: <NBTFoundry/sdk commit>
-#         build: make qnx qnx-check
-#         payload: build/nbt-doom-qnx
+#         build: make -j"$(nproc)" guest
+#         payload: build/nbt-doom.guest
 #
-# An application built without the QNX SDP (a module or guest for nbt-runner,
-# bridge capability runner) sets qnx: false: its build runs on a plain runner
-# with the SDK's own toolchain (the job runs make -C ../sdk toolchain first),
-# and needs no access to the private QNX image. An application whose build needs
-# its Git LFS files (game data it embeds) sets lfs: true (with qnx: false).
+# By default the build runs on a plain runner with the SDK's own toolchain (the
+# job runs make -C ../sdk toolchain first): a module or guest for nbt-runner
+# (bridge capability runner), or a native program built with the toolchain's QNX
+# target. Only a build that needs the QNX SDP sets qnx: true, and then needs
+# access to the private QNX image. An application whose build needs its Git LFS
+# files (game data it embeds) sets lfs: true (not with qnx: true).
 #
 # The caller's release/package.args describes the package (tools/package.py @FILE).
 # The apps key comes from the caller's "release" environment (secret APPS_SIGNING_KEY,
@@ -58,9 +59,9 @@ on:
         type: string
         default: release/package.args
       qnx:
-        description: Build in the private QNX image; false for a module or guest built with the SDK's toolchain only
+        description: Build in the private QNX image (the QNX SDP); false (default) builds with the SDK's toolchain only
         type: boolean
-        default: true
+        default: false
       lfs:
         description: Fetch the application's Git LFS files for the build (with qnx false; the QNX image has no git-lfs)
         type: boolean
