@@ -7,8 +7,8 @@ description: Build an NBT Manager in-car test kit (Windows installer, signed man
 
 The kit, `nbt-manager-windows-kit-devN.zip` and its folder `nbt-manager-devN/`:
 the Windows installer (manager release and test app v1 inside), the phone APK,
-`phone/NBT-Manager-devN.nbtr` (to update from the phone), test app v2 and a
-broken v3, the same three versions run by nbt-runner (`test-runner-*.nbt`),
+`phone/NBT-Manager-devN.nbtr` (to update from the phone), test app v1, v2 and
+a broken v3, the same three versions run by nbt-runner (`test-runner-*.nbt`),
 the in-car procedure as `PROCEDURE.md`, the USB scripts.
 `tools/make_kit.py` and `tools/build_windows_kit.py` describe it.
 

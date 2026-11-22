@@ -4,7 +4,7 @@
 
 Produces dist/nbt-manager-windows-kit-<version>.zip (staged in build/windows-kit/):
 the Windows installer (manager release and test application v1 embedded),
-test application v2 and a deliberately broken v3 to upload from the phone,
+test application v1, v2 and a deliberately broken v3 to upload from the phone,
 the same three versions of the test application run by nbt-runner
 ("test-runner"), the controller settings example and the in-car procedure.
 
@@ -218,6 +218,9 @@ def main():
     for path, (app, version, sequence) in packages.items():
         package(app, version, sequence, app_private, path)
         run(BUILD / "nbt-verify", path, app_public, app, TEST_COMPAT, stdout=subprocess.DEVNULL)
+    # v1 for the phone too: a car set up once needs no laptop for the test
+    # application either (uninstalled, then installed again from the phone).
+    shutil.copy2(v1, kit / "phone/test-v1.nbt")
     embedded = dict(NBT_MANAGER_RELEASE=str(RELEASE / "manager.nbtr"), NBT_MANAGER_PUBLIC_KEY=str(manager_public),
                     NBT_TEST_APP_PACKAGE=str(v1), NBT_TEST_APP_KEY=str(app_public), NBT_TEST_APP_COMPAT=TEST_COMPAT)
     installer = options.installer.resolve()

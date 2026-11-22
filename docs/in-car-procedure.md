@@ -14,7 +14,7 @@ only while it installs or removes, then read-only again.
 ## What you need
 
 - This kit, unzipped on the laptop: `NBT-Manager-Installer.exe`,
-  `phone\NBT-Manager-0.1.0.apk`, `phone\test-v2.nbt`, `phone\test-v3-broken.nbt`,
+  `phone\NBT-Manager-0.1.0.apk`, `phone\test-v1.nbt` (the installer's), `phone\test-v2.nbt`, `phone\test-v3-broken.nbt`,
   `phone\test-runner-v1.nbt`, `phone\test-runner-v2.nbt`, `phone\test-runner-v3-broken.nbt`,
   `controller.conf.example`, `usb\car_inventory.sh` with `CAR-INVENTORY.md`
   (optional: collects head unit files for the bridge's car-data work),
