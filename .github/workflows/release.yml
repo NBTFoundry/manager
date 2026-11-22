@@ -67,6 +67,10 @@ jobs:
         run: |
           git config --global --add safe.directory '*'
           git -C sdk -c url.https://github.com/.insteadOf=git@github.com: submodule update --init --recursive --depth 1
+      # The test applications (qnx-check builds them) need no QNX SDP: the
+      # SDK's NBT toolchain release, checked against the SDK's SHA256SUMS.
+      - name: The SDK's NBT toolchain
+        run: make -C sdk toolchain
       - name: Version and sequence from the tag
         id: version
         run: |
