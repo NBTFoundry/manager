@@ -13,6 +13,13 @@
 #define NBT_SIGNATURE_SIZE 384u
 #define NBT_ID_MAX 48u
 #define NBT_VERSION_MAX 48u
+/* Information for people, shown before an install (PROTOCOL.md, "Package
+ * information"): "property=<label>|<value>" lines, then "text=<line>" lines. */
+#define NBT_PACKAGE_PROPERTIES_MAX 8u
+#define NBT_PACKAGE_PROPERTY_LABEL_MAX 24u
+#define NBT_PACKAGE_PROPERTY_VALUE_MAX 64u
+#define NBT_PACKAGE_TEXT_LINES_MAX 20u
+#define NBT_PACKAGE_TEXT_LINE_MAX 120u
 
 typedef struct {
     char app[NBT_ID_MAX + 1];
@@ -27,6 +34,10 @@ typedef struct {
     /* Optional "setting=" lines after sha256 (see nbt/settings.h). */
     nbt_settings settings;
     nbt_bridge_requirement bridge;
+    /* How many "property=" and "text=" lines follow the settings (checked,
+     * not kept: the car shows none of them). */
+    unsigned properties;
+    unsigned text_lines;
 } nbt_package;
 
 /* Reads the application id a package declares, without checking its

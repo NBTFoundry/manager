@@ -24,6 +24,39 @@ core::Status failure(const char *message) {
     return core::Status::error(EINVAL, message);
 }
 
+bool printable(const char *s, size_t length) {
+    for (size_t i = 0; i < length; ++i) {
+        if (s[i] < 0x20 || s[i] > 0x7e) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// 1-max printable ASCII characters without '|', and no space at either end.
+bool trimmedField(const char *s, size_t length, size_t max) {
+    return length && length <= max && printable(s, length) && !memchr(s, '|', length) &&
+           s[0] != ' ' && s[length - 1] != ' ';
+}
+
+// "<label>|<value>": a label of 1-24 and a value of 1-64 characters.
+bool propertyValid(const char *s) {
+    const char *bar = strchr(s, '|');
+    return bar && trimmedField(s, static_cast<size_t>(bar - s), NBT_PACKAGE_PROPERTY_LABEL_MAX) &&
+           trimmedField(bar + 1, strlen(bar + 1), NBT_PACKAGE_PROPERTY_VALUE_MAX);
+}
+
+// 0-120 printable ASCII characters (an empty line separates paragraphs).
+bool textValid(const char *s) {
+    const size_t length = strlen(s);
+    return length <= NBT_PACKAGE_TEXT_LINE_MAX && printable(s, length);
+}
+
+bool nextIs(const char *p, const char *name) {
+    const size_t size = strlen(name);
+    return !strncmp(p, name, size) && p[size] == '=';
+}
+
 core::Result<nbt_package> parseManifest(char *manifest, uint64_t payloadSize) {
     nbt_package out;
     memset(&out, 0, sizeof(out));
@@ -68,11 +101,25 @@ core::Result<nbt_package> parseManifest(char *manifest, uint64_t payloadSize) {
         nbt_bridge_requirement_parse(&p, "", &out.bridge)) {
         return core::Result<nbt_package>::failure(failure("invalid manifest"));
     }
-    while (*p) {
+    while (*p && nextIs(p, "setting")) {
         s = nbt_field(&p, "setting");
         if (!s || nbt_settings_add(&out.settings, s)) {
             return core::Result<nbt_package>::failure(failure("invalid manifest"));
         }
+    }
+    while (*p && nextIs(p, "property")) {
+        s = nbt_field(&p, "property");
+        if (!s || out.properties == NBT_PACKAGE_PROPERTIES_MAX || !propertyValid(s)) {
+            return core::Result<nbt_package>::failure(failure("invalid manifest"));
+        }
+        ++out.properties;
+    }
+    while (*p) {
+        s = nbt_field(&p, "text");
+        if (!s || out.text_lines == NBT_PACKAGE_TEXT_LINES_MAX || !textValid(s)) {
+            return core::Result<nbt_package>::failure(failure("invalid manifest"));
+        }
+        ++out.text_lines;
     }
     return core::Result<nbt_package>::success(out);
 }

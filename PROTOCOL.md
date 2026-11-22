@@ -317,6 +317,28 @@ or a files reason (`quota`, `space`, `count`, `size`, `type`, `name`,
 `+autostart` or `+autostart-paused`, "Autostart") for
 an application granted `files`.
 
+## Package information
+
+A package may carry information for people, shown before it is installed
+(the phone app shows it with the package; the car shows none of it), in
+signed manifest lines after its settings: first up to eight properties, then
+up to twenty lines of text.
+
+```
+property=<label>|<value>
+text=<line>
+```
+
+A label is 1-24 and a value 1-64 printable ASCII characters other than `|`,
+neither starting nor ending with a space (`property=Upstream|1.9.117`). A
+text line is 0-120 printable ASCII characters; an empty one separates
+paragraphs. Nothing reads them as instructions: they select no path, grant
+nothing and are not stored on the car. They count towards the manifest's 2048
+bytes. Any other line, or a malformed or misplaced one, makes the manifest
+invalid; workers older than this format reject packages that carry them.
+`tools/package.py --property '<label>|<value>'` and `--text '<line>'`
+(`--text=` for an empty line) add them (repeatable).
+
 ## Application settings
 
 A package may declare up to twelve settings, each a choice among a few values, with optional manifest lines after `sha256` and any bridge declaration:

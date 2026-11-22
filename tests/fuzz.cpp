@@ -364,6 +364,8 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
     case PackageManifest:
         addSeed(&out, packageManifest());
         addSeed(&out, "app=test\n");
+        addSeed(&out, packageManifest() +
+                          "setting=a|A|x|x,y\nproperty=Upstream|1.9.117\ntext=About.\ntext=\n");
         break;
     case ReleaseManifest: {
         addSeed(&out, releaseManifest());

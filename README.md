@@ -220,7 +220,9 @@ build/nbt-verify test-v1.nbt apps-public.pem test demo-1
 `--setting 'background|Background color|blue|blue,red,green,black'` declares a
 setting; `--bridge`, `--bridge-uses` and `--bridge-optional` declare bridge
 capabilities ([PROTOCOL.md](PROTOCOL.md)), `--bridge-files` the files an
-application accepts ([docs/files-bridge.md](docs/files-bridge.md)). Sequences must increase; an older
+application accepts ([docs/files-bridge.md](docs/files-bridge.md)), and `--property 'Upstream|1.9.117'`
+and `--text '<line>'` information the phone app shows before an install
+([PROTOCOL.md](PROTOCOL.md), "Package information"). Sequences must increase; an older
 signed release needs the explicit recovery operation. Applications built with
 `NBTFoundry/sdk` get the lifecycle contract, bridge channels, display and audio.
 

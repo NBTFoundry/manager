@@ -20,6 +20,10 @@ VERSION = re.compile(r"[A-Za-z0-9_.-]{1,48}\Z")
 SETTING_KEY = re.compile(r"[a-z][a-z0-9_]{0,15}\Z")
 SETTING_LABEL = re.compile(r"[ -{}~]{1,24}\Z")
 SETTING_CHOICE = re.compile(r"[a-z0-9_-]{1,12}\Z")
+# Information for people (PROTOCOL.md, "Package information"): printable ASCII.
+PROPERTY_LABEL = re.compile(r"[ -{}~]{1,24}\Z")
+PROPERTY_VALUE = re.compile(r"[ -{}~]{1,64}\Z")
+TEXT_LINE = re.compile(r"[ -~]{0,120}\Z")
 
 
 def file_argument(line):
@@ -89,6 +93,10 @@ def main():
                         help="car-data policy, required with capability car-data: name.name,name.name")
     parser.add_argument("--bridge-net", default="",
                         help="network policy, required with capability net: tcp:<port>@uap0+wfd0,...")
+    parser.add_argument("--property", action="append", default=[],
+                        help="information shown before an install: label|value (at most 8)")
+    parser.add_argument("--text", action="append", default=[],
+                        help="a line of text shown before an install (at most 20; empty separates paragraphs)")
     parser.add_argument("executable", type=Path)
     args = parser.parse_args()
     if not APP_TOKEN.fullmatch(args.app) or not TOKEN.fullmatch(args.compat):
@@ -112,6 +120,15 @@ def main():
                 not all(SETTING_CHOICE.fullmatch(c) for c in choices) or parts[2] not in choices):
             parser.error(f"invalid setting: {setting}")
         keys.add(parts[0])
+    if len(args.property) > 8:
+        parser.error("at most 8 properties")
+    for prop in args.property:
+        label, bar, value = prop.partition("|")
+        if (not bar or not PROPERTY_LABEL.fullmatch(label) or not PROPERTY_VALUE.fullmatch(value) or
+                label != label.strip() or value != value.strip()):
+            parser.error(f"invalid property: {prop}")
+    if len(args.text) > 20 or not all(TEXT_LINE.fullmatch(line) for line in args.text):
+        parser.error("text: at most 20 lines of at most 120 printable ASCII characters")
     if args.output.exists():
         parser.error("output already exists")
 
@@ -149,7 +166,9 @@ def main():
                     f"version={args.version}\nsequence={args.sequence}\n"
                     f"platform=qnx6.5-armv7le\ncompat={args.compat}\n"
                     f"size={size}\nsha256={digest.hexdigest()}\n" + bridge_text +
-                    "".join(f"setting={setting}\n" for setting in args.setting)).encode("ascii")
+                    "".join(f"setting={setting}\n" for setting in args.setting) +
+                    "".join(f"property={prop}\n" for prop in args.property) +
+                    "".join(f"text={line}\n" for line in args.text)).encode("ascii")
         if len(manifest) > 2048:
             parser.error("manifest exceeds 2048 bytes")
         header = struct.pack(">8sIIQ", b"NBTMGR1\n", len(manifest), 384, size)
