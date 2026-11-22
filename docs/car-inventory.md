@@ -111,7 +111,9 @@ consists of, which decides whether SSH can be turned on while iDrive does not
 start. SSH is
 turned on by a diagnostic job relayed through the car's gateway (port 6801 is
 the gateway's, not the head unit's: `NBTFoundry/installer:
-core/src/activation.rs`). No ssh keys are copied.
+core/src/activation.rs`), or by the manager's Tools menu, which asks the head
+unit's process manager to run the `OPT_DEBUG` package itself and writes nothing
+([system-tools.md](system-tools.md)). No ssh keys are copied.
 
 `sloginfo.txt` holds only the last few minutes (the system log is a 1 MB ring
 buffer, mostly video decoder messages): run the script right after the event

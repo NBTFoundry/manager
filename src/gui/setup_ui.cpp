@@ -14,6 +14,7 @@
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/shortcut_ui.hpp"
+#include "nbt/gui/tools_ui.hpp"
 #include "nbt/log.h"
 #include <stdio.h>
 #include <string.h>
@@ -29,9 +30,15 @@ bool setupPress(UiController &ui, Key key) {
         return false;
     }
     if (key == KeyBack || ui.focus == 0) {
-        ui.go(Apps);
+        if (ui.restartFromTools) { // Settings > Tools: back to the menu it came from
+            ui.restartFromTools = 0;
+            ui.go(Tools);
+            ui.focus = kToolRestart;
+        } else {
+            ui.go(Apps);
+        }
     } else {
-        ui.queued = R_IDRIVE_RESTART;
+        ui.queued = R_IDRIVE_RESTART; // restartFromTools stays for the view and the result
     }
     return true;
 }
@@ -54,12 +61,18 @@ int setupReply(UiController &ui, int kind, const char *reply, uint64_t now) {
         return filesReply(ui, kind, reply, now);
     }
     if (kind == R_IDRIVE_RESTART) {
+        /* Titled Tools only when asked from there; after a plugin update it
+         * stays an installation's result. */
+        const int resultKind = ui.restartFromTools ? R_IDRIVE_RESTART : 0;
         if (!strcmp(reply, "OK")) {
-            ui.showResult(text(T_RESTARTING), text(T_WHOLE_SYSTEM_RESTARTS));
+            ui.showResult(text(T_RESTARTING), text(T_WHOLE_SYSTEM_RESTARTS), resultKind);
         } else {
-            ui.showResult(text(T_CANNOT_RESTART), text(T_SWITCH_OFF_ON));
+            ui.showResult(text(T_CANNOT_RESTART), text(T_SWITCH_OFF_ON), resultKind);
         }
         return 0;
+    }
+    if (kind == R_SSH_ENABLE) {
+        return toolsReply(ui, kind, reply);
     }
     if (kind == R_LANGUAGE) {
         return languageReply(ui, reply);
@@ -99,10 +112,12 @@ int setupReply(UiController &ui, int kind, const char *reply, uint64_t now) {
     return 0;
 }
 
-void setupView(UiView &v) {
+void setupView(const UiController &ui, UiView &v) {
     textf(v.title, sizeof(v.title), T_RESTART_QUESTION);
-    textf(v.lines[v.lineCount++], sizeof(v.lines[0]), T_ENTRY_UPDATED);
-    textf(v.lines[v.lineCount++], sizeof(v.lines[0]), T_LOADS_ON_RESTART);
+    if (!ui.restartFromTools) { // Tools asks without the plugin update's lines
+        textf(v.lines[v.lineCount++], sizeof(v.lines[0]), T_ENTRY_UPDATED);
+        textf(v.lines[v.lineCount++], sizeof(v.lines[0]), T_LOADS_ON_RESTART);
+    }
     textf(v.lines[v.lineCount++], sizeof(v.lines[0]), T_RESTART_LIKE_OFF_ON);
     textf(v.items[v.itemCount++], sizeof(v.items[0]), T_LATER);
     textf(v.items[v.itemCount++], sizeof(v.items[0]), T_RESTART_HEAD_UNIT);

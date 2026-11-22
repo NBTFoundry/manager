@@ -297,8 +297,14 @@ core::Status IpcDispatcher::dispatch(char *line, uint64_t nowMs) {
     if (!strcmp(name, "APPROVE")) {
         return handleApprove(cursor, nowMs);
     }
-    if (!strcmp(name, "SETUP") || !strcmp(name, "IDRIVE")) {
-        return handleSystem(name[0] == 'S', cursor);
+    if (!strcmp(name, "SETUP")) {
+        return handleSystem(true, cursor);
+    }
+    if (!strcmp(name, "IDRIVE")) {
+        return handleSystem(false, cursor);
+    }
+    if (!strcmp(name, "SSH")) {
+        return handleSsh(cursor);
     }
     return control_.respond("ERR invalid-command\n");
 }

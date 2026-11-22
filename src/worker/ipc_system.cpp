@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
-/* SETUP and IDRIVE RESTART: the GUI's two requests about the manager's own
- * installation (PROTOCOL.md). SETUP brings the stable launcher and the iDrive
- * plugin to the confirmed release; IDRIVE RESTART, sent only after the driver
- * chose it on the car, restarts iDrive so that it loads a replaced plugin. */
+/* SETUP, IDRIVE RESTART and SSH ENABLE: the GUI's requests about the manager's
+ * own installation and the head unit (PROTOCOL.md). SETUP brings the stable
+ * launcher and the iDrive plugin to the confirmed release; IDRIVE RESTART, sent
+ * only after the driver chose it on the car, restarts iDrive so that it loads a
+ * replaced plugin; SSH ENABLE starts the head unit's sshd, telnetd and qconn as
+ * root until the next restart (docs/system-tools.md). */
 #include "nbt/autostart.h"
 #include "nbt/capture/protocol.h"
 #include "nbt/fs.h"
@@ -77,6 +79,13 @@ core::Status IpcDispatcher::handleSystem(bool setup, const char *cursor) {
     }
     setupPending_ = true;
     return core::Status();
+}
+
+core::Status IpcDispatcher::handleSsh(const char *cursor) {
+    if (!cursor || strcmp(cursor, "ENABLE")) {
+        return control_.respond("ERR invalid-command\n");
+    }
+    return control_.respond(nbt_system_enable_ssh() ? "ERR ssh\n" : "OK\n");
 }
 
 core::Status IpcDispatcher::finishSetup() {

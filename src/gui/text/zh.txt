@@ -32,6 +32,7 @@ uninstall_app = 卸载 {1}
 pair_phone = 配对手机
 paired_phones = 已配对的手机
 status = 状态
+tools = 工具
 back = 返回
 setting_debug_log = 调试日志
 setting_invert = 反转旋钮
@@ -195,6 +196,14 @@ loads_on_restart = 主机重启后加载
 restart_like_off_on = 整个系统将重启，如同车辆熄火后重新启动
 later = 稍后
 restart_head_unit = 重启主机
+
+# Tools: enabling SSH (tools_ui.cpp)
+enable_ssh = 启用 SSH
+ssh_question = 启用 SSH？
+ssh_runs = SSH、Telnet 和 qconn 以 root 在车辆网络上开放
+ssh_until_restart = 保持开启直到主机重启
+ssh_enabled = SSH 已启用
+cannot_enable_ssh = 无法启用 SSH
 
 # Settings > Status and the gamepad test
 gamepad_test = 手柄测试

@@ -31,6 +31,7 @@ uninstall_app = {1} deinstallieren
 pair_phone = Telefon koppeln
 paired_phones = Gekoppelte Telefone
 status = Status
+tools = Werkzeuge
 back = Zurück
 setting_debug_log = Debug-Protokoll
 setting_invert = Drehknopf umkehren
@@ -194,6 +195,14 @@ loads_on_restart = Er wird beim Neustart der Headunit geladen
 restart_like_off_on = Das gesamte System startet neu, wie bei Fahrzeug aus/ein
 later = Später
 restart_head_unit = Headunit neu starten
+
+# Tools: enabling SSH (tools_ui.cpp)
+enable_ssh = SSH aktivieren
+ssh_question = SSH aktivieren?
+ssh_runs = SSH, Telnet und qconn öffnen als root im Fahrzeugnetz
+ssh_until_restart = Aktiv bis zum Neustart der Headunit
+ssh_enabled = SSH aktiviert
+cannot_enable_ssh = SSH kann nicht aktiviert werden
 
 # Settings > Status and the gamepad test
 gamepad_test = Gamepad-Test

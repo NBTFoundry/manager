@@ -14,7 +14,7 @@ bool setupNow(const UiController &ui, uint64_t nowMs);
 bool setupPress(UiController &ui, Key key);
 bool setupRequest(int kind, Request &request);
 int setupReply(UiController &ui, int kind, const char *reply, uint64_t now);
-void setupView(UiView &view);
+void setupView(const UiController &ui, UiView &view);
 } // namespace gui
 } // namespace nbt
 #endif

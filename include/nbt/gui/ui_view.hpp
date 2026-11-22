@@ -50,6 +50,8 @@ enum Screen {
     Files,        // an application's files (files_ui.hpp)
     FileDelete,   // Delete <file>?
     UsbFiles,     // its files on USB sticks
+    Tools,        // Settings > Tools (tools_ui.hpp): restart the head unit, enable SSH
+    SshConfirm,   // Enable SSH?
 };
 enum Key { KeyUp, KeyDown, KeySelect, KeyBack, KeyOption };
 enum ItemStyle { ItemEntry, ItemAction };

@@ -31,6 +31,7 @@ uninstall_app = Disinstalla {1}
 pair_phone = Associa un telefono
 paired_phones = Telefoni associati
 status = Stato
+tools = Strumenti
 back = Indietro
 setting_debug_log = Log di debug
 setting_invert = Inverti la manopola
@@ -194,6 +195,14 @@ loads_on_restart = Si carica al riavvio dell'unità principale
 restart_like_off_on = L'intero sistema si riavvia, come spegnendo e riaccendendo l'auto
 later = Più tardi
 restart_head_unit = Riavvia l'unità principale
+
+# Tools: enabling SSH (tools_ui.cpp)
+enable_ssh = Attiva SSH
+ssh_question = Attivare SSH?
+ssh_runs = SSH, Telnet e qconn si aprono come root sulla rete dell'auto
+ssh_until_restart = Attivo fino al riavvio dell'unità principale
+ssh_enabled = SSH attivato
+cannot_enable_ssh = Impossibile attivare SSH
 
 # Settings > Status and the gamepad test
 gamepad_test = Test del gamepad

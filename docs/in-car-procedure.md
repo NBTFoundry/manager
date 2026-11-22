@@ -280,7 +280,7 @@ link or token. Do not join the car's Wi-Fi from Android's Wi-Fi settings;
 the app joins it by itself, as a local-only network, and mobile data stays on.
 
 1. In the manager choose **Settings**: after the settings come **Pair a phone**,
-   **Paired phones** and **Status**.
+   **Paired phones**, **Status** and **Tools**.
 2. Push on **Pair a phone**. A Wi-Fi code shows with "Scan this Wi-Fi code in NBT
    Manager", "Confirm the matching digits here" and "Closes in 60 s". The
    password is never shown as text.

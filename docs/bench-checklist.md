@@ -264,3 +264,16 @@ Record byte order, offsets, invalid sentinels, scaling and enum values only
 where captures establish them. Add the private capture reference and change
 `car_confirmed` only for individually checked rows. Only these observations
 can settle A1, A3 and B4; a host test or a QNX build cannot.
+
+## 12. Tools
+
+Settings > Tools, after Status. Record `mount`, `pidin arg` and `ls -lR
+/var/opt/nbt-manager` before and after.
+
+| Action | Expected |
+| --- | --- |
+| Tools, Restart head unit | The question says the whole system restarts; BACK or Later returns to Tools on that entry; Restart head unit restarts the head unit, the debug log notes `restarting the head unit (OnOffDSICommander appreset)`, and the manager opens again with iDrive |
+| Tools, Enable SSH, No | Back on Tools, on Enable SSH; nothing started |
+| Tools, Enable SSH, Enable SSH | "SSH enabled" over "On until the head unit restarts"; the debug log notes `ssh enabled (OPT_DEBUG runs) until the head unit restarts` |
+| SSH and telnet to the head unit as root | `pidin arg` lists `/bin/inetd /etc/inetd.conf`, `sshd -i` and `/bin/qconn`; `mount` still shows `/fs/sda0` read-only; no file under `/var/opt/nbt-manager` changed |
+| Restart the head unit | `pidin arg` has no `sshd`; Tools, Enable SSH enables it again |

@@ -63,10 +63,11 @@ enum RequestKind {
     R_PHONE_FORGET,
     R_SETUP, // after R_PHONE_*: replies go through phoneReply, then setupReply
     R_IDRIVE_RESTART,
-    R_LANGUAGE,  // SET manager language: languageReply, after setupReply
-    R_AUTOSTART, // AUTOSTART <app> on|off: autostartReply (autostart_ui.hpp), after setupReply
-    R_SHORTCUT,  // SET manager shortcut<n>: shortcutReply (shortcut_ui.hpp), after setupReply
-    R_FILES,     // FILES: filesReply (files_ui.hpp), after setupReply
+    R_SSH_ENABLE, // SSH ENABLE: toolsReply starts sshd, telnetd and qconn until a restart
+    R_LANGUAGE,   // SET manager language: languageReply, after setupReply
+    R_AUTOSTART,  // AUTOSTART <app> on|off: autostartReply (autostart_ui.hpp), after setupReply
+    R_SHORTCUT,   // SET manager shortcut<n>: shortcutReply (shortcut_ui.hpp), after setupReply
+    R_FILES,      // FILES: filesReply (files_ui.hpp), after setupReply
     R_FILES_DELETE,
     R_FILES_SCAN,
     R_FILES_USB,
@@ -74,7 +75,14 @@ enum RequestKind {
 };
 
 /* The manager's Settings list: its declared settings, then these. */
-enum ManagerEntry { EntryLanguage, EntryPair, EntryPhones, EntryStatus, kManagerEntries };
+enum ManagerEntry {
+    EntryLanguage,
+    EntryPair,
+    EntryPhones,
+    EntryStatus,
+    EntryTools, // the Tools menu (tools_ui.hpp): restart the head unit, enable SSH
+    kManagerEntries
+};
 
 class WorkerChannel;
 
@@ -200,7 +208,7 @@ public:
     }
     void leaveSettings();
     void leaveSession(const char *msg);
-    void showResult(const char *msg, const char *detailText);
+    void showResult(const char *msg, const char *detailText, int resultKind = 0);
     void fail(int isFatal, const char *msg);
     size_t itemCount() const;
     bool inputBusy() const;
@@ -264,6 +272,8 @@ public:
     int setupDue = 1;       // SETUP once the list shows; again while an update is on trial
     uint64_t setupAtMs = 0; // not before
     uint64_t trialSinceMs = 0; // this manager runs on trial since (SETUP "trial"), 0: not
+    int restartFromTools = 0;  // the restart confirmation came from Tools (tools_ui.hpp)
+    int resultKind = 0;        // the Tools request whose result the Result screen shows, else 0
     int faultStop = 0;
     char quarantinedApp[kIdMax + 1] = {};
     char stopNote[kTextMax + 1] = {};          // "Stopping <app>" while that is the message shown

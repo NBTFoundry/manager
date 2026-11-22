@@ -6,6 +6,7 @@
 #include "nbt/gui/menu_keys.hpp"
 #include "nbt/gui/phone_ui.hpp"
 #include "nbt/gui/shortcut_ui.hpp"
+#include "nbt/gui/tools_ui.hpp"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -153,6 +154,7 @@ void buildSettings(const UiController &ui, UiView *v) {
         addAction(v, text(T_PAIR_PHONE));
         addAction(v, text(T_PAIRED_PHONES));
         addAction(v, text(T_STATUS)); // status_page.hpp
+        addAction(v, text(T_TOOLS));  // tools_ui.hpp
     } else {
         if (ui.filesEntry()) { // its files, before Uninstall (filesItem)
             addAction(v, text(T_FILES));
@@ -291,6 +293,10 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
     case GamepadTest:
         statusView(ui, v);
         break;
+    case Tools:
+    case SshConfirm:
+        toolsView(ui, v);
+        break;
     case Review:
     case Confirm:
         buildReviewConfirm(ui, &v);
@@ -306,7 +312,10 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
         break;
     case Result:
     case Error:
-        textf(v.title, sizeof(v.title), ui.screen == Result ? T_INSTALL_OR_UPDATE : T_ERROR);
+        textf(v.title, sizeof(v.title),
+              ui.screen == Error ? T_ERROR
+              : ui.resultKind    ? T_TOOLS
+                                 : T_INSTALL_OR_UPDATE);
         addLine(&v, ui.message);
         addWrapped(&v, ui.detail);
         addItem(&v, text(ui.screen == Result ? T_OK : (ui.fatal ? T_CLOSE : T_RETRY)));

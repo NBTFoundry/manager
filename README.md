@@ -60,6 +60,9 @@ BMW AG.
   failed starts pause that until it is started by hand.
 - **Diagnostics.** A per-application log and a debug log, readable from the
   phone, and a Settings → Status page with a live gamepad test.
+- **Tools.** Settings → Tools restarts the head unit, and enables SSH, telnet
+  and qconn as root until the next restart — the same access an SSH unlock
+  gives, without writing anything ([docs/system-tools.md](docs/system-tools.md)).
 - **Languages.** English, French, German, Italian, Spanish, Chinese
   (Simplified) and Japanese. Automatic follows iDrive's language, English
   for any other; Settings → Language chooses one. Texts are in
@@ -280,6 +283,7 @@ link.
 | [docs/controller-input.md](docs/controller-input.md) | The iDrive controller and iDrive's focus hold |
 | [docs/input-capture.md](docs/input-capture.md) | The capture shim inside iDrive |
 | [docs/hmi-restart.md](docs/hmi-restart.md) | iDrive's start and how the shim is loaded and kept |
+| [docs/system-tools.md](docs/system-tools.md) | Settings → Tools: restarting the head unit, enabling SSH |
 | [docs/install-flow.md](docs/install-flow.md) | Installing and updating the manager; the launcher; recovery |
 | [docs/manager-release.md](docs/manager-release.md) | Release format, slots and updates |
 | [docs/phone-access.md](docs/phone-access.md) | Pairing and signed phone requests |

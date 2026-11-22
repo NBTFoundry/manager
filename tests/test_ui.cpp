@@ -324,10 +324,12 @@ static void test_main_menu_and_banner(void) {
     v = view(&ui);
     CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "Settings") &&
           !strcmp(v.items[0], "Debug log: off"));
-    CHECK(v.itemCount == 7 && !strcmp(v.items[3], "Language: Automatic (English)") &&
+    CHECK(v.itemCount == 8 && !strcmp(v.items[3], "Language: Automatic (English)") &&
           !strcmp(v.items[4], "Pair a phone") && !strcmp(v.items[5], "Paired phones") &&
-          !strcmp(v.items[6], "Status") && !view_contains(&ui, "Stop"));
-    CHECK(v.itemStyle[3] == nbt::gui::ItemEntry && v.itemStyle[6] == nbt::gui::ItemAction);
+          !strcmp(v.items[6], "Status") && !strcmp(v.items[7], "Tools") &&
+          !view_contains(&ui, "Stop"));
+    CHECK(v.itemStyle[3] == nbt::gui::ItemEntry && v.itemStyle[6] == nbt::gui::ItemAction &&
+          v.itemStyle[7] == nbt::gui::ItemAction);
     press(&ui, nbt::gui::KeyBack, 1);
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 3);
     exchange(&ui, "RUNNING status", "RUNNING\t0"); /* the running state is asked again */
@@ -347,7 +349,10 @@ static void test_status_page(void) {
     for (unsigned i = 0; i < 6; ++i) {
         press(&ui, nbt::gui::KeyDown, 1);
     }
-    press(&ui, nbt::gui::KeyDown, 0); // Status is the last item
+    /* Status is followed by Tools (tools_ui.hpp). */
+    press(&ui, nbt::gui::KeyDown, 1);
+    CHECK(ui.focus == ui.managerEntry(nbt::gui::EntryTools));
+    press(&ui, nbt::gui::KeyUp, 1);
     nbt::gui::StatusFacts &f = ui.facts;
     strcpy(f.keys, "Keys: kept from iDrive");
     strcpy(f.controller, "iDrive controller: read over MOST");
@@ -746,7 +751,7 @@ static void test_uninstall(void) {
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
-    CHECK(view(&ui).itemCount == 7 && !view_contains(&ui, "Uninstall"));
+    CHECK(view(&ui).itemCount == 8 && !view_contains(&ui, "Uninstall"));
 }
 
 static void test_stop_failures(void) {
@@ -1011,8 +1016,85 @@ static void test_setup_and_idrive_restart(void) {
     CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "IDRIVE RESTART"));
     CHECK(ui.reply("OK", now) == 0 && ui.screen == nbt::gui::Result &&
           view_contains(&ui, "Restarting the head unit"));
+    CHECK(!strcmp(view(&ui).title, "Install or update")); /* not Tools (tools_ui.hpp) */
     /* Checked once per opening, apart from the retries during a trial. */
     CHECK(!ui.setupDue);
+}
+
+/* Settings > Tools: restart the head unit, which asks first and sends the
+ * existing IDRIVE RESTART, and Enable SSH, which asks and sends SSH ENABLE
+ * (tools_ui.hpp). Both come back to Tools. */
+static void test_tools_menu(void) {
+    UiController ui;
+    Request request;
+    loaded(&ui, "APPS\t1\tdemo", "RUNNING\t0");
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
+    CHECK(ui.managerEntry(nbt::gui::EntryTools) == 7); // after Status
+    ui.focus = ui.managerEntry(nbt::gui::EntryTools);
+    press(&ui, nbt::gui::KeySelect, 1);
+    UiView v = view(&ui);
+    CHECK(ui.screen == nbt::gui::Tools && !strcmp(v.title, "Tools") && v.itemCount == 2 &&
+          !strcmp(v.items[0], "Restart head unit") && !strcmp(v.items[1], "Enable SSH"));
+    CHECK(v.itemStyle[0] == nbt::gui::ItemAction && v.itemStyle[1] == nbt::gui::ItemAction);
+    CHECK(!strcmp(nbt::gui::screenName(ui.screen), "tools"));
+    /* BACK returns to Settings, on Tools. */
+    press(&ui, nbt::gui::KeyBack, 1);
+    CHECK(ui.screen == nbt::gui::Settings && ui.focus == ui.managerEntry(nbt::gui::EntryTools));
+    /* Restart asks first, without the plugin update's lines, and Later comes back. */
+    press(&ui, nbt::gui::KeySelect, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    v = view(&ui);
+    CHECK(ui.screen == nbt::gui::RestartIdrive && !strcmp(v.title, "Restart head unit?") &&
+          v.focus == 0 && v.itemCount == 2 && !strcmp(v.items[0], "Later") &&
+          !strcmp(v.items[1], "Restart head unit"));
+    CHECK(v.lineCount == 1 && !strcmp(v.lines[0], "The whole system restarts, as car off/on"));
+    press(&ui, nbt::gui::KeySelect, 1); /* Later */
+    CHECK(ui.screen == nbt::gui::Tools && ui.focus == 0 && !ui.queued);
+    /* Restart head unit sends the one restart request, the whole system's. */
+    press(&ui, nbt::gui::KeySelect, 1);
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "IDRIVE RESTART"));
+    /* While it runs, the question keeps the Tools wording. */
+    CHECK(ui.screen == nbt::gui::RestartIdrive && view(&ui).lineCount == 1);
+    CHECK(ui.reply("OK", now) == 0 && ui.screen == nbt::gui::Result &&
+          !strcmp(view(&ui).title, "Tools") && view_contains(&ui, "Restarting the head unit"));
+    CHECK(!ui.restartFromTools);
+    /* Back to the list, then Settings > Tools > Enable SSH: asked first. */
+    press(&ui, nbt::gui::KeySelect, 1); /* OK */
+    exchange(&ui, "LIST", "APPS\t1\tdemo");
+    exchange(&ui, "RUNNING status", "RUNNING\t0");
+    CHECK(ui.screen == nbt::gui::Apps && ui.focus == 1); /* Settings, as after the result */
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
+    ui.focus = ui.managerEntry(nbt::gui::EntryTools);
+    press(&ui, nbt::gui::KeySelect, 1);
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    v = view(&ui);
+    CHECK(ui.screen == nbt::gui::SshConfirm && !strcmp(v.title, "Enable SSH?") && v.focus == 0 &&
+          !strcmp(v.items[0], "No") && !strcmp(v.items[1], "Enable SSH"));
+    CHECK(view_contains(&ui, "SSH, Telnet and qconn open as root to the car's network") &&
+          view_contains(&ui, "On until the head unit restarts"));
+    CHECK(!strcmp(nbt::gui::screenName(ui.screen), "ssh-confirm"));
+    press(&ui, nbt::gui::KeySelect, 1); /* No */
+    CHECK(ui.screen == nbt::gui::Tools && ui.focus == 1 && !ui.queued);
+    press(&ui, nbt::gui::KeySelect, 1);
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "SSH ENABLE"));
+    CHECK(ui.reply("OK", now) == 0 && ui.screen == nbt::gui::Result &&
+          !strcmp(view(&ui).title, "Tools") && view_contains(&ui, "SSH enabled") &&
+          view_contains(&ui, "On until the head unit restarts"));
+    /* A refusal says so. */
+    ui.go(nbt::gui::SshConfirm);
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "SSH ENABLE"));
+    CHECK(ui.reply("ERR ssh", now) == 0 && ui.screen == nbt::gui::Result &&
+          view_contains(&ui, "Cannot enable SSH"));
 }
 
 /* A manager update from a phone: named, no "Install, even if older". */
@@ -1276,7 +1358,7 @@ static void test_app_settings(void) {
     CHECK(!view_contains(&ui, "Cannot read"));
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
     v = view(&ui);
-    CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "Settings") && v.itemCount == 7);
+    CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "Settings") && v.itemCount == 8);
     CHECK(!strcmp(v.items[0], "Debug log: off") &&
           !strcmp(v.items[2], "Hand back controller: off"));
     CHECK(view_contains(&ui, "Changes apply when the manager next opens"));
@@ -1298,9 +1380,9 @@ static void test_app_settings(void) {
     exchange(&ui, "RUNNING status", "RUNNING\t0");
     /* Without applications, Settings still has the manager's. */
     loaded(&ui, "APPS\t0", "RUNNING\t0");
-    press(&ui, nbt::gui::KeySelect, 1); /* Settings is the only item */
+    press(&ui, nbt::gui::KeySelect, 1); /* Settings comes first */
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
-    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 7);
+    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 8);
     /* Full declarations exceed the old 1024-byte limit; all twelve settings
      * remain navigable, followed by Stop and Uninstall for a running app. */
     {
@@ -1873,6 +1955,7 @@ int main(void) {
     test_pairing_exits();
     test_pairing_timeout();
     test_setup_and_idrive_restart();
+    test_tools_menu();
     test_manager_update_review();
     test_pairing_wifi();
     test_malformed_replies();

@@ -42,6 +42,9 @@ void UiController::go(Screen nextScreen) {
         nextScreen != Waiting) {
         clearSecrets();
     }
+    if (nextScreen != RestartIdrive) {
+        restartFromTools = 0; // the restart asks from Tools otherwise (tools_ui.hpp)
+    }
     screen = nextScreen;
     focus = 0;
     holding = 0;
@@ -80,7 +83,8 @@ bool UiController::stopEntry() const {
 }
 
 void UiController::leaveSettings() {
-    const size_t i = managerSettings() ? appCount : appIndex(settingsApp); // Settings is last
+    const size_t i =
+        managerSettings() ? appCount : appIndex(settingsApp); // Settings follows the apps
     mainMenu(i <= appCount ? i : 0);
     message[0] = 0;
 }
@@ -91,8 +95,9 @@ void UiController::leaveSession(const char *msg) {
     ViewBuilder::formatText(message, sizeof(message), "%s", msg);
 }
 
-void UiController::showResult(const char *msg, const char *detailText) {
+void UiController::showResult(const char *msg, const char *detailText, int kind) {
     go(Result);
+    resultKind = kind;
     ViewBuilder::formatText(message, sizeof(message), "%s", msg);
     ViewBuilder::formatText(detail, sizeof(detail), "%s", detailText ? detailText : "");
 }
@@ -126,12 +131,14 @@ size_t UiController::itemCount() const {
     case Error:
     case Status: // Test the gamepad
         return 1;
+    case Tools: // Restart head unit, Enable SSH
     case Waiting:
     case PhoneConfirm:
     case PhoneForget:
     case RestartIdrive:
     case Confirm:
     case Uninstall:
+    case SshConfirm:
         return 2;
     case Phones:
         return phoneCount + 1;
@@ -181,6 +188,8 @@ core::Status UiController::init(const char *interfaceValue, unsigned portNumber)
     fatal = 0;
     exitRequested = 0;
     handover = 0;
+    restartFromTools = 0;
+    resultKind = 0;
     nextPollMs = 0;
     pairingDeadlineMs = 0;
     pairingLeftS = 0;

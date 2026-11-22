@@ -18,7 +18,7 @@ void item(UiView &v, TextId id) {
 } // namespace
 void phoneView(const UiController &ui, UiView &v) {
     if (ui.screen == RestartIdrive) {
-        setupView(v);
+        setupView(ui, v);
     } else if (ui.screen == Pairing) {
         char seconds[12];
         snprintf(seconds, sizeof(seconds), "%u", ui.pairingLeftS);

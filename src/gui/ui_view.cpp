@@ -13,7 +13,7 @@ const char *screenName(Screen screen) {
         "loading",       "apps",   "settings",     "pairing",        "review",    "confirm",
         "progress",      "result", "error",        "choice",         "uninstall", "waiting",
         "phone-confirm", "phones", "phone-forget", "restart-idrive", "status",    "gamepad-test",
-        "language",      "files",  "file-delete",  "usb-files"};
+        "language",      "files",  "file-delete",  "usb-files",      "tools",     "ssh-confirm"};
     return static_cast<unsigned>(screen) < sizeof(names) / sizeof(names[0]) ? names[screen]
                                                                             : "unknown";
 }

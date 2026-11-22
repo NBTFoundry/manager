@@ -34,6 +34,7 @@ uninstall_app = Uninstall {1}
 pair_phone = Pair a phone
 paired_phones = Paired phones
 status = Status
+tools = Tools
 back = Back
 setting_debug_log = Debug log
 setting_invert = Invert knob
@@ -197,6 +198,14 @@ loads_on_restart = It loads when the head unit restarts
 restart_like_off_on = The whole system restarts, as car off/on
 later = Later
 restart_head_unit = Restart head unit
+
+# Tools: enabling SSH (tools_ui.cpp)
+enable_ssh = Enable SSH
+ssh_question = Enable SSH?
+ssh_runs = SSH, Telnet and qconn open as root to the car's network
+ssh_until_restart = On until the head unit restarts
+ssh_enabled = SSH enabled
+cannot_enable_ssh = Cannot enable SSH
 
 # Settings > Status and the gamepad test
 gamepad_test = Gamepad test

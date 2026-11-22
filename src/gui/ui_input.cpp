@@ -9,6 +9,7 @@
 #include "nbt/gui/phone_ui.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/setup_ui.hpp"
+#include "nbt/gui/tools_ui.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -60,8 +61,8 @@ int UiController::press(Key key) {
     if (inputBusy() || stopping) {
         return 0;
     }
-    if (phonePress(*this, key) || statusPress(*this, key) || languagePress(*this, key) ||
-        autostartPress(*this, key) || shortcutPress(*this, key)) {
+    if (phonePress(*this, key) || statusPress(*this, key) || toolsPress(*this, key) ||
+        languagePress(*this, key) || autostartPress(*this, key) || shortcutPress(*this, key)) {
         return 1;
     }
     switch (screen) {

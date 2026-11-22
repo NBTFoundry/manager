@@ -26,6 +26,7 @@ Commands in protocol 1:
 | `QUIT` | Stop the worker. |
 | `SETUP` | Bring the stable launcher and the iDrive plugin to the active, confirmed manager release (see "The manager's own installation"). It runs on the worker's job: the reply comes when it ends, and later commands wait for it. `SETUP\tcurrent`, `SETUP\tlauncher`, `SETUP\tplugin` or `SETUP\tboth` (what was replaced); `SETUP\ttrial` while an update is on trial and `SETUP\tbusy` during an application update, a verification or a copy (ask again later); `ERR setup`, with the reason in the debug log. |
 | `IDRIVE RESTART` | Restart iDrive (`OnOffDSICommander appreset`), which restarts this manager with it. Sent only when the driver chose Restart iDrive on the car. `OK` once started, `ERR restart`. |
+| `SSH ENABLE` | Start the head unit's SSH, telnet and qconn as root until the next restart, as an SSH unlock does: `OPT_DEBUG` (package 0, which hosts `inetd` and `qconn`) is requested to run on the process manager. Nothing is written on any filesystem, and the package's configured state is stopped, so a restart closes them again. Sent only when the driver chose Enable SSH in Settings > Tools ([docs/system-tools.md](docs/system-tools.md)). `OK` once requested, `ERR ssh`. |
 
 Private phone commands (after `HELLO 1`):
 
@@ -514,10 +515,12 @@ default to No. Phone requests name the requesting phone.
 The main menu lists the applications, then Settings; a paired phone's upload is
 reviewed from it (there is no separate Install or update entry). The manager's
 Settings end with Language, Pair a phone, Paired phones (remove one with No
-focused) and
-Status (local only, no worker request: the capture shim, the MOST controller
-input, the gamepad and the last error; Test the gamepad shows its buttons,
-sticks and triggers and leaves on the iDrive controller's BACK only).
+focused), Status (local only, no worker request: the capture shim, the MOST
+controller input, the gamepad and the last error; Test the gamepad shows its
+buttons, sticks and triggers and leaves on the iDrive controller's BACK only)
+and Tools (local only until a request: Restart head unit, which asks and sends
+`IDRIVE RESTART`, and Enable SSH, which asks and sends `SSH ENABLE`; both return
+to the menu, [docs/system-tools.md](docs/system-tools.md)).
 Pair a phone opens a session for the car's Wi-Fi details, then a 60-second
 window, and shows only the Wi-Fi QR. A signed pairing request replaces that code
 with the phone name and the six digits, drawn large on a highlighted panel, with

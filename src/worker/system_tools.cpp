@@ -5,19 +5,27 @@
  * process), `OnOffDSICommander appreset`, which restarts iDrive, and
  * `sloginfo`, which prints the system log for a paired phone. All are
  * looked up on the PATH iDrive passes on (the HMI's, with AAD's additions),
- * then in the folders the car inventory found them in. */
+ * then in the folders the car inventory found them in. `nbt_system_enable_ssh`
+ * asks the process manager directly instead: package 0, OPT_DEBUG, hosts inetd
+ * (sshd and telnetd) and qconn, as an SSH unlock has them until a restart
+ * (docs/system-tools.md). */
 #include "nbt/log.h"
 #include "nbt/manager_refresh.h"
 #include "nbt/process/child_spawn.hpp"
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef __QNX__
+#include <devctl.h>
+#endif
 
 extern char **environ;
 
@@ -154,6 +162,36 @@ int nbt_system_restart_idrive(void) {
     nbt_logf("restarting the head unit (OnOffDSICommander appreset)");
     return run(tool, kRestartFolders, sizeof(kRestartFolders) / sizeof(kRestartFolders[0]), argv,
                false, 0);
+#endif
+}
+
+int nbt_system_enable_ssh(void) {
+#ifdef NBT_TESTING
+    return testCall("enable ssh");
+#else
+#ifdef __QNX__
+    /* Package 0 is OPT_DEBUG (docs/system-tools.md). Requesting RUN starts
+     * inetd, which starts sshd and telnetd from /etc/inetd.conf as root, and
+     * qconn; the package's configured state is STOP, so a restart closes them.
+     * Nothing is written, on any filesystem. */
+    static const char kDevice[] = "/dev/starter/start";
+    uint32_t message[3] = {0u, 0u, 2u}; // domain 0, package 0 (OPT_DEBUG), RUN
+    const int fd = open(kDevice, O_RDWR);
+    if (fd < 0) {
+        nbt_logf("enable ssh: %s: errno %d", kDevice, errno);
+        return -1;
+    }
+    const int error = devctl(fd, 0x800c050f, message, sizeof(message), NULL);
+    close(fd);
+    if (error != EOK) {
+        nbt_logf("enable ssh: OPT_DEBUG RUN refused (errno %d)", error);
+        return -1;
+    }
+    nbt_logf("ssh enabled (OPT_DEBUG runs) until the head unit restarts");
+    return 0;
+#else
+    return -1; // no process manager on the host
+#endif
 #endif
 }
 

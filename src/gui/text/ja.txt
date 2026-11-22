@@ -32,6 +32,7 @@ uninstall_app = {1} をアンインストール
 pair_phone = スマートフォンをペアリング
 paired_phones = ペアリング済みのスマートフォン
 status = ステータス
+tools = ツール
 back = 戻る
 setting_debug_log = デバッグログ
 setting_invert = ノブの回転を反転
@@ -195,6 +196,14 @@ loads_on_restart = ヘッドユニットの再起動後に読み込まれます
 restart_like_off_on = 車両の電源を入れ直したときと同様に、システム全体が再起動します
 later = 後で
 restart_head_unit = ヘッドユニットを再起動
+
+# Tools: enabling SSH (tools_ui.cpp)
+enable_ssh = SSH を有効化
+ssh_question = SSH を有効にしますか？
+ssh_runs = SSH、Telnet、qconn を root で車載ネットワークに開放
+ssh_until_restart = ヘッドユニットの再起動まで有効
+ssh_enabled = SSH を有効にしました
+cannot_enable_ssh = SSH を有効にできません
 
 # Settings > Status and the gamepad test
 gamepad_test = ゲームパッドのテスト

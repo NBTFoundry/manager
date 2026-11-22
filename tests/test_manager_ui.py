@@ -21,7 +21,7 @@ PROBE = BUILD / "ui-probe"
 DAEMON = BUILD / "managerd-test"
 PACK = ROOT / "tools/package.py"
 LOADING, APPS, SETTINGS, PAIRING, REVIEW, CONFIRM, PROGRESS, RESULT, ERROR, CHOICE, UNINSTALL, WAITING, PHONE_CONFIRM = range(13)
-STATUS, GAMEPAD_TEST = 16, 17
+RESTART, STATUS, GAMEPAD_TEST, TOOLS, SSH_CONFIRM = 15, 16, 17, 22, 23
 TEST_APP = BUILD / "test-app-host"
 
 
@@ -117,6 +117,11 @@ class ManagerUiTests(unittest.TestCase):
         (conn / "var/opt/conn/WFDPass.conf").write_text(bytes(c ^ mask[i % len(mask)] for i,c in enumerate(secret)).hex())
         (conn / "var/opt/conn/carplay/iap2_Wifi.cfg").write_text("SSID=BMW Test CarPlay\n")
         self.enterContext(mock.patch.dict(os.environ, {"NBT_TEST_CONN_ROOT": str(conn)}))
+        # The worker's system tools (restart the head unit, enable SSH) only
+        # record their call; the tools path never touches the car.
+        self.system_log = Path(self.tmp.name) / "system.log"
+        self.enterContext(mock.patch.dict(os.environ,
+                                          {"NBT_TEST_SYSTEM_LOG": str(self.system_log)}))
         self.probe = subprocess.Popen([PROBE, DAEMON, self.root], stdin=subprocess.PIPE,
                                       stdout=subprocess.PIPE, text=True)
         self.initial = self.view()
@@ -170,7 +175,7 @@ class ManagerUiTests(unittest.TestCase):
         self.assertEqual(view.screen, SETTINGS, view.text())
         self.assertEqual(view.items[3:], ["Native audio: Interrupting (at least 25)",
                                           "Language: Automatic (English)", "Pair a phone",
-                                          "Paired phones", "Status"])
+                                          "Paired phones", "Status", "Tools"])
         view = self.send("down", "down", "down", "down", "down", "select", "address", "link")
         self.assertEqual(view.screen, PAIRING, view.text())
         self.assertTrue(self.link.startswith("WIFI:T:WPA;"))
@@ -293,6 +298,54 @@ class ManagerUiTests(unittest.TestCase):
         view = self.send("back")
         self.assertEqual((view.screen, view.focus), (SETTINGS, 7), view.text())
         self.send("back")
+        self.finish()
+
+    def test_tools_restart_and_enable_ssh(self):
+        # Settings > Tools, after Status: restarting the head unit (asked first,
+        # the existing IDRIVE RESTART) and enabling SSH, which the worker turns
+        # into the head unit's OPT_DEBUG package (recorded by the host build).
+        view = self.send("down", "select")
+        self.assertEqual(view.screen, SETTINGS, view.text())
+        self.assertEqual(view.items[-1], "Tools")
+        view = self.send(*(["down"] * 8), "select")
+        self.assertEqual((view.screen, view.title, view.items),
+                         (TOOLS, "Tools", ["Restart head unit", "Enable SSH"]))
+        view = self.send("back")
+        self.assertEqual((view.screen, view.focus), (SETTINGS, 8), view.text())
+        # Restart head unit asks first, Later focused; the answer sends IDRIVE RESTART.
+        view = self.send("select", "select")
+        self.assertEqual((view.screen, view.title, view.focus, view.items),
+                         (RESTART, "Restart head unit?", 0, ["Later", "Restart head unit"]))
+        self.assertEqual(view.lines, ["The whole system restarts, as car off/on"])
+        view = self.send("down", "select")
+        if view.screen != RESULT:
+            view = self.until(RESULT)
+        self.assertEqual(view.title, "Tools")
+        self.assertIn("Restarting the head unit", view.lines)
+        # Back on the list, Settings focused, then Settings > Tools > Enable SSH?
+        view = self.send("select")  # OK
+        view = self.until(APPS)
+        self.assertEqual(view.focus, 1)
+        self.send("select")
+        view = self.send(*(["down"] * 8), "select")
+        self.assertEqual(view.screen, TOOLS)
+        view = self.send("down", "select")
+        self.assertEqual((view.screen, view.title, view.focus, view.items),
+                         (SSH_CONFIRM, "Enable SSH?", 0, ["No", "Enable SSH"]))
+        self.assertIn("SSH, Telnet and qconn open as root to the car's network", view.lines)
+        self.assertIn("On until the head unit restarts", view.lines)
+        view = self.send("select")  # No
+        self.assertEqual((view.screen, view.focus), (TOOLS, 1), view.text())
+        view = self.send("select")  # Enable SSH
+        self.assertEqual(view.screen, SSH_CONFIRM)
+        view = self.send("down", "select")  # Enable SSH
+        if view.screen != RESULT:
+            view = self.until(RESULT)
+        self.assertEqual(view.title, "Tools")
+        self.assertIn("SSH enabled", view.lines)
+        self.assertIn("On until the head unit restarts", view.lines)
+        self.assertEqual(self.system_log.read_text().splitlines()[-2:],
+                         ["restart idrive", "enable ssh"])
         self.finish()
 
     def lock_holder(self, path):

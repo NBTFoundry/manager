@@ -48,6 +48,11 @@ int nbt_manager_launcher_supports_format(nbt_fs *fs, const char *format);
  * manager with it. Found on the PATH iDrive passes on; 0 on success. */
 int nbt_system_remount(int writable);
 int nbt_system_restart_idrive(void);
+/* Starts SSH, telnet and qconn as root until the head unit restarts, as an SSH
+ * unlock does: package 0 (OPT_DEBUG) is requested to RUN on the process
+ * manager. Nothing is written; 0 on success. Host tests record the call named
+ * "enable ssh" instead. See docs/system-tools.md. */
+int nbt_system_enable_ssh(void);
 /* Starts `sloginfo`, the iDrive processor's system log, writing to `out_fd`;
  * the caller waits for *pid. 0 on success. Host tests run the program named
  * by NBT_TEST_SLOGINFO instead. */

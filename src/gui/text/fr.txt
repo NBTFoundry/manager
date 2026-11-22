@@ -31,6 +31,7 @@ uninstall_app = Désinstaller {1}
 pair_phone = Associer un téléphone
 paired_phones = Téléphones associés
 status = État
+tools = Outils
 back = Retour
 setting_debug_log = Journal de débogage
 setting_invert = Inverser la molette
@@ -194,6 +195,14 @@ loads_on_restart = Elle se charge au redémarrage de l'unité principale
 restart_like_off_on = Tout le système redémarre, comme voiture éteinte et rallumée
 later = Plus tard
 restart_head_unit = Redémarrer l'unité principale
+
+# Tools: enabling SSH (tools_ui.cpp)
+enable_ssh = Activer SSH
+ssh_question = Activer SSH ?
+ssh_runs = SSH, Telnet et qconn s'ouvrent en root sur le réseau de la voiture
+ssh_until_restart = Actif jusqu'au redémarrage de l'unité principale
+ssh_enabled = SSH activé
+cannot_enable_ssh = Impossible d'activer SSH
 
 # Settings > Status and the gamepad test
 gamepad_test = Test de la manette

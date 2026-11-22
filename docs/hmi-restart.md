@@ -27,7 +27,13 @@ stateDiagram-v2
 - **`OnOffDSICommander appreset` restarts the whole head unit**, although the tool
   names it `ApplicationReset`; its other modes are system, ECU, BIOS and boot-loader
   resets. None restarts iDrive alone. The installers and the manager call it
-  **Restart the head unit** and ask first. SSH is off after it.
+  **Restart the head unit** and ask first: in Settings > Tools
+  ([system-tools.md](system-tools.md)), and after a manager update replaced the
+  iDrive plugin. SSH is off after it.
+- **The process manager also starts the head unit's own SSH**, telnet and qconn
+  when the manager's Tools menu requests `OPT_DEBUG` (package 0) to run; that
+  request is the one below, with package 0 instead of 14
+  ([system-tools.md](system-tools.md)).
 - **The process manager runs everything in `starter.cfg`** (`starter -A -s -e -g
   -vvv -p 30 -S libnbt_starter_plugin-omap.so ... -c /opt/sys/etc/starter.cfg`) and
   groups processes into packages, each requested to `RUN` or `STOP`.

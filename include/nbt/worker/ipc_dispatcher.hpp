@@ -43,6 +43,7 @@ private:
     core::Status handleSession(char *cursor, uint64_t nowMs);
     core::Status handleApprove(char *cursor, uint64_t nowMs);
     core::Status handleSystem(bool setup, const char *cursor);
+    core::Status handleSsh(const char *cursor);
     core::Status finishSession(bool prepared, ReadyWifiCredentials &wifi, uint64_t nowMs);
     core::Status finishSetup();
 
