@@ -431,9 +431,19 @@ apps.
 manager debug log).** `/opt/conn/bin/DnsMasq -C /opt/conn/etc/dnsmasq.conf` serves
 UDP 53 (a socket bound to the `wfd0` address alone gets `EADDRINUSE`, errno
 248), with `/dev/shmem/resolv.conf` as its upstream (the BMW APN) and
-`/opt/conn/etc/hosts` as its names. `/opt/conn/bin/lighttpd` binds `0.0.0.0`
-port 80. ISC `dhcpd` serves `wfd0` from a generated
-`/var/opt/conn/dhcpd.wfd0.conf` that has no `domain-name-servers` and no
+`/opt/conn/etc/hosts` as its names. `/opt/conn/bin/lighttpd -f
+/opt/conn/etc/lighttpd-nbt.conf` binds `0.0.0.0` port 80. It is iDrive's
+internal web server for its own browser (`BrowserRenderer`, `DevCtrlBrowser`)
+and BMW Apps, not a phone service. From its configuration (Y21432J):
+`/service/` goes to `IPCEServer` by FastCGI (the remote app path above);
+`/journaline/` to a FastCGI server on `127.0.0.1:8889` (DAB Journaline text
+pages); requests for host `160.48.199.119` serve `/mnt/share/conn/AppFS/`
+(BMW Apps content); `/cgi-bin/` runs CGI; `/trace` and `/core` serve
+`/mnt/quota/sys/` with directory listings and WebDAV (trace and core files,
+an engineering leftover); anything else comes from
+`/fs/sda0/opt/car/data/htdocs/`, empty in the dump. No authentication module
+is loaded. Whether a phone on `wfd0` reaches it has not been tried. ISC
+`dhcpd` serves `wfd0` from a generated `/var/opt/conn/dhcpd.wfd0.conf` that has no `domain-name-servers` and no
 `routers` option: a phone on the group gets an address and nothing else, so
 Android cannot even run its connectivity check and the network has no
 internet. Android then makes it the phone's default network only when it was
