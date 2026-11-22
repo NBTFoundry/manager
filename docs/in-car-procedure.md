@@ -407,6 +407,13 @@ it on the car (do that before a test, so the log holds only that run). The car's
 unless Open from phone and the boot listener are on. Send both logs when an
 application crashes.
 
+A crash also leaves a **crash report** on the car, kept apart from the log so
+later runs do not push it out: how the application ended, its last output and
+the system log's fault lines. The car's page has **Crash reports** (every
+application's, and NBT Manager's own); an application's **More** menu has its
+own. Open one to read it and **Share** it, or **Share all** to send every
+listed report in one file. Send them with the logs.
+
 If **No log yet** appears after running an application, switch the head unit's
 debug log on before starting another test. First use the normal test app:
 start it, leave it with BACK, then press **Show log** on the phone. Save the
@@ -461,7 +468,7 @@ preload shim are gone.
 | No App Manager entry after restarting the head unit | Save the debug log and the installer log; reboot once more. |
 | "Controller config invalid; defaults used" | Fix or remove controller.conf (step 10). |
 | The app cannot reach the car | Step 5 note (firewall); save the debug log. |
-| An application crashes or closes at once | Step 9b: share its log and the iDrive log from the phone. |
+| An application crashes or closes at once | Step 9b: share its crash reports (Share all), its log and the iDrive log from the phone. |
 
 Send the installer log (**Copy log**) and the saved debug logs with your notes.
 
