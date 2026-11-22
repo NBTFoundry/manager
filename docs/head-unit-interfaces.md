@@ -294,6 +294,14 @@ its parking-brake fallback 0xD01 is `StateStandstillFunctions`; its "master
 volume" 0xC08 is the HMI's `VisibleVolumeIndicator`. Names say what a
 function is, not its value format; formats still come from captures.
 
+0xC08's Status is 5 bytes, `01 00 LEVEL MIN MAX`, sent as the knob changes
+the volume of the source being heard: `MIN` is that source's floor, 0 for the
+radio and 25 for navigation prompts, a phone call and the browser source
+(audio connection 0xb8, what applications and NBT-AAD's native audio play
+through). The floor is iDrive's own, per source, and the knob stops there;
+no way to lower it is known. (F30, NBT Evo ID6, captured by an
+NBT-AAD contributor, 2026-11-21; NBT-AAD issue #181 and pull request #278.)
+
 ## The PluginApp framework
 
 ### Our plugin's ABI, checked against `libAppFramework.A.so`
