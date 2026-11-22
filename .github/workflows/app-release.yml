@@ -21,7 +21,8 @@
 # An application built without the QNX SDP (a module or guest for nbt-runner,
 # bridge capability runner) sets qnx: false: its build runs on a plain runner
 # with the SDK's own toolchain (the job runs make -C ../sdk toolchain first),
-# and needs no access to the private QNX image.
+# and needs no access to the private QNX image. An application whose build needs
+# its Git LFS files (game data it embeds) sets lfs: true (with qnx: false).
 #
 # The caller's release/package.args describes the package (tools/package.py @FILE).
 # The apps key comes from the caller's "release" environment (secret APPS_SIGNING_KEY,
@@ -60,6 +61,10 @@ on:
         description: Build in the private QNX image; false for a module or guest built with the SDK's toolchain only
         type: boolean
         default: true
+      lfs:
+        description: Fetch the application's Git LFS files for the build (with qnx false; the QNX image has no git-lfs)
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -92,6 +97,7 @@ jobs:
         with:
           path: app
           persist-credentials: false
+          lfs: ${{ inputs.lfs }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: NBTFoundry/sdk
