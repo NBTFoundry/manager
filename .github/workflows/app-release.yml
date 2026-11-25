@@ -41,6 +41,11 @@
 #            tools/package.py from this workflow's commit, never build output
 #   verify   nbt-verify built from this workflow's commit; holds nothing
 #   publish  contents:write; runs nothing from the build
+#
+# NBTFoundry/community-apps builds another repository's application with it:
+# repository and ref (a commit) name the source, version replaces the tag, app is
+# the id the package must declare, and the release is tagged <app>-vX.Y.Z in the
+# caller's repository. publish: false only builds (a pull request's check).
 name: Application release
 
 on:
@@ -74,6 +79,26 @@ on:
         description: The caller's own public key (PEM, RSA-3072) to sign for, a developer key; empty for NBTFoundry's apps key
         type: string
         default: ""
+      repository:
+        description: Build this repository's application (owner/name) instead of the caller's; needs ref and version
+        type: string
+        default: ""
+      ref:
+        description: The commit of repository to build (40 hex digits)
+        type: string
+        default: ""
+      version:
+        description: X.Y.Z instead of the tag's; the release is tagged <app>-vX.Y.Z
+        type: string
+        default: ""
+      app:
+        description: The application id the package description must declare (empty for any)
+        type: string
+        default: ""
+      publish:
+        description: Sign, verify and publish; false only builds
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -101,9 +126,24 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       sequence: ${{ steps.meta.outputs.sequence }}
       payload: ${{ steps.meta.outputs.payload }}
+      tag: ${{ steps.meta.outputs.tag }}
     steps:
+      - name: Source
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+          REF: ${{ inputs.ref }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ -n "$REPOSITORY" ]]; then
+            [[ "$REPOSITORY" =~ ^[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$ && "$REF" =~ ^[0-9a-f]{40}$ && -n "$VERSION" ]] \
+              || { echo "::error::repository needs a 40-digit ref and a version"; exit 1; }
+          elif [[ -n "$REF" ]]; then
+            echo "::error::ref goes with repository"; exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref }}
           path: app
           persist-credentials: false
           lfs: ${{ inputs.lfs }}
@@ -125,10 +165,14 @@ jobs:
         env:
           ARGS: app/${{ inputs.package-args }}
           PAYLOAD: ${{ inputs.payload }}
+          VERSION: ${{ inputs.version }}
+          EXPECTED_APP: ${{ inputs.app }}
         run: |
           # vX.Y.Z, each part below 1000: sequence X*1000000 + Y*1000 + Z, so a
           # later tag always updates an earlier package.
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
+          tag="${VERSION:+v$VERSION}"
+          tag="${tag:-$GITHUB_REF_NAME}"
+          if [[ ! "$tag" =~ ^v(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
             echo "::error::release tags are vMAJOR.MINOR.PATCH, each part below 1000"
             exit 1
           fi
@@ -139,10 +183,13 @@ jobs:
           compat="$(value --compat)"
           [[ "$app" =~ ^[a-z0-9_-]{1,48}$ && "$compat" =~ ^[a-z0-9_.-]{1,48}$ ]] \
             || { echo "::error::$ARGS must give --app and --compat"; exit 1; }
+          [[ -z "$EXPECTED_APP" || "$app" == "$EXPECTED_APP" ]] \
+            || { echo "::error::the package is $app, not $EXPECTED_APP"; exit 1; }
           {
             echo "app=$app"
             echo "compat=$compat"
-            echo "version=${GITHUB_REF_NAME#v}"
+            echo "version=${tag#v}"
+            echo "tag=${VERSION:+$app-}$tag"
             echo "sequence=$sequence"
             echo "payload=$(basename "$PAYLOAD")"
           } >>"$GITHUB_OUTPUT"
@@ -171,6 +218,7 @@ jobs:
 
   sign:
     needs: build
+    if: ${{ inputs.publish }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: release
@@ -181,6 +229,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref }}
           path: app
           persist-credentials: false
           sparse-checkout: |
@@ -223,6 +273,7 @@ jobs:
 
   verify:
     needs: [build, sign]
+    if: ${{ inputs.publish }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -233,6 +284,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ inputs.public-key != '' }}
         with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref }}
           path: app
           persist-credentials: false
           sparse-checkout: ${{ inputs.public-key }}
@@ -271,6 +324,7 @@ jobs:
 
   publish:
     needs: [build, sign, verify]
+    if: ${{ inputs.publish }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -292,6 +346,9 @@ jobs:
           MANAGER: ${{ job.workflow_repository }}@${{ job.workflow_sha }}
           PUBLIC_KEY: ${{ inputs.public-key }}
           KEY_ID: ${{ needs.sign.outputs.key-id }}
+          TAG: ${{ needs.build.outputs.tag }}
+          SOURCE: ${{ inputs.repository && format('{0}@{1}', inputs.repository, inputs.ref) || github.sha }}
+          TARGET: ${{ inputs.repository && format('--target={0}', github.sha) || '--verify-tag' }}
         run: |
           package="dist/$APP-$VERSION.nbt"
           [[ "$(sha256sum "$package" | cut -d' ' -f1)" == "$VERIFIED" ]] \
@@ -306,10 +363,10 @@ jobs:
           cat >notes.md <<EOF
           \`$APP\` $VERSION: package sequence $SEQUENCE, compatibility \`$COMPAT\`.
 
-          $signed; built from $GITHUB_SHA by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
+          $signed; built from $SOURCE by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
           Install it from the phone app.
           EOF
           prerelease=()
           [[ "$VERSION" == 0.* ]] && prerelease=(--prerelease)
-          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$APP $VERSION" \
+          gh release create "$TAG" "$TARGET" --title "$APP $VERSION" \
             --notes-file notes.md "${prerelease[@]}" "$package" dist/SHA256SUMS
