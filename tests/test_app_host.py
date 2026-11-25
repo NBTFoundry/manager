@@ -1196,6 +1196,34 @@ event("exit")
         self.assertFalse(want.exists())
         self.assertEqual(command("QUIT"), "OK")
 
+    def test_diag_uses_the_gateway_other_tools_are_set_to(self):
+        """/var/opt/hmi/data/ID5/gateway-ip.txt, which other diagnostic tools on
+        the head unit read, names the gateway when it is set (docs/diag-bridge.md)."""
+        gateway = FakeHsfzGateway()
+        self.addCleanup(gateway.close)
+        shared = Path(self.tmp.name) / "gateway-ip.txt"
+        shared.write_text(f" 127.0.0.1:{gateway.port}\n")
+        self.enterContext(mock.patch.dict(os.environ, {"NBT_DIAG_GATEWAY": "",
+                                                       "NBT_DIAG_GATEWAY_FILE": str(shared)}))
+        self.script_app(
+            "import socket, struct\n"
+            "os.write(3, b'R')\n"
+            "link = socket.socket(fileno=10)\n"
+            "link.send(bytes([1, 0x12]) + struct.pack('<HH', 1, 0) + bytes.fromhex('22f40c'))\n"
+            "reply = link.recv(8192)\n"
+            "print('reply status %d via %d' % (reply[4], reply[5]), flush=True)\n"
+            "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
+        record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE6\n")
+        (self.root / "state/test/installed").write_text(
+            record + "bridge=1.8\nbridge-uses=\nbridge-optional=diag\nbridge-diag=12:read\n")
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "reply status" in self.app_log())
+        self.assertIn("reply status 0 via 1", self.app_log())
+        self.assertEqual([uds.hex() for _, _, uds in gateway.requests], ["22f40c"])
+        self.assertEqual(command("STOP test"), "OK")
+        self.assertEqual(command("QUIT"), "OK")
+
     def test_bridge_19_service_outlives_its_application_and_restarts(self):
         """Bridge 1.9 `service`: starting the application starts its service,
         the same executable with NBT_ROLE=service and neither screen nor input;

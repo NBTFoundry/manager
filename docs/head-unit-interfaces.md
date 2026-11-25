@@ -330,6 +330,25 @@ BMW's own plugins (`ActiveSeating`, `SecurityMenu`):
 This is build-level agreement with this firmware's libraries, not runtime
 proof.
 
+### Other firmware versions
+
+ID6 Apps (MIT, `source/docs/COMPATIBILITY.md`) compared the framework
+libraries of ten builds, M17345I (ID5_1703, 2017) to Y24073J (ID5_2403,
+2024), Y21432J among them: all export the same framework symbols with the
+same names, sizes and types, and an audit of instruction prefixes and vtable
+slots passes for its plugins on each. `libAppFramework.A.so` is 51524 to
+51644 bytes across them; `libm.so.2`, `libsocket.so.3` and `libstdc++.so.6`
+are byte-identical in most. So the slots above most likely hold on those
+builds; only Y21432J is checked here.
+
+### Two-CPU units
+
+On some cars an SSH unlock lands on `hu-jacinto`, where `/opt/hmi/ID5/lib`
+and `/opt/sys/etc` are empty: the HMI side is read over Qnet
+(`/net/hu-omap/fs/sda0/...`, `on -f hu-omap ...`), and the plugin folder
+`/var/opt/hmi/data/ID5/Plugins` is on the OMAP (ID6 Apps, `PORTING.md`). The
+installer already writes through `/net/hu-omap`.
+
 ### Loading
 
 HmiMain3D's remote HMI start loads `ActiveSeating` and `SecurityMenu`, then

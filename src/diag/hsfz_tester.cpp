@@ -66,6 +66,29 @@ bool parseGateway(const char *text, uint32_t *ip, uint16_t *port) {
     return true;
 }
 
+bool gatewayFromFile(const char *path, char *out, size_t size) {
+    char text[64];
+    uint32_t ip = 0;
+    uint16_t port = 0;
+    const int fd = path ? open(path, O_RDONLY | O_NOFOLLOW) : -1;
+    if (fd < 0) {
+        return false;
+    }
+    const ssize_t n = read(fd, text, sizeof(text) - 1);
+    ::close(fd);
+    if (n <= 0) {
+        return false;
+    }
+    text[n] = 0;
+    char *start = text + strspn(text, " \t\r\n");
+    start[strcspn(start, " \t\r\n")] = 0;
+    if (!parseGateway(start, &ip, &port) || strlen(start) >= size) {
+        return false;
+    }
+    memcpy(out, start, strlen(start) + 1);
+    return true;
+}
+
 HsfzTester::HsfzTester() : fd_(-1), buffer_(), length_(0), consumed_(0) {
 }
 

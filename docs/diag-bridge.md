@@ -45,7 +45,9 @@ the SDK): one request, one reply, in order.
 
 ## Host
 
-- HSFZ to `169.254.21.3:6801` (`NBT_DIAG_GATEWAY` in tests), tester `F4`; the
+- HSFZ to `169.254.21.3:6801`, or the address in
+  `/var/opt/hmi/data/ID5/gateway-ip.txt`, which other diagnostic tools on the
+  head unit read too (`NBT_DIAG_GATEWAY` in tests), tester `F4`; the
   gateway's alive checks are answered and "response pending" waits up to five
   times.
 - A lease: `state/manager/diag.lock` and the loopback lock `127.0.0.1:42861`

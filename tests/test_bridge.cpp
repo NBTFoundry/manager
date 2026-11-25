@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/bridge.h"
 #include "nbt/cds_policy.h"
+#include "nbt/diag/hsfz_tester.hpp"
 #include "nbt/diag_policy.h"
 #include "nbt/diag_wire.h"
 #include "nbt/files_policy.h"
 #include "nbt/net_policy.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 static void status_lines(void) {
     const char *bad[] = {"",           "1 x",      "1 \n",
@@ -461,6 +464,27 @@ static void diag_policy_and_wire(void) {
     assert(nbt_bridge_requirement_parse(&p, "", &need)); /* diag needs its policy */
 }
 
+/* The gateway other diagnostic tools on the head unit are set to. */
+static void gateway_file(void) {
+    char path[] = "/tmp/nbt-gateway-XXXXXX", out[48];
+    const int fd = mkstemp(path);
+    assert(fd >= 0);
+    const char *const valid[][2] = {{"169.254.10.3\n", "169.254.10.3"},
+                                    {"  10.0.0.2:6811 trailing\r\n", "10.0.0.2:6811"}};
+    for (unsigned i = 0; i < 2; ++i) {
+        assert(!ftruncate(fd, 0) && pwrite(fd, valid[i][0], strlen(valid[i][0]), 0) > 0);
+        assert(nbt::diag::gatewayFromFile(path, out, sizeof(out)) && !strcmp(out, valid[i][1]));
+    }
+    const char *const invalid[] = {"", "\n", "gateway\n", "300.1.1.1\n", "1.2.3.4:0\n"};
+    for (const char *text : invalid) {
+        assert(!ftruncate(fd, 0) && (!*text || pwrite(fd, text, strlen(text), 0) > 0));
+        assert(!nbt::diag::gatewayFromFile(path, out, sizeof(out)));
+    }
+    close(fd);
+    unlink(path);
+    assert(!nbt::diag::gatewayFromFile(path, out, sizeof(out)));
+}
+
 /* Background services (bridge 1.9): `service` with `show`, granted with it. */
 static void service_declarations(void) {
     nbt_bridge_requirement need;
@@ -485,6 +509,7 @@ int main(void) {
     status_lines();
     diag_policy_and_wire();
     service_declarations();
+    gateway_file();
     nbt_bridge_provider provider;
     nbt_bridge_requirement need;
     nbt_bridge_version grant;

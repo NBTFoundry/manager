@@ -41,6 +41,12 @@ engine computer (DME) does not answer.
 - Reported working on a 2018 320i (N20) for DME `22` reads with nothing in the
   OBD port; `19`, `14` and `2F` untested there (same project's documentation).
   Not confirmed on our car.
+- ID6 Apps (MIT, `source/docs/MOST.md`) waits at least 2 s for a reply; its
+  long-running readers switch to the tunnel after 5 failed HSFZ connects in a
+  row, never once HSFZ has connected, and share the tunnel through the same
+  loopback lock (`127.0.0.1:42861`) as HSFZ. A gateway other than
+  `169.254.21.3` is set in `/var/opt/hmi/data/ID5/gateway-ip.txt`, which the
+  manager's `diag` and nf-gauges read too.
 
 ## Open questions for the car
 

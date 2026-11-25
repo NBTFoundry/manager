@@ -20,6 +20,12 @@ static const size_t kHsfzFrameMax = 4096 + 6;
 /* "a.b.c.d" or "a.b.c.d:port" (port 6801 by default), the address in network order. */
 bool parseGateway(const char *text, uint32_t *ip, uint16_t *port);
 
+/* The gateway other head-unit diagnostic tools take from
+ * /var/opt/hmi/data/ID5/gateway-ip.txt when it is set: its first word, an
+ * address parseGateway accepts, into `out`; false when absent or invalid. */
+static const char kGatewayFile[] = "/var/opt/hmi/data/ID5/gateway-ip.txt";
+bool gatewayFromFile(const char *path, char *out, size_t size);
+
 class HsfzTester {
 public:
     HsfzTester();

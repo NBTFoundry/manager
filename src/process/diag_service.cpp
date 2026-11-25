@@ -52,7 +52,20 @@ DiagService::~DiagService() {
 bool DiagService::start(nbt_fs *fs, const char *app, const nbt_diag_policy &policy, int fd,
                         const char *carDataDir) {
     stop();
-    const char *gateway = getenv("NBT_DIAG_GATEWAY"); // tests; the car uses kGateway
+    // The tests' address, else the one other diagnostic tools on this head
+    // unit are set to (docs/diag-bridge.md), else the usual gateway.
+#ifdef NBT_TESTING
+    const char *gateway = getenv("NBT_DIAG_GATEWAY");
+    const char *file = getenv("NBT_DIAG_GATEWAY_FILE");
+#else
+    const char *gateway = NULL, *file = NULL;
+#endif
+    char shared[48];
+    if ((!gateway || !*gateway) &&
+        diag::gatewayFromFile(file && *file ? file : diag::kGatewayFile, shared, sizeof(shared))) {
+        gateway = shared;
+        nbt_logf("host %s: diagnostics through gateway %s (gateway-ip.txt)", app, shared);
+    }
     if (!fs || !app || strlen(app) >= sizeof(app_) || fd < 0 || !carDataDir ||
         strlen(carDataDir) >= sizeof(dir_) ||
         !diag::parseGateway(gateway && *gateway ? gateway : kGateway, &ip_, &port_) ||
