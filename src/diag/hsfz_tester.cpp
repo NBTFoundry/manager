@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace nbt {
@@ -70,7 +71,8 @@ bool gatewayFromFile(const char *path, char *out, size_t size) {
     char text[64];
     uint32_t ip = 0;
     uint16_t port = 0;
-    const int fd = path ? open(path, O_RDONLY | O_NOFOLLOW) : -1;
+    struct stat st; // a plain file: QNX 6.5 has no O_NOFOLLOW
+    const int fd = path && !lstat(path, &st) && S_ISREG(st.st_mode) ? open(path, O_RDONLY) : -1;
     if (fd < 0) {
         return false;
     }
