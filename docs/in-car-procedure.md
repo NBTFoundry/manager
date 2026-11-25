@@ -377,19 +377,21 @@ apps key, and `hello-lvgl-dev-0.1.0.nbt`. Keep App Manager open.
    procedure, `gauges-car-test-0.0.9.pdf` in the kit folder (packages
    `gauges-0.0.9.nbt`, `gauges-0.0.10.nbt`).
 
-## 7d. Background service
+## 7d. Background service and the audio mixer
 
 1. Install `test-service-v1.nbt` from the phone, then start test-service:
-   HELLO WORLD.
-2. Press BACK: the test app ends; its row says "test-service (service
-   running)".
+   HELLO WORLD, a high beep every 2 s (the app) and a low beep every 4 s
+   (its service). Every 4 s both sound together: the mixer plays both.
+2. Press BACK: the test app ends, the high beep stops, the low beep goes on;
+   the row says "test-service (service running)".
 3. After a minute, phone: test-service › Show log: lines
    `[test:service] service still running (1)`, `(2)`.
 4. Press MENU, open App Manager again: the row still says "service
-   running". Hold the push on it: it stops; the row is plain again.
+   running". Hold the push on it: it stops, the beeps stop; the row is plain
+   again.
 5. Settings › Start with the car: on for test-service. Restart the head unit:
-   after about 25 s its log gains a new `service still running` run, without
-   HELLO WORLD on the screen. Turn it off, stop it, uninstall it.
+   after about 25 s the low beep comes back without HELLO WORLD on the
+   screen. Turn it off, stop it, uninstall it.
 
 ## 8. Boot listener and opening from the phone
 

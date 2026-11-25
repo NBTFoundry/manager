@@ -9,6 +9,7 @@
 // phone while it runs, makes it crash for a crash report (PROTOCOL.md, "Crash
 // reports"): `fault` writes to an unmapped address (SIGSEGV, as a real bug would),
 // `hang` stops its heartbeat. The host tests use tests/fake_app.cpp.
+#include "nbt/app/audio_pcm.hpp"
 #include "nbt/app/clock.hpp"
 #include "nbt/app/lifecycle.hpp"
 #include "nbt/app/log.hpp"
@@ -44,6 +45,28 @@ const Colour kColours[] = {{"blue", 0x1d / 255.0f, 0x4f / 255.0f, 0x91 / 255.0f}
                            {"green", 0x1f / 255.0f, 0x7a / 255.0f, 0x3e / 255.0f},
                            {"black", 0.0f, 0.0f, 0.0f}};
 const uint32_t kWhite = 0xffffffffu, kGrey = 0xd0d8e0ffu;
+
+// test-service's sound, to hear NBT Manager's audio mixer play both at once
+// (docs/audio-mixer.md): a short triangle-wave beep at `hz` every `period_ms`.
+struct Beep {
+    unsigned hz, period_ms, rate;
+    uint64_t sample;
+};
+
+void beep(void *context, int16_t *out, int frames) {
+    Beep &b = *static_cast<Beep *>(context);
+    const uint64_t period = static_cast<uint64_t>(b.rate) * b.period_ms / 1000;
+    const uint64_t length = b.rate / 5; // 200 ms
+    for (int i = 0; i < frames; ++i, ++b.sample) {
+        int value = 0;
+        if (period && b.sample % period < length) {
+            const unsigned step = static_cast<unsigned>(b.sample * b.hz % b.rate); // 0..rate-1
+            const int ramp = static_cast<int>(step * 4000u / b.rate);              // 0..3999
+            value = ramp < 2000 ? ramp * 2 - 2000 : 6000 - ramp * 2;               // -2000..2000
+        }
+        out[2 * i] = out[2 * i + 1] = static_cast<int16_t>(value);
+    }
+}
 
 const Colour &background(const nbt::app::Lifecycle &lifecycle) {
     const char *name = lifecycle.settings().get("background", "blue");
@@ -132,6 +155,18 @@ int main(int argc, char **argv) {
     // and notes that it still runs; a health check runs without a window too.
     const char *role = getenv("NBT_ROLE");
     const bool service = role && !strcmp(role, "service");
+    // With a role (test-service): the application beeps at 660 Hz every 2 s,
+    // its service at 440 Hz every 4 s.
+    nbt::app::AudioPcm audio;
+    Beep tone = {service ? 440u : 660u, service ? 4000u : 2000u, 0, 0};
+    if (role && lifecycle.is_user_mode()) {
+        tone.rate = static_cast<unsigned>(nbt::app::kAudioDefaultRate);
+        if (audio.open(nbt::app::kAudioDefaultRate, &beep, &tone, true)) {
+            tone.rate = static_cast<unsigned>(audio.sample_rate());
+            nbt::app::log_info("beeping at %u Hz every %u s (%d Hz output)", tone.hz,
+                               tone.period_ms / 1000, audio.sample_rate());
+        }
+    }
     if (lifecycle.is_user_mode() && !service) {
         const nbt::app::VideoConfig window = {"NBT Manager test " NBT_TEST_VERSION, 800, 480};
         if (!video.init(lifecycle.surface_id(), &window) || !overlay.init()) {
@@ -184,6 +219,7 @@ int main(int argc, char **argv) {
         }
         usleep(50000);
     }
+    audio.close();
     overlay.shutdown();
     video.shutdown();
     lifecycle.close_fds();
