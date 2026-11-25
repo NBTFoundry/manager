@@ -342,6 +342,31 @@ agreement, pairing result, revocation result and any fixed error shown by the ap
 Do not treat the phone's local manifest preview as verified. The car verifies
 the exact package and its digest before review; only the car approves it.
 
+## 7b. Developer keys
+
+The kit's `examples/` folder: `developer-public.pem` (the examples' developer
+key, fingerprint `57f3 7c30 e437 198f`), `hello-dev-0.1.0.nbt` and
+`hello-dev-0.1.1.nbt` signed with it, `hello-apps-0.1.1.nbt` signed with the
+apps key, and `hello-lvgl-dev-0.1.0.nbt`. Keep App Manager open.
+
+1. Phone: Car › Manage › Developer keys › Read keys from the car: none.
+2. Copy `developer-public.pem` to the phone; Pick a key file, choose it. The
+   phone shows the fingerprint; Send to the car. The car asks "Add developer
+   key …?" with the phone's name, the same fingerprint and the warning, No
+   focused. Answer Yes: both displays say "Developer key added"; the list shows it.
+3. Import `hello-dev-0.1.0.nbt` and install it. The car's review shows
+   "Developer key: <name>". Install, then start Hello from the menu: the box
+   moves with the controller.
+4. Import `hello-apps-0.1.1.nbt` (the apps key) and install it: the car
+   refuses it (another key signed Hello); Hello 0.1.0 stays.
+5. Install `hello-dev-0.1.1.nbt`: it updates Hello to 0.1.1.
+6. Developer keys: tap the key, Remove key. The car asks "Remove developer key
+   …?"; Yes. The list is empty. Hello is still in the menu and starts.
+7. Install `hello-dev-0.1.0.nbt` again: refused, "signing key removed from this
+   car". Add the key again (step 2), then install `hello-lvgl-dev-0.1.0.nbt`:
+   its LVGL screen follows the controller.
+8. Uninstall Hello and Hello LVGL from the phone; remove the key.
+
 ## 8. Boot listener and opening from the phone
 
 **Opening from the phone is off**: the plugin answers every wake request
