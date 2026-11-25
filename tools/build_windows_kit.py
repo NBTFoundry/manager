@@ -110,12 +110,20 @@ TEST_FORMS = {"test": ("1.5", "show,status,live-settings", "test-", ""),
               "test-runner": ("1.7", "show,status,live-settings,runner", "test-runner-", ".so")}
 
 
-def package(app, version, sequence, key, output):
-    bridge, uses, prefix, suffix = TEST_FORMS[app]
+# "test-diag": test v1 declaring diagnostics that may clear fault codes, for the
+# install review's line about it (it never asks the car anything).
+TEST_DIAG = ("--bridge", "1.8", "--bridge-uses", "show,status,live-settings",
+             "--bridge-optional", "controller,diag", "--bridge-diag", "12:read+codes+clear")
+
+
+def package(app, version, sequence, key, output, form=None):
+    bridge, uses, prefix, suffix = TEST_FORMS[form or app]
+    declared = TEST_DIAG if app == "test-diag" else ("--bridge", bridge, "--bridge-uses", uses,
+                                                     "--bridge-optional", "controller")
     settings = [argument for setting in TEST_SETTINGS for argument in ("--setting", setting)]
     run(sys.executable, ROOT / "tools/package.py", "--app", app, "--version", version, "--sequence", sequence,
-        "--compat", TEST_COMPAT, "--key", key, "--output", output, "--bridge", bridge, "--bridge-uses", uses,
-        "--bridge-optional", "controller", *settings, TEST_APP / f"{prefix}{version}{suffix}")
+        "--compat", TEST_COMPAT, "--key", key, "--output", output, *declared, *settings,
+        TEST_APP / f"{prefix}{version}{suffix}")
 
 
 def test_packages(kit, staging, key, public):
@@ -131,6 +139,9 @@ def test_packages(kit, staging, key, public):
     for path, (app, version, sequence) in packages.items():
         package(app, version, sequence, key, path)
         run(BUILD / "nbt-verify", path, public, app, TEST_COMPAT, stdout=subprocess.DEVNULL)
+    diag = kit / "phone/test-diag-v1.nbt"
+    package("test-diag", "v1", 1, key, diag, form="test")
+    run(BUILD / "nbt-verify", diag, public, "test-diag", TEST_COMPAT, stdout=subprocess.DEVNULL)
     # v1 for the phone too: a car set up once needs no laptop for the test
     # application either (uninstalled, then installed again from the phone).
     shutil.copy2(v1, kit / "phone/test-v1.nbt")
@@ -271,7 +282,8 @@ def main():
         + (f"Step release {version}-step (sequence {sequence - 1}): phone/NBT-Manager-{version}-step.nbtr\n"
            if step else "") +
         f"Test applications (compatibility {TEST_COMPAT}): test, an ordinary QNX program (v1 is inside\n"
-        "the installer), and test-runner, run by the manager's nbt-runner.\n", newline="\r\n")
+        "the installer), test-runner, run by the manager's nbt-runner, and test-diag, test v1\n"
+        "declaring diagnostics that may clear fault codes.\n", newline="\r\n")
     # No line of either private key may appear in any kit file. (The installer
     # contains PEM labels such as "PRIVATE KEY" from its libraries, so search
     # for the keys' own base64 lines rather than for labels.)

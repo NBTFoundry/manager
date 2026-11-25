@@ -16,7 +16,7 @@ only while it installs or removes, then read-only again.
 - This kit, unzipped on the laptop: `NBT-Manager-Installer.exe`,
   `phone\NBT-Manager-0.1.0.apk`, `phone\test-v1.nbt` (the installer's), `phone\test-v2.nbt`, `phone\test-v3-broken.nbt`,
   `phone\test-runner-v1.nbt`, `phone\test-runner-v2.nbt`, `phone\test-runner-v3-broken.nbt`,
-  `controller.conf.example`, `usb\car_inventory.sh` with `CAR-INVENTORY.md`
+  `phone\test-diag-v1.nbt`, `controller.conf.example`, `usb\car_inventory.sh` with `CAR-INVENTORY.md`
   (optional: collects head unit files for the bridge's car-data work),
   `VERSION.txt`, `SHA256SUMS.txt`.
 - An OBD-to-ENET cable, and an Ethernet port or USB Ethernet adapter.
@@ -27,7 +27,7 @@ only while it installs or removes, then read-only again.
   phone and open it; allow installing from that source when Android asks). A newer
   APK installs over an older one and keeps the paired cars; uninstalling the app
   deletes its keys, so each car must be paired again.
-- `phone\test-v2.nbt`, `phone\test-v3-broken.nbt` and the three `phone\test-runner-*.nbt` copied to the phone
+- `phone\test-v2.nbt`, `phone\test-v3-broken.nbt`, the three `phone\test-runner-*.nbt` and `phone\test-diag-v1.nbt` copied to the phone
   (cloud drive, email to yourself or USB), where NBT Manager can pick or receive them.
 - Car parked, ignition on, engine off, battery charger connected.
 
@@ -366,6 +366,16 @@ apps key, and `hello-lvgl-dev-0.1.0.nbt`. Keep App Manager open.
    car". Add the key again (step 2), then install `hello-lvgl-dev-0.1.0.nbt`:
    its LVGL screen follows the controller.
 8. Uninstall Hello and Hello LVGL from the phone; remove the key.
+
+## 7c. Diagnostics
+
+1. Phone: import `test-diag-v1.nbt` and install it. The car's review
+   shows "Can clear fault codes (only when parked)". Reject.
+2. Install `test-v2.nbt` right after: the upload is accepted (a rejected
+   new application no longer blocks the next one). Reject or install.
+3. Gauges reads the engine through the manager's diagnostics: its own
+   procedure, `gauges-car-test-0.0.9.pdf` in the kit folder (packages
+   `gauges-0.0.9.nbt`, `gauges-0.0.10.nbt`).
 
 ## 8. Boot listener and opening from the phone
 
