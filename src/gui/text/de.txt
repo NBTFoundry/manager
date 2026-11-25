@@ -104,6 +104,7 @@ perm_car_data = Fahrzeugdaten
 perm_engine = Motordaten
 perm_files = Ihre Dateien
 perm_phone_net = Telefonnetz
+perm_companion = Telefonbildschirm
 perm_most_read = MOST-Bus
 perm_clear = Fehlercodes löschen
 perm_control = das Fahrzeug steuern

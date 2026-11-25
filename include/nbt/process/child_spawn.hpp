@@ -9,7 +9,7 @@
 namespace nbt {
 namespace process {
 
-static const unsigned kSpawnDescriptorsMax = 11;
+static const unsigned kSpawnDescriptorsMax = 12;
 
 struct ChildSandbox {
     bool isolate;

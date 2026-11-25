@@ -104,6 +104,7 @@ perm_car_data = données du véhicule
 perm_engine = données moteur
 perm_files = vos fichiers
 perm_phone_net = réseau du téléphone
+perm_companion = écran du téléphone
 perm_most_read = bus MOST
 perm_clear = effacer les codes défaut
 perm_control = commander le véhicule

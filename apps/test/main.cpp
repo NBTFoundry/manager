@@ -11,6 +11,7 @@
 // `hang` stops its heartbeat. The host tests use tests/fake_app.cpp.
 #include "nbt/app/audio_pcm.hpp"
 #include "nbt/app/clock.hpp"
+#include "nbt/app/companion.hpp"
 #include "nbt/app/lifecycle.hpp"
 #include "nbt/app/log.hpp"
 #include "nbt/app/video.hpp"
@@ -51,6 +52,7 @@ const uint32_t kWhite = 0xffffffffu, kGrey = 0xd0d8e0ffu;
 struct Beep {
     unsigned hz, period_ms, rate;
     uint64_t sample;
+    bool muted;
 };
 
 void beep(void *context, int16_t *out, int frames) {
@@ -59,12 +61,42 @@ void beep(void *context, int16_t *out, int frames) {
     const uint64_t length = b.rate / 5; // 200 ms
     for (int i = 0; i < frames; ++i, ++b.sample) {
         int value = 0;
-        if (period && b.sample % period < length) {
+        if (period && !b.muted && b.sample % period < length) {
             const unsigned step = static_cast<unsigned>(b.sample * b.hz % b.rate); // 0..rate-1
             const int ramp = static_cast<int>(step * 4000u / b.rate);              // 0..3999
             value = ramp < 2000 ? ramp * 2 - 2000 : 6000 - ramp * 2;               // -2000..2000
         }
         out[2 * i] = out[2 * i + 1] = static_cast<int16_t>(value);
+    }
+}
+
+// test-service's phone page (docs/companion-bridge.md): its uptime, the beep
+// on or off, its pitch, a button that writes a log line, a bar over each minute.
+void showPage(nbt::app::Companion &page, const Beep &tone, uint64_t seconds) {
+    static const char *const kPitches[] = {"330", "440", "550"};
+    char uptime[48], pitch[8];
+    snprintf(uptime, sizeof(uptime), "Service running for %llu s",
+             static_cast<unsigned long long>(seconds));
+    snprintf(pitch, sizeof(pitch), "%u", tone.hz);
+    page.begin();
+    page.title("NBT Manager test " NBT_TEST_VERSION);
+    page.text(uptime);
+    page.toggle("beep", "Beep", !tone.muted);
+    page.choice("pitch", "Pitch (Hz)", pitch, kPitches, 3);
+    page.button("note", "Write a log line");
+    page.progress("This minute", static_cast<unsigned>(seconds % 60 * 100 / 60));
+    (void)page.publish();
+}
+
+void readPage(nbt::app::Companion &page, Beep &tone) {
+    nbt::app::Companion::Event event;
+    while (page.next(&event)) {
+        nbt::app::log_info("phone: %s %s", event.id, event.value);
+        if (!strcmp(event.id, "beep")) {
+            tone.muted = !strcmp(event.value, "0");
+        } else if (!strcmp(event.id, "pitch") && strlen(event.value) == 3) {
+            tone.hz = static_cast<unsigned>(atoi(event.value));
+        }
     }
 }
 
@@ -158,7 +190,11 @@ int main(int argc, char **argv) {
     // With a role (test-service): the application beeps at 660 Hz every 2 s,
     // its service at 440 Hz every 4 s.
     nbt::app::AudioPcm audio;
-    Beep tone = {service ? 440u : 660u, service ? 4000u : 2000u, 0, 0};
+    Beep tone = {service ? 440u : 660u, service ? 4000u : 2000u, 0, 0, false};
+    nbt::app::Companion page;
+    if (lifecycle.is_user_mode() && page.init()) {
+        nbt::app::log_info("phone page on");
+    }
     if (role && lifecycle.is_user_mode()) {
         tone.rate = static_cast<unsigned>(nbt::app::kAudioDefaultRate);
         if (audio.open(nbt::app::kAudioDefaultRate, &beep, &tone, true)) {
@@ -190,9 +226,11 @@ int main(int argc, char **argv) {
             result = 1;
             break;
         }
-#else
-        (void)start;
 #endif
+        if (page.available()) {
+            readPage(page, tone);
+            showPage(page, tone, (now - start) / 1000);
+        }
         if (service && now - noted >= 30000) {
             noted = now;
             nbt::app::log_info("service still running (%u)", ++notes);

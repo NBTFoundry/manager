@@ -107,6 +107,7 @@ perm_car_data = car data
 perm_engine = engine data
 perm_files = your files
 perm_phone_net = phone network
+perm_companion = phone screen
 perm_most_read = MOST bus
 perm_clear = clear fault codes
 perm_control = control the car

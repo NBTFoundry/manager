@@ -16,13 +16,14 @@ public:
     static int start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, const char *slot,
                      char *const *environment, int statusFd, int mostFd, nbt_process *child,
                      uint64_t nowMs, int gamepadFd = -1, int controllerFd = -1, int holdFd = -1,
-                     int diagFd = -1, nbt_fs_path_kind leaseKind = NBT_FS_LEASE);
+                     int diagFd = -1, int companionFd = -1,
+                     nbt_fs_path_kind leaseKind = NBT_FS_LEASE);
     /* `outputFd` becomes the child's stdout and stderr; -1 passes the caller's own. */
     static int start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, const char *slot,
                      char *const *environment, int statusFd, int mostFd, int outputFd,
                      const ChildSandbox *sandbox, nbt_process *child, uint64_t nowMs,
                      int gamepadFd = -1, int controllerFd = -1, int holdFd = -1, int diagFd = -1,
-                     nbt_fs_path_kind leaseKind = NBT_FS_LEASE);
+                     int companionFd = -1, nbt_fs_path_kind leaseKind = NBT_FS_LEASE);
     static int poll(nbt_process *child, uint64_t nowMs);
     static int healthy(const nbt_process *child, uint64_t nowMs);
     static int signal(const nbt_process *child, int sig);

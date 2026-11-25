@@ -16,6 +16,7 @@
 #define NBT_PERM_FILES 0x008u      /* `files` */
 #define NBT_PERM_PHONE_NET 0x010u  /* `net` */
 #define NBT_PERM_MOST_READ 0x020u  /* `most` rx */
+#define NBT_PERM_COMPANION 0x800u  /* `companion` */
 /* The dangerous ones, listed apart. */
 #define NBT_PERM_MOST_SEND 0x040u /* `most` tx */
 #define NBT_PERM_MOST_ANY 0x080u  /* `tx:*.*.*`, or a reserved function */
@@ -23,7 +24,7 @@
 #define NBT_PERM_CONTROL 0x200u   /* `diag` control */
 #define NBT_PERM_DRIVE 0x400u     /* `diag` drive: clear or control while moving */
 #define NBT_PERM_DANGEROUS 0x7C0u
-#define NBT_PERM_ALL 0x7FFu
+#define NBT_PERM_ALL 0xFFFu
 
 #ifdef __cplusplus
 extern "C" {

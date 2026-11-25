@@ -394,6 +394,20 @@ apps key, and `hello-lvgl-dev-0.1.0.nbt`. Keep App Manager open.
    after about 25 s the low beep comes back without HELLO WORLD on the
    screen. Turn it off, stop it, uninstall it.
 
+## 7e. Phone page
+
+1. Phone: Library › test-service › details list "phone screen" under Uses.
+   Install it (the car's review says the same), start it.
+2. Phone: Car › test-service › Phone page: "NBT Manager test v1", the
+   service's seconds counting up (every 2 s), Beep On, Pitch 440, a button,
+   a bar filling each minute.
+3. Beep › Off: the low beep stops within 2 s. Pitch › 550: it comes back
+   higher once Beep is On again.
+4. Write a log line, then Show log: `[test:service] phone: note`.
+5. Hold the push on test-service: the page says the application is not
+   running. Start it again: the page comes back (Beep On, Pitch 440).
+6. Close App Manager (MENU): the page keeps working (from the boot listener).
+
 ## 8. Boot listener and opening from the phone
 
 **Opening from the phone is off**: the plugin answers every wake request

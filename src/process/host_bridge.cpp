@@ -7,6 +7,7 @@
 #include "nbt/gui/car_data_relay.hpp"
 #include "nbt/gui/hmi_hold.hpp"
 #include "nbt/log.h"
+#include "nbt/process/companion_files.hpp"
 #include "nbt/util.h"
 
 #include <errno.h>
@@ -32,9 +33,9 @@ void removeRecord(const char *dir, const char *app, const char *suffix) {
 } // namespace
 
 HostBridge::HostBridge()
-    : fs_(NULL), app_(), dir_(NULL), holdFd_(-1), diagChild_(-1), carData_(false), netOpen_(false),
-      haveRequest_(false), relayed_(false), wantSpeed_(false), cds_(), diag_(), net_(),
-      requestSequence_(0), relayMs_(0), recordMs_(0), requestWord_(NBT_HOLD_RELEASE) {
+    : fs_(NULL), app_(), dir_(NULL), holdFd_(-1), diagChild_(-1), companionFd_(-1), carData_(false),
+      netOpen_(false), haveRequest_(false), relayed_(false), wantSpeed_(false), cds_(), diag_(),
+      net_(), requestSequence_(0), relayMs_(0), recordMs_(0), requestWord_(NBT_HOLD_RELEASE) {
 }
 
 HostBridge::~HostBridge() {
@@ -57,6 +58,19 @@ void HostBridge::prepare(nbt_fs *fs, const char *app, const char *grantCaps,
             nbt_app_environment_remove(environment, "NBT_HOLD_FD=9");
             if (!gui::appHoldAnswerPath(dir_, app, path, sizeof(path))) {
                 snprintf(entry, sizeof(entry), "NBT_HOLD_STATE=%s", path);
+                nbt_app_environment_remove(environment, entry);
+            }
+        }
+    }
+    if (nbt_bridge_cap_has(grantCaps, "companion")) {
+        companionRemove(dir_, app); // a crashed host's
+        companionFd_ = nbt_fs_bridge_open(fs, app, "page", 1);
+        if (companionFd_ < 0) {
+            nbt_logf("host %s: no companion page (errno %d); started without", app, errno);
+            char path[NBT_PATH_MAX], entry[NBT_PATH_MAX + 24];
+            nbt_app_environment_remove(environment, "NBT_COMPANION_FD=11");
+            if (!companionEventsPath(dir_, app, path, sizeof(path))) {
+                snprintf(entry, sizeof(entry), "NBT_COMPANION_EVENTS=%s", path);
                 nbt_app_environment_remove(environment, entry);
             }
         }
@@ -198,6 +212,11 @@ void HostBridge::stop() {
     if (holdFd_ >= 0) {
         close(holdFd_);
         holdFd_ = -1;
+    }
+    if (companionFd_ >= 0) {
+        close(companionFd_);
+        companionFd_ = -1;
+        companionRemove(dir_, app_);
     }
     diag_.stop();
     if (diagChild_ >= 0) {

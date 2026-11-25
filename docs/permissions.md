@@ -17,6 +17,7 @@ any permission: the driver decides.
 | engine data | `diag` `read` or `codes` | Uses |
 | your files | `files` | Uses |
 | phone network | `net` | Uses |
+| phone screen | `companion` | Uses |
 | MOST bus | `most` `rx` | Uses |
 | clear fault codes | `diag` `clear` | Can |
 | control the car | `diag` `control`: writes, input/output control, routines | Can |

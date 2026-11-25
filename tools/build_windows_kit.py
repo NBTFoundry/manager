@@ -116,9 +116,9 @@ TEST_DIAG = ("--bridge", "1.9", "--bridge-uses", "show,status,live-settings",
              "--bridge-optional", "controller,diag,most",
              "--bridge-diag", "12:read+codes+clear+control+drive", "--bridge-most", "rx:*.*.*,tx:*.*.*")
 # "test-service": test v1 with its background service (bridge 1.9), which
-# notes in the log every 30 s that it still runs.
+# notes in the log every 30 s that it still runs and has a phone page.
 TEST_SERVICE = ("--bridge", "1.9", "--bridge-uses", "show,status,live-settings",
-                "--bridge-optional", "controller,service")
+                "--bridge-optional", "controller,service,companion")
 
 
 def package(app, version, sequence, key, output, form=None):

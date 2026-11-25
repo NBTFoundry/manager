@@ -14,7 +14,7 @@ a status label in the menu, live settings, MOST messages under a signed policy,
 a wired USB gamepad, the decoded iDrive controller and a folder of files.
 
 The current provider is **bridge 1.9 with
-`show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag,service`**. Applications on the SDK
+`show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag,service,companion`**. Applications on the SDK
 (`NBTFoundry/sdk`) get the application side of every capability.
 
 | Capability | Since | Section |
@@ -32,6 +32,7 @@ The current provider is **bridge 1.9 with
 | `runner` (built without the QNX SDP) | 1.7 | [8](#8-applications-built-without-the-qnx-sdp-capability-runner-bridge-17) |
 | `diag` (requests to the car's control units) | 1.8 | [9](#9-diagnostics-capability-diag-bridge-18), [diag-bridge.md](diag-bridge.md) |
 | `service` (a background service beside the screen) | 1.9 | [10](#10-background-service-capability-service-bridge-19), [service-bridge.md](service-bridge.md) |
+| `companion` (a page in the phone app) | 1.9 | [11](#11-phone-companion-capability-companion-bridge-19), [companion-bridge.md](companion-bridge.md) |
 
 What an application declares is shown to the driver as permissions before it
 installs ([permissions.md](permissions.md)).
@@ -559,6 +560,16 @@ underneath ([bridge-design.md](bridge-design.md)).
   after it, started again after 1, 5 and 30 s when it ends on its own, stopped
   with its application, by an update (started again after it) or an
   uninstall (refused while it runs).
+
+### 11. Phone companion (capability `companion`, bridge 1.9)
+
+- **Page.** The process writes a few widgets (titles, texts, buttons,
+  toggles, choices, progress bars) to fd 11 (`NBT_COMPANION_FD=11`); the
+  phone app shows them while it runs ([companion-bridge.md](companion-bridge.md)).
+- **Events.** The phone's taps and choices, the last 16, in the file named by
+  `NBT_COMPANION_EVENTS`.
+- **Which process.** The service when the application declares one, else
+  the application.
 
 ## Design notes
 

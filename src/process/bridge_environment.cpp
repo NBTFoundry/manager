@@ -3,6 +3,7 @@
 #include "nbt/gui/hmi_hold.hpp"
 #include "nbt/log.h"
 #include "nbt/manager_settings.h"
+#include "nbt/process/companion_files.hpp"
 #include "nbt/storage/files_root.hpp"
 #include <errno.h>
 #include <stdio.h>
@@ -35,9 +36,10 @@ size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridg
     }
     // Descriptors exist only for a user launch (the host maps them; docs/app-bridge.md).
     static const char *const channels[][2] = {
-        {"status", "NBT_STATUS_FD=5"},   {"most", "NBT_MOST_FD=6"},
-        {"gamepad", "NBT_GAMEPAD_FD=7"}, {"controller", "NBT_CONTROLLER_FD=8"},
-        {"hold", "NBT_HOLD_FD=9"},       {"diag", "NBT_DIAG_FD=10"}};
+        {"status", "NBT_STATUS_FD=5"},       {"most", "NBT_MOST_FD=6"},
+        {"gamepad", "NBT_GAMEPAD_FD=7"},     {"controller", "NBT_CONTROLLER_FD=8"},
+        {"hold", "NBT_HOLD_FD=9"},           {"diag", "NBT_DIAG_FD=10"},
+        {"companion", "NBT_COMPANION_FD=11"}};
     const bool user = launch && !strcmp(launch, "user");
     for (unsigned i = 0; user && i < sizeof(channels) / sizeof(channels[0]); ++i) {
         if (nbt_bridge_cap_has(grant.caps, channels[i][0])) {
@@ -59,6 +61,12 @@ size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridg
     if (user && app && dir && nbt_bridge_cap_has(grant.caps, "hold") &&
         !nbt::gui::appHoldAnswerPath(dir, app, path, sizeof(path))) {
         snprintf(out->text[count], sizeof(out->text[0]), "NBT_HOLD_STATE=%s", path);
+        out->list[count] = out->text[count];
+        ++count;
+    }
+    if (user && app && dir && nbt_bridge_cap_has(grant.caps, "companion") &&
+        !companionEventsPath(dir, app, path, sizeof(path))) {
+        snprintf(out->text[count], sizeof(out->text[0]), "NBT_COMPANION_EVENTS=%s", path);
         out->list[count] = out->text[count];
         ++count;
     }

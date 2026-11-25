@@ -13,7 +13,9 @@
  *    Direct group on);
  *  - `diag` (1.8): the application's socket (the child's fd 10) and the
  *    service answering it (process/diag_service.hpp); a policy that may clear
- *    fault codes adds driving.speedActual to the car data it asks for. */
+ *    fault codes adds driving.speedActual to the car data it asks for;
+ *  - `companion` (1.9): the page file it creates (the child's fd 11), and
+ *    the phone's events, both removed at the start and the end. */
 
 #include "nbt/app_settings.h"
 #include "nbt/bridge.h"
@@ -39,6 +41,9 @@ public:
     int holdFd() const {
         return holdFd_;
     }
+    int companionFd() const {
+        return companionFd_;
+    }
     /* The application's end of the diag socket, or -1. */
     int diagFd() const {
         return diagChild_;
@@ -56,7 +61,7 @@ private:
     nbt_fs *fs_;
     char app_[NBT_HOLD_APP_MAX + 1];
     const char *dir_;
-    int holdFd_, diagChild_;
+    int holdFd_, diagChild_, companionFd_;
     bool carData_, netOpen_, haveRequest_, relayed_, wantSpeed_;
     char cds_[NBT_CDS_POLICY_MAX + 1];
     DiagService diag_;

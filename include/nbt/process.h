@@ -43,9 +43,9 @@ int nbt_process_start_host(nbt_fs *fs, const char *app, char *const *environment
                            int most_fd, nbt_process *child, uint64_t now_ms);
 /* The bridge descriptors a host passes to its application, each -1 for none
  * and kept by the caller: status fd 5, most fd 6, gamepad fd 7, controller
- * fd 8, hold fd 9 and diag fd 10 (docs/app-bridge.md). */
+ * fd 8, hold fd 9, diag fd 10 and companion fd 11 (docs/app-bridge.md). */
 typedef struct {
-    int status, most, gamepad, controller, hold, diag;
+    int status, most, gamepad, controller, hold, diag, companion;
     int service; /* 1: the application's service, holding service.lease instead of lease */
 } nbt_app_channels;
 int nbt_process_start_host_channels(nbt_fs *fs, const char *app, char *const *environment,

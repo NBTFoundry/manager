@@ -88,17 +88,17 @@ int ProcessGroup::ended(nbt_process *child, unsigned tries) {
 int ProcessGroup::start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, const char *slot,
                         char *const *environment, int statusFd, int mostFd, nbt_process *child,
                         uint64_t nowMs, int gamepadFd, int controllerFd, int holdFd, int diagFd,
-                        nbt_fs_path_kind leaseKind) {
+                        int companionFd, nbt_fs_path_kind leaseKind) {
     const ChildSandbox sandbox = defaultAppSandbox();
     return start(fs, app, kind, slot, environment, statusFd, mostFd, -1,
                  kind == NBT_FS_ACTIVE ? &sandbox : NULL, child, nowMs, gamepadFd, controllerFd,
-                 holdFd, diagFd, leaseKind);
+                 holdFd, diagFd, companionFd, leaseKind);
 }
 
 int ProcessGroup::start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, const char *slot,
                         char *const *environment, int statusFd, int mostFd, int outputFd,
                         const ChildSandbox *sandbox, nbt_process *child, uint64_t nowMs,
-                        int gamepadFd, int controllerFd, int holdFd, int diagFd,
+                        int gamepadFd, int controllerFd, int holdFd, int diagFd, int companionFd,
                         nbt_fs_path_kind leaseKind) {
     char path[NBT_PATH_MAX];
     char *argv[16];
@@ -106,7 +106,8 @@ int ProcessGroup::start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, cons
     char *const empty[] = {NULL};
     int active = -1, lease = -1, leaseChild = -1, pipefds[2] = {-1, -1};
     int readyParent = -1, readyChild = -1;
-    MappedChannels channels(statusFd, mostFd, gamepadFd, controllerFd, outputFd, holdFd, diagFd);
+    MappedChannels channels(statusFd, mostFd, gamepadFd, controllerFd, outputFd, holdFd, diagFd,
+                            companionFd);
     pid_t pid = 0;
     if (!channels.valid() || !child || child->pid > 0 ||
         nbt_fs_path(fs, kind, app, slot, path, sizeof(path))) {
@@ -147,10 +148,11 @@ int ProcessGroup::start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, cons
     }
     {
         // Standard streams as the caller's (or outputFd), then ready 3, lease 4, status 5,
-        // MOST 6, gamepad 7, controller 8, hold 9, diag 10; up to the last one present.
+        // MOST 6, gamepad 7, controller 8, hold 9, diag 10, companion 11; up to the last one
+        // present.
         const int out = channels.output() >= 0 ? channels.output() : 1;
         const int err = channels.output() >= 0 ? channels.output() : 2;
-        const int fds[11] = {0,
+        const int fds[12] = {0,
                              out,
                              err,
                              readyChild,
@@ -160,8 +162,9 @@ int ProcessGroup::start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, cons
                              channels.gamepad(),
                              channels.controller(),
                              channels.hold(),
-                             channels.diag()};
-        unsigned count = 11;
+                             channels.diag(),
+                             channels.companion()};
+        unsigned count = 12;
         while (count > 5 && fds[count - 1] < 0) {
             --count;
         }

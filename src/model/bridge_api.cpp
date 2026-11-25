@@ -126,7 +126,7 @@ void nbt_bridge_current(nbt_bridge_provider *out) {
     out->versions[0].minor = 9;
     out->versions[0].oldest = NBT_BRIDGE_OLDEST_MINOR;
     static const char kCaps[] = "show,status,live-settings,most,gamepad,controller,files,hold,"
-                                "car-data,net,runner,diag,service";
+                                "car-data,net,runner,diag,service,companion";
     memcpy(out->versions[0].caps, kCaps, sizeof(kCaps));
 }
 

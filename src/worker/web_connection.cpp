@@ -125,7 +125,7 @@ core::Status WebConnection::body(PhoneApi &api, const unsigned char *data, size_
         }
         return reply(api, now, 403, "ERR authentication\n");
     }
-    char output[4096] = {};
+    char output[4160] = {}; // room to read a phone page whole (PROTOCOL.md replies stay 4096)
     int status;
     if (http::streamed(request_.route)) {
         if (fsync(uploadFd_.get()) || !uploadFd_.close().ok()) {

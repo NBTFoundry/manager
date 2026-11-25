@@ -2,6 +2,7 @@
 #include "nbt/worker/phone_api.hpp"
 #include "nbt/crypto/ec_public_key.hpp"
 #include "nbt/util.h"
+#include "nbt/worker/phone_companion.hpp"
 #include "nbt/worker/phone_crashes.hpp"
 #include "nbt/worker/phone_network.hpp"
 #include "nbt/worker/phone_routes.hpp"
@@ -207,6 +208,10 @@ int PhoneApi::execute(const http::Request &request, const char *body, uint64_t n
         return phoneCrashList(root_, body, out);
     case http::CrashesClear:
         return phoneCrashClear(root_, body, out);
+    case http::Companion:
+        return phoneCompanion(worker_, body, out);
+    case http::CompanionEvent:
+        return phoneCompanionEvent(worker_, body, out);
     default:
         return 400;
     }

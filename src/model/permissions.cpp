@@ -58,6 +58,7 @@ unsigned nbt_permissions(const nbt_bridge_requirement *bridge) {
     out |= declares(bridge, "car-data") ? NBT_PERM_CAR_DATA : 0u;
     out |= declares(bridge, "files") ? NBT_PERM_FILES : 0u;
     out |= declares(bridge, "net") ? NBT_PERM_PHONE_NET : 0u;
+    out |= declares(bridge, "companion") ? NBT_PERM_COMPANION : 0u;
     out |= declares(bridge, "diag") ? diagPermissions(bridge->diag) : 0u;
     return out | (declares(bridge, "most") ? mostPermissions(bridge->most) : 0u);
 }

@@ -1281,7 +1281,7 @@ event("exit")
             "sys.exit(3)\n")
         record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE2\n")
         (self.root / "state/test/installed").write_text(
-            record + "bridge=1.9\nbridge-uses=show\nbridge-optional=service\n")
+            record + "bridge=1.9\nbridge-uses=show\nbridge-optional=service,companion\n")
         service_lock = self.root / "state/test/service.lock"
         service_log = self.root / "state/test/service.log"
         _, command = self.worker()
@@ -1289,7 +1289,8 @@ event("exit")
         self.wait_for(lambda: lock_holder(service_lock))
         self.wait_for(lambda: "role=service" in (service_log.read_text() if service_log.exists() else ""))
         self.assertIn("role=app caps=show,service surface=1291", self.app_log())
-        self.assertIn("role=service caps=service surface=absent", service_log.read_text())
+        # The phone page is the service's (docs/companion-bridge.md).
+        self.assertIn("role=service caps=service,companion surface=absent", service_log.read_text())
         # The application ends; its service runs on, and is listed as such.
         self.wait_for(lambda: not lock_holder(self.host_lock))
         self.assertTrue(lock_holder(service_lock))
@@ -1306,6 +1307,58 @@ event("exit")
         self.wait_for(lambda: not lock_holder(service_lock))
         self.assertIn("stopped by the manager", service_log.read_text())
         self.assertEqual(command("SERVICES"), "SERVICES\t0")
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_bridge_19_companion_page_and_events_reach_the_phone(self):
+        """Bridge 1.9 `companion` (docs/companion-bridge.md): the application
+        writes its page on fd 11, a paired phone reads it and sends events,
+        which the application reads from NBT_COMPANION_EVENTS; both files go
+        when it ends."""
+        self.script_app(
+            "print('fd=%s events=%s' % (os.environ.get('NBT_COMPANION_FD', 'absent'),\n"
+            "      os.environ.get('NBT_COMPANION_EVENTS', 'absent')), flush=True)\n"
+            "os.write(3, b'R')\n"
+            "page = b'7\\ntitle\\tHello\\nbutton\\tgo\\tGo\\n'\n"
+            "os.pwrite(11, page, 0)\nos.ftruncate(11, len(page))\n"
+            "seen = ''\n"
+            "while True:\n    time.sleep(0.2)\n    os.write(3, b'R')\n"
+            "    try:\n        text = open(os.environ['NBT_COMPANION_EVENTS']).read()\n"
+            "    except OSError:\n        continue\n"
+            "    if text != seen:\n        seen = text\n        print('events=' + repr(text), flush=True)\n")
+        record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE2\n")
+        (self.root / "state/test/installed").write_text(
+            record + "bridge=1.9\nbridge-uses=\nbridge-optional=companion\n")
+        _, command = self.worker()
+        from phone_client import SoftwarePhone
+        host = command("SESSION lo 0").split("\t")[1]
+        phone = SoftwarePhone(self.tmp.name)
+        phone.pair(command, host)
+        page = lambda body=b"test\n": phone.request(host, "POST", "/v1/companion", body)
+        event = lambda body: phone.request(host, "POST", "/v1/companion/event", body)
+        self.assertEqual(page(), (200, b"COMPANION\toff\n"))
+        self.assertEqual(event(b"test\tgo\t\n")[0], 409)
+        self.assertEqual(command("START test"), "OK")
+        ready = b"COMPANION\tready\n7\ntitle\tHello\nbutton\tgo\tGo\n"
+        self.wait_for(lambda: page() == (200, ready))
+        self.assertIn(f"fd=11 events={self.root}/nbt-bridge1-test.events", self.app_log())
+        self.assertEqual(event(b"test\tgo\t\n"), (200, b"OK\n"))
+        self.assertEqual(event(b"test\tmode\tfast\n"), (200, b"OK\n"))
+        self.wait_for(lambda: "events='1\\tgo\\t\\n2\\tmode\\tfast\\n'" in self.app_log())
+        for bad in (b"test\tGo\t\n", b"test\tgo\n", b"test\tgo\ta,b\n", b"test\tgo\t\x01\n",
+                    b"manager\tgo\t\n", b"test\n", b""):
+            self.assertEqual(event(bad)[0], 400, bad)
+        self.assertEqual(event(b"missing\tgo\t\n")[0], 404)
+        self.assertEqual(page(b"missing\n")[0], 404)
+        self.assertEqual(page(b"test")[0], 400)
+        for _ in range(16):
+            self.assertEqual(event(b"test\tgo\t1\n")[0], 200)
+        events = self.root / "nbt-bridge1-test.events"
+        lines = events.read_text().splitlines()
+        self.assertEqual((len(lines), lines[0], lines[-1]), (16, "3\tgo\t1", "18\tgo\t1"))
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: not (self.root / "nbt-bridge1-test.page").exists())
+        self.assertFalse(events.exists())
+        self.assertEqual(page(), (200, b"COMPANION\toff\n"))
         self.assertEqual(command("QUIT"), "OK")
 
     def test_the_audio_mixer_starts_once_and_is_named_to_the_application(self):

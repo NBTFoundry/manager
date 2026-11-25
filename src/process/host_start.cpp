@@ -35,18 +35,15 @@ void without(char *caps, const char *name) {
     memcpy(caps, rest, sizeof(rest));
 }
 
-/* The service's requirement: the screen and input capabilities become
- * optional (still declared, as `service` needs `show`), and none is offered. */
-void asService(nbt_bridge_requirement *need, char *available) {
-    for (const char *name : kScreenCaps) {
-        if (nbt_bridge_cap_has(need->uses, name)) {
-            without(need->uses, name);
-            const size_t used = strlen(need->optional);
-            snprintf(need->optional + used, sizeof(need->optional) - used, "%s%s", used ? "," : "",
-                     name);
-        }
-        without(available, name);
+/* `name` becomes optional (still declared) and is not offered. */
+void notOffered(nbt_bridge_requirement *need, char *available, const char *name) {
+    if (nbt_bridge_cap_has(need->uses, name)) {
+        without(need->uses, name);
+        const size_t used = strlen(need->optional);
+        snprintf(need->optional + used, sizeof(need->optional) - used, "%s%s", used ? "," : "",
+                 name);
     }
+    without(available, name);
 }
 
 } // namespace
@@ -79,7 +76,14 @@ int prepareHostStart(nbt_fs *fs, const char *app, int lease, HostStart *out, cha
     char served[NBT_BRIDGE_CAPS_MAX + 1];
     memcpy(served, provider.versions[0].caps, sizeof(served));
     if (service) {
-        asService(&need, served);
+        // The service never gets the screen or the input (`service` needs `show`).
+        for (const char *name : kScreenCaps) {
+            notOffered(&need, served, name);
+        }
+    } else if (nbt_bridge_cap_has(need.uses, "service") ||
+               nbt_bridge_cap_has(need.optional, "service")) {
+        // An application with a service leaves its phone page to it.
+        notOffered(&need, served, "companion");
     }
     channels.prepare(app, need, served, available);
     // Files live on the hard disk: without a usable root the capability is

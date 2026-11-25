@@ -34,7 +34,9 @@ enum Route {
     CrashesClear,
     Keys,
     KeysAdd,
-    KeysRemove
+    KeysRemove,
+    Companion,
+    CompanionEvent
 };
 /* Routes whose body is streamed to a file rather than read into memory. */
 inline bool streamed(Route route) {

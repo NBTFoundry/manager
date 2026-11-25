@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/bridge.h"
 #include "nbt/cds_policy.h"
+#include "nbt/companion_wire.h"
 #include "nbt/diag/hsfz_tester.hpp"
 #include "nbt/diag_policy.h"
 #include "nbt/diag_wire.h"
 #include "nbt/files_policy.h"
 #include "nbt/net_policy.h"
+#include "nbt/permissions.h"
+#include "nbt/process/companion_files.hpp"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -533,8 +536,90 @@ static void service_declarations(void) {
     assert(nbt_bridge_requirement_parse(&p, "", &need)); /* runs in the background already */
 }
 
+/* Phone companions (bridge 1.9, docs/companion-bridge.md): the declaration,
+ * the page's frame, the event lines and the files the worker keeps. */
+static void companion_declarations_and_files(void) {
+    nbt_bridge_requirement need;
+    char error[128], *p;
+    char record[] = "bridge=1.9\nbridge-uses=status\nbridge-optional=companion\n";
+    p = record;
+    assert(!nbt_bridge_requirement_parse(&p, "", &need) &&
+           nbt_permissions(&need) == NBT_PERM_COMPANION);
+    char old[] = "bridge=1.8\nbridge-uses=status\nbridge-optional=companion\n";
+    p = old;
+    assert(nbt_bridge_requirement_parse(&p, "", &need)); /* came with 1.9 */
+    (void)error;
+    uint64_t sequence = 0;
+    const char page[] = "12\ntitle\tBoost\nbutton\tgo\tGo\n";
+    assert(!nbt_companion_page_check(page, strlen(page), &sequence) && sequence == 12);
+    const char *const badPages[] = {"",          "\n",          "012\ntext\ta\n", "1\ntext\ta",
+                                    "x\ntext\n", "1\n\ntext\n", "1\ntext\x01\n",  "1 \n"};
+    for (const char *bad : badPages) {
+        assert(nbt_companion_page_check(bad, strlen(bad), &sequence));
+    }
+    char big[NBT_COMPANION_PAGE_MAX + 2];
+    memset(big, 'a', sizeof(big));
+    memcpy(big, "1\n", 2);
+    big[NBT_COMPANION_PAGE_MAX - 1] = '\n';
+    assert(!nbt_companion_page_check(big, NBT_COMPANION_PAGE_MAX, &sequence));
+    big[NBT_COMPANION_PAGE_MAX] = '\n';
+    assert(nbt_companion_page_check(big, NBT_COMPANION_PAGE_MAX + 1, &sequence));
+    char widgets[256] = "1\n";
+    for (unsigned i = 0; i < NBT_COMPANION_WIDGETS_MAX + 1; ++i) {
+        strcat(widgets, "t\n");
+    }
+    assert(nbt_companion_page_check(widgets, strlen(widgets), &sequence)); /* 33 */
+    assert(!nbt_companion_page_check(widgets, strlen(widgets) - 2, &sequence));
+    char line[NBT_COMPANION_EVENT_LINE_MAX + 1], id[NBT_COMPANION_ID_MAX + 1],
+        value[NBT_COMPANION_VALUE_MAX + 1];
+    assert(nbt_companion_event_format(3, "mode", "fast", line, sizeof(line)) == 12 &&
+           !strcmp(line, "3\tmode\tfast\n"));
+    assert(!nbt_companion_event_parse(line, 12, &sequence, id, value) && sequence == 3 &&
+           !strcmp(id, "mode") && !strcmp(value, "fast"));
+    assert(!nbt_companion_event_parse("4\tgo\t\n", 6, &sequence, id, value) && !value[0]);
+    const char *const badEvents[] = {"4\tGo\t\n", "4\tgo\n",  "4\tgo\ta,b\n",  "04\tgo\t\n",
+                                     "\tgo\t\n",  "4\t\t1\n", "4\tgo\t1\t2\n", "4\tgo\t1"};
+    for (const char *bad : badEvents) {
+        assert(nbt_companion_event_parse(bad, strlen(bad), &sequence, id, value));
+    }
+    assert(nbt_companion_event_format(1, "go", "a,b", line, sizeof(line)) == -1);
+    assert(nbt_companion_event_format(1, "a-very-long-identifier-25", "", line, sizeof(line)) ==
+           -1);
+    /* The worker's files: events numbered on, the last 16 kept; pages checked. */
+    char dir[] = "/tmp/nbt-companion-XXXXXX", path[256], out[NBT_COMPANION_PAGE_MAX + 1];
+    assert(mkdtemp(dir));
+    assert(nbt::process::companionPageRead(dir, "test", out, sizeof(out)) == 0);
+    for (unsigned i = 0; i < 20; ++i) {
+        assert(!nbt::process::companionEventAdd(dir, "test", "go", i % 2 ? "1" : "0"));
+    }
+    assert(nbt::process::companionEventAdd(dir, "test", "Go", "") == -1);
+    assert(nbt::process::companionEventAdd(dir, "manager", "go", "") == -1);
+    assert(!nbt::process::companionEventsPath(dir, "test", path, sizeof(path)));
+    FILE *events = fopen(path, "r");
+    assert(events);
+    unsigned count = 0;
+    while (fgets(line, sizeof(line), events)) {
+        assert(!nbt_companion_event_parse(line, strlen(line), &sequence, id, value) &&
+               sequence == 5 + count++);
+    }
+    fclose(events);
+    assert(count == NBT_COMPANION_EVENTS_MAX);
+    snprintf(path, sizeof(path), "%s/nbt-bridge1-test.page", dir);
+    FILE *written = fopen(path, "w");
+    assert(written && fputs(page, written) >= 0 && !fclose(written));
+    assert(nbt::process::companionPageRead(dir, "test", out, sizeof(out)) ==
+               static_cast<int>(strlen(page)) &&
+           !memcmp(out, page, strlen(page)));
+    written = fopen(path, "w");
+    assert(written && fputs("x\n", written) >= 0 && !fclose(written));
+    assert(nbt::process::companionPageRead(dir, "test", out, sizeof(out)) == 0);
+    nbt::process::companionRemove(dir, "test");
+    assert(access(path, F_OK) && !rmdir(dir));
+}
+
 int main(void) {
     status_lines();
+    companion_declarations_and_files();
     diag_policy_and_wire();
     service_declarations();
     gateway_file();
@@ -566,7 +651,8 @@ int main(void) {
            provider.versions[0].minor == 9 &&
            provider.versions[0].oldest == NBT_BRIDGE_OLDEST_MINOR &&
            !strcmp(provider.versions[0].caps, "show,status,live-settings,most,gamepad,controller,"
-                                              "files,hold,car-data,net,runner,diag,service"));
+                                              "files,hold,car-data,net,runner,diag,service,"
+                                              "companion"));
     /* Bridge 1.7: an application built without the QNX SDP requires runner. */
     memset(&need, 0, sizeof(need));
     need.major = 1;

@@ -8,7 +8,7 @@ namespace process {
 class MappedChannels {
 public:
     MappedChannels(int status, int most, int gamepad, int controller, int output, int hold = -1,
-                   int diag = -1);
+                   int diag = -1, int companion = -1);
     bool valid() const {
         return valid_;
     }
@@ -33,9 +33,12 @@ public:
     int diag() const {
         return fds_[6].get();
     }
+    int companion() const {
+        return fds_[7].get();
+    }
 
 private:
-    core::UniqueFd fds_[7];
+    core::UniqueFd fds_[8];
     bool valid_;
 };
 } // namespace process

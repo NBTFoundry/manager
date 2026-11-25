@@ -112,8 +112,10 @@ bool validRequirement(const nbt_bridge_requirement *v) {
     } else if (v->net[0]) {
         return false;
     }
-    // `service` came with bridge 1.9, for an application with a screen.
-    if (declared(v, "service") && ((v->major == 1 && v->minor < 9) || !declared(v, "show"))) {
+    // `service` (for an application with a screen) and `companion` came with bridge 1.9.
+    const bool before19 = v->major == 1 && v->minor < 9;
+    if ((declared(v, "service") && (before19 || !declared(v, "show"))) ||
+        (declared(v, "companion") && before19)) {
         return false;
     }
     // `diag` came with bridge 1.8, its classes control and drive with 1.9.
@@ -124,8 +126,7 @@ bool validRequirement(const nbt_bridge_requirement *v) {
             return false;
         }
         for (unsigned i = 0; i < policy.count; ++i) {
-            if ((policy.rules[i].classes & (NBT_DIAG_CONTROL | NBT_DIAG_DRIVE)) && v->major == 1 &&
-                v->minor < 9) {
+            if ((policy.rules[i].classes & (NBT_DIAG_CONTROL | NBT_DIAG_DRIVE)) && before19) {
                 return false;
             }
         }

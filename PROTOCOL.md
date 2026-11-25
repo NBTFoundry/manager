@@ -682,6 +682,8 @@ connections, a 5-second header deadline, a 15-second inactivity timeout and a
 | `GET /v1/keys` | empty | `KEYS\t<count>\n`, then `key-id\tname\tadded\n` per developer key, newest first (see "Developer keys") | Yes |
 | `POST /v1/keys/add` | below | HTTP 202 `STATUS\twaiting\tConfirm the key on the car\n`; local No/Yes prompt; 400 for a malformed or weak key, 409 for a key already there or a ninth key | No |
 | `POST /v1/keys/remove` | `key-id\n` | HTTP 202 `STATUS\twaiting\tConfirm on the car\n`; local No/Yes prompt; 404 for an unknown key | No |
+| `POST /v1/companion` | `app\n` | `COMPANION\tready\n` then the application's page, or `COMPANION\toff\n` while its process does not run or has no page; 404 for an application not installed or without `companion` ([docs/companion-bridge.md](docs/companion-bridge.md)) | Yes |
+| `POST /v1/companion/event` | `app\tid\tvalue\n` | `OK\n`; 409 while its process does not run, 400 for a malformed event, 404 as above | Yes |
 
 The files routes refuse with `ERR <reason>\n` and an HTTP status that says
 which ([docs/files-bridge.md](docs/files-bridge.md)).

@@ -105,6 +105,7 @@ perm_car_data = 車両データ
 perm_engine = エンジンデータ
 perm_files = ファイル
 perm_phone_net = スマホのネットワーク
+perm_companion = スマホの画面
 perm_most_read = MOST バス
 perm_clear = 故障コード消去
 perm_control = 車両の制御

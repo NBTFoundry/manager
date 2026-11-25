@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     if (withGamepad && socketpair(AF_UNIX, SOCK_DGRAM, 0, gamepad)) {
         return 1;
     }
-    const nbt_app_channels channels = {-1, -1, gamepad[1], -1, -1, -1, 0};
+    const nbt_app_channels channels = {-1, -1, gamepad[1], -1, -1, -1, -1, 0};
     if (withGamepad
             ? nbt_process_start_host_channels(&fs, argv[2], environment, &channels, &child, 0)
             : nbt_process_start(&fs, argv[2], &child, 0)) {

@@ -146,8 +146,8 @@ int AppHostSupervisor::spawnChild() {
     (void)grantMixer(&start.environment);
     errno = 0;
     const nbt_app_channels appChannels = {
-        statusFd_,        channels_.most(), channels_.gamepad(), channels_.controller(),
-        bridge_.holdFd(), bridge_.diagFd(), service_ ? 1 : 0};
+        statusFd_,        channels_.most(), channels_.gamepad(),   channels_.controller(),
+        bridge_.holdFd(), bridge_.diagFd(), bridge_.companionFd(), service_ ? 1 : 0};
     const char *failed =
         canShow_ && nbt_app_surface_grant(fs_, app_, &start.environment, &surfaceFd_)
             ? "cannot start: environment full"

@@ -847,8 +847,8 @@ static void test_install_flow(void) {
     /* An update lists only the permissions it adds; driving says how far control goes. */
     CHECK(!view_contains(&ui, "Uses:") && !view_contains(&ui, "can:"));
     poll_status(&ui, "STATUS\t2\ttest\tv1\tv2\t2\t" DIGEST_A
-                     "\tPackage verified; approve in iDrive\t-\tperm:60e:602");
-    CHECK(lines_contain(&ui, "Now also uses: car data") &&
+                     "\tPackage verified; approve in iDrive\t-\tperm:e0e:a02");
+    CHECK(lines_contain(&ui, "Now also uses: car data, phone screen") &&
           lines_contain(&ui, "Now also can: control the car (even while driving)") &&
           !lines_contain(&ui, "engine data"));
     /* Install is the one confirmation: no second screen. */
@@ -1363,7 +1363,7 @@ static void test_errors_and_misuse(void) {
                                     "\tPackage verified; approve in iDrive\t-\tperm:304:200",
                                     status) == 0 &&
           status.permissions == 0x304 && status.newPermissions == 0x200 && !status.developer[0]);
-    const char *badPermissions[] = {"clear-codes", "perm:304:800", "perm:fff:0",
+    const char *badPermissions[] = {"clear-codes", "perm:304:800", "perm:1fff:0",
                                     "perm:4:4x",   "perm:4",       "perm::"};
     for (const char *bad : badPermissions) {
         char reply[256];

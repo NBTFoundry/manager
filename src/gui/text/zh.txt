@@ -105,6 +105,7 @@ perm_car_data = 车辆数据
 perm_engine = 发动机数据
 perm_files = 您的文件
 perm_phone_net = 手机网络
+perm_companion = 手机屏幕
 perm_most_read = MOST 总线
 perm_clear = 清除故障码
 perm_control = 控制车辆

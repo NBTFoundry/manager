@@ -86,7 +86,7 @@ int nbt_fs_bridge_open(nbt_fs *fs, const char *app, const char *suffix, int crea
         errno = EINVAL;
         return -1;
     }
-    if (!suffix || (strcmp(suffix, "status") && strcmp(suffix, "hold"))) {
+    if (!suffix || (strcmp(suffix, "status") && strcmp(suffix, "hold") && strcmp(suffix, "page"))) {
         errno = EINVAL;
         return -1;
     }
