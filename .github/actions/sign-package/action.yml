@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: MPL-2.0
+# Signs an application executable into an NBT Manager package (.nbt) with
+# tools/package.py from the same commit as this action. One action for every
+# signer:
+#   - NBTFoundry's apps key (app-release.yml): public-key left empty, the key is
+#     checked against this commit's release/apps-public.pem, the key every NBT
+#     Manager trusts;
+#   - a developer's own key, from their own repository: public-key names their
+#     public key file; cars that added that key (PROTOCOL.md, "Developer keys")
+#     install the package.
+#
+#   - uses: NBTFoundry/manager/.github/actions/sign-package@<manager commit>
+#     with:
+#       signing-key: ${{ secrets.APPS_SIGNING_KEY }}   # base64 of the private PEM
+#       public-key: release/developer-public.pem        # yours; omit for NBTFoundry's
+#       package-args: release/package.args
+#       version: 1.2.3
+#       sequence: 1002003
+#       payload: build/nbt-myapp.so
+#       output: signed/myapp-1.2.3.nbt
+#
+# The private key exists only during the step, as a mode-600 file outside the
+# workspace; it is never printed, uploaded or left behind.
+name: Sign an NBT application package
+description: Sign an application executable into a .nbt package for NBT Manager, with NBTFoundry's apps key or a developer's own RSA-3072 key.
+inputs:
+  signing-key:
+    description: The private RSA-3072 key, base64 of its PEM; pass it from a secret
+    required: true
+  public-key:
+    description: The public key (PEM) the signing key must match, relative to the workspace; empty for NBTFoundry's apps key
+    default: ""
+  package-args:
+    description: The package description, one tools/package.py argument per line
+    required: true
+  version:
+    description: The package version
+    required: true
+  sequence:
+    description: The package sequence, above every earlier release's
+    required: true
+  payload:
+    description: The executable to package
+    required: true
+  output:
+    description: Where to write the signed package
+    required: true
+outputs:
+  sha256:
+    description: SHA-256 of the signed package
+    value: ${{ steps.sign.outputs.sha256 }}
+  key-id:
+    description: SHA-256 of the public key in DER, the id the car and the phone show the first 16 digits of
+    value: ${{ steps.sign.outputs.key-id }}
+runs:
+  using: composite
+  steps:
+    - id: sign
+      shell: bash
+      env:
+        SIGNING_KEY: ${{ inputs.signing-key }}
+        PUBLIC_KEY: ${{ inputs.public-key }}
+        ARGS: ${{ inputs.package-args }}
+        VERSION: ${{ inputs.version }}
+        SEQUENCE: ${{ inputs.sequence }}
+        PAYLOAD: ${{ inputs.payload }}
+        OUTPUT: ${{ inputs.output }}
+      run: |
+        set -euo pipefail
+        root="$GITHUB_ACTION_PATH/../../.."
+        public="${PUBLIC_KEY:-$root/release/apps-public.pem}"
+        umask 077
+        key="$(mktemp "$RUNNER_TEMP/nbt-signing.XXXXXX")"
+        trap 'rm -f "$key"' EXIT
+        [[ -n "$SIGNING_KEY" ]] || { echo "::error::no signing key (the secret is not set where this job runs)"; exit 1; }
+        printf '%s' "$SIGNING_KEY" | base64 -d >"$key" 2>/dev/null \
+          || { echo "::error::the signing key is not base64 of a PEM file"; exit 1; }
+        unset SIGNING_KEY
+        [[ -f "$public" ]] || { echo "::error::public key $public not found"; exit 1; }
+        if ! openssl pkey -in "$key" -noout -text 2>/dev/null | head -1 | grep -q '(3072 bit'; then
+          echo "::error::the signing key is not an RSA-3072 private key"
+          exit 1
+        fi
+        if ! cmp -s <(openssl pkey -in "$key" -pubout -outform DER) <(openssl pkey -pubin -in "$public" -outform DER); then
+          echo "::error::the signing key is not the pair of $public"
+          exit 1
+        fi
+        mkdir -p "$(dirname "$OUTPUT")"
+        # The explicit arguments come last, so the description file cannot override them.
+        python3 "$root/tools/package.py" "@$ARGS" --version "$VERSION" --sequence "$SEQUENCE" \
+          --key "$key" --output "$OUTPUT" "$PAYLOAD"
+        # No line of the private key may appear in the output.
+        python3 -I - "$key" "$OUTPUT" <<'EOF'
+        import sys
+        key, data = open(sys.argv[1], "rb").read(), open(sys.argv[2], "rb").read()
+        lines = [l for l in key.splitlines() if len(l) >= 40 and not l.startswith(b"-----")]
+        sys.exit("private key material in the package" if any(l in data for l in lines) else 0)
+        EOF
+        {
+          echo "sha256=$(sha256sum "$OUTPUT" | cut -d' ' -f1)"
+          echo "key-id=$(openssl pkey -pubin -in "$public" -outform DER | sha256sum | cut -d' ' -f1)"
+        } >>"$GITHUB_OUTPUT"

@@ -139,7 +139,10 @@ own `v*` tag workflow with the SDK commit, build command and executable. The
 package description is the repository's `release/package.args` (`tools/package.py
 @FILE`, also used by its Makefile); the sequence follows the same rule. The apps key
 is the secret `APPS_SIGNING_KEY` of the application repository's `release`
-environment and must be the pair of `release/apps-public.pem` here; the sign job
+environment and must be the pair of `release/apps-public.pem` here (a developer's
+repository passes `public-key`, its own public key file, and signs with its own
+key: PROTOCOL.md, "Developer keys"); signing is the `sign-package` action
+(`.github/actions/sign-package`), which a repository can also call on its own; the sign job
 takes `tools/package.py` from the called workflow's own commit, and the verify job
 checks the package with `nbt-verify` built from that commit. By default the build
 runs on a plain runner with the SDK's own toolchain and never touches the private

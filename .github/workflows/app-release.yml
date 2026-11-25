@@ -26,15 +26,19 @@
 # files (game data it embeds) sets lfs: true (not with qnx: true).
 #
 # The caller's release/package.args describes the package (tools/package.py @FILE).
-# The apps key comes from the caller's "release" environment (secret APPS_SIGNING_KEY,
-# base64 of the PEM) and must be the pair of this repository's release/apps-public.pem,
-# the key the manager trusts. A called workflow sees the caller's environment secrets
+# The signing key comes from the caller's "release" environment (secret APPS_SIGNING_KEY,
+# base64 of the PEM). By default it is NBTFoundry's apps key and must be the pair of this
+# repository's release/apps-public.pem, the key every manager trusts. A developer's own
+# repository sets public-key to its own public key file instead: the package then installs
+# on cars that added that key from the phone app (PROTOCOL.md, "Developer keys"). Signing
+# is the sign-package action (.github/actions/sign-package), which such a repository can
+# also use on its own. A called workflow sees the caller's environment secrets
 # only with "secrets: inherit"; keep no repository-level secrets in the caller, since
 # inherit passes those too. Each job holds only what it needs:
 #   build    private QNX image (or none, qnx: false), no secret; produces the
 #            unsigned executable
-#   sign     the release environment; runs only tools/package.py from this workflow's
-#            commit, never build output
+#   sign     the release environment; runs only the sign-package action and
+#            tools/package.py from this workflow's commit, never build output
 #   verify   nbt-verify built from this workflow's commit; holds nothing
 #   publish  contents:write; runs nothing from the build
 name: Application release
@@ -66,6 +70,10 @@ on:
         description: Fetch the application's Git LFS files for the build (with qnx false; the QNX image has no git-lfs)
         type: boolean
         default: false
+      public-key:
+        description: The caller's own public key (PEM, RSA-3072) to sign for, a developer key; empty for NBTFoundry's apps key
+        type: string
+        default: ""
 
 permissions: {}
 
@@ -168,12 +176,16 @@ jobs:
     environment: release
     permissions:
       contents: read
+    outputs:
+      key-id: ${{ steps.sign.outputs.key-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: app
           persist-credentials: false
-          sparse-checkout: ${{ inputs.package-args }}
+          sparse-checkout: |
+            ${{ inputs.package-args }}
+            ${{ inputs.public-key || inputs.package-args }}
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -182,6 +194,7 @@ jobs:
           path: manager
           persist-credentials: false
           sparse-checkout: |
+            .github/actions/sign-package
             tools/package.py
             tools/bridge.py
             release/apps-public.pem
@@ -191,38 +204,16 @@ jobs:
           name: unsigned
           path: unsigned
       - name: Sign
-        env:
-          APPS_SIGNING_KEY: ${{ secrets.APPS_SIGNING_KEY }}
-          ARGS: app/${{ inputs.package-args }}
-          APP: ${{ needs.build.outputs.app }}
-          VERSION: ${{ needs.build.outputs.version }}
-          SEQUENCE: ${{ needs.build.outputs.sequence }}
-          PAYLOAD: ${{ needs.build.outputs.payload }}
-        run: |
-          # The key exists only in this step, as a mode-600 file outside the
-          # workspace that is removed on exit; it is never printed or uploaded.
-          umask 077
-          key="$RUNNER_TEMP/apps-signing.pem"
-          trap 'rm -f "$key"' EXIT
-          [[ -n "$APPS_SIGNING_KEY" ]] || { echo "::error::APPS_SIGNING_KEY is not set in the release environment"; exit 1; }
-          printf '%s' "$APPS_SIGNING_KEY" | base64 -d >"$key"
-          unset APPS_SIGNING_KEY
-          if ! cmp -s <(openssl pkey -in "$key" -pubout -outform DER) \
-                      <(openssl pkey -pubin -in manager/release/apps-public.pem -outform DER); then
-            echo "::error::the signing key is not the pair of the manager's release/apps-public.pem"
-            exit 1
-          fi
-          mkdir -p signed
-          # The explicit arguments come last, so the description file cannot override them.
-          python3 manager/tools/package.py "@$ARGS" --version "$VERSION" --sequence "$SEQUENCE" \
-            --key "$key" --output "signed/$APP-$VERSION.nbt" "unsigned/$PAYLOAD"
-          # No line of the private key may appear in the output.
-          python3 -I - "$key" signed/*.nbt <<'EOF'
-          import sys
-          key, data = open(sys.argv[1], "rb").read(), open(sys.argv[2], "rb").read()
-          lines = [l for l in key.splitlines() if len(l) >= 40 and not l.startswith(b"-----")]
-          sys.exit("private key material in the package" if any(l in data for l in lines) else 0)
-          EOF
+        id: sign
+        uses: ./manager/.github/actions/sign-package
+        with:
+          signing-key: ${{ secrets.APPS_SIGNING_KEY }}
+          public-key: ${{ inputs.public-key && format('app/{0}', inputs.public-key) || '' }}
+          package-args: app/${{ inputs.package-args }}
+          version: ${{ needs.build.outputs.version }}
+          sequence: ${{ needs.build.outputs.sequence }}
+          payload: unsigned/${{ needs.build.outputs.payload }}
+          output: signed/${{ needs.build.outputs.app }}-${{ needs.build.outputs.version }}.nbt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: signed
@@ -239,6 +230,13 @@ jobs:
     outputs:
       sha256: ${{ steps.verify.outputs.sha256 }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: ${{ inputs.public-key != '' }}
+        with:
+          path: app
+          persist-credentials: false
+          sparse-checkout: ${{ inputs.public-key }}
+          sparse-checkout-cone-mode: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ job.workflow_repository }}
@@ -262,16 +260,17 @@ jobs:
           COMPAT: ${{ needs.build.outputs.compat }}
           VERSION: ${{ needs.build.outputs.version }}
           SEQUENCE: ${{ needs.build.outputs.sequence }}
+          PUBLIC_KEY: ${{ inputs.public-key && format('app/{0}', inputs.public-key) || 'manager/release/apps-public.pem' }}
         run: |
           package="signed/$APP-$VERSION.nbt"
-          out="$(manager/build/nbt-verify "$package" manager/release/apps-public.pem "$APP" "$COMPAT")"
+          out="$(manager/build/nbt-verify "$package" "$PUBLIC_KEY" "$APP" "$COMPAT")"
           echo "$out"
           grep -qxF "version=$VERSION" <<<"$out" && grep -qxF "sequence=$SEQUENCE" <<<"$out" \
             || { echo "::error::the package does not carry version $VERSION, sequence $SEQUENCE"; exit 1; }
           echo "sha256=$(sha256sum "$package" | cut -d' ' -f1)" >>"$GITHUB_OUTPUT"
 
   publish:
-    needs: [build, verify]
+    needs: [build, sign, verify]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -291,15 +290,23 @@ jobs:
           SEQUENCE: ${{ needs.build.outputs.sequence }}
           VERIFIED: ${{ needs.verify.outputs.sha256 }}
           MANAGER: ${{ job.workflow_repository }}@${{ job.workflow_sha }}
+          PUBLIC_KEY: ${{ inputs.public-key }}
+          KEY_ID: ${{ needs.sign.outputs.key-id }}
         run: |
           package="dist/$APP-$VERSION.nbt"
           [[ "$(sha256sum "$package" | cut -d' ' -f1)" == "$VERIFIED" ]] \
             || { echo "::error::the package differs from the verified one"; exit 1; }
           (cd dist && sha256sum "$APP-$VERSION.nbt" >SHA256SUMS)
+          if [[ -n "$PUBLIC_KEY" ]]; then
+            print="${KEY_ID:0:4} ${KEY_ID:4:4} ${KEY_ID:8:4} ${KEY_ID:12:4}"
+            signed="Signed with the developer key \`$PUBLIC_KEY\` (fingerprint \`$print\`). Add that key on the car first, from the phone app (Developer keys)"
+          else
+            signed="Signed with the apps key that NBT Manager trusts ($MANAGER, \`release/apps-public.pem\`)"
+          fi
           cat >notes.md <<EOF
           \`$APP\` $VERSION: package sequence $SEQUENCE, compatibility \`$COMPAT\`.
 
-          Signed with the apps key that NBT Manager trusts ($MANAGER, \`release/apps-public.pem\`), built from $GITHUB_SHA by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
+          $signed; built from $GITHUB_SHA by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
           Install it from the phone app.
           EOF
           prerelease=()
