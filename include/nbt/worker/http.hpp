@@ -31,7 +31,10 @@ enum Route {
     Manager,
     CrashesList,
     CrashesRead,
-    CrashesClear
+    CrashesClear,
+    Keys,
+    KeysAdd,
+    KeysRemove
 };
 /* Routes whose body is streamed to a file rather than read into memory. */
 inline bool streamed(Route route) {

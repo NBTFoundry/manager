@@ -1226,7 +1226,10 @@ static void test_malformed_replies(void) {
                                      "STATUS\t2\t-\tv1\tv2\t2\t" DIGEST_A "\tx",
                                      "STATUS\t1\tte st\tv1\t-\t0\t-\tx",
                                      "STATUS\t1\ttest\tv1\t-\t0\t-",
-                                     "STATUS\t1\ttest\tv1\t-\t0\t-\tx\ty",
+                                     "STATUS\t1\ttest\tv1\t-\t0\t-\tx\ty\tz",
+                                     "STATUS\t1\ttest\tv1\t-\t0\t-\tx\t",
+                                     "STATUS\t1\ttest\tv1\t-\t0\t-\tx\t Alice",
+                                     "STATUS\t1\ttest\tv1\t-\t0\t-\tx\tA|B",
                                      "STATUS\t1\ttest\tv1\t-\t0\t-\t",
                                      "STATUS\t1\ttest\tv/1\t-\t0\t-\tx",
                                      "STATUS\t11\ttest\tv1\t-\t0\t-\tx",
@@ -1300,6 +1303,13 @@ static void test_errors_and_misuse(void) {
     CHECK(UiController::parseStatus(long_reply, status) == -1);
     CHECK(UiController::parseStatus("STATUS\t0\t-\t-\t-\t0\t-\t-", status) == 0 &&
           !status.message[0] && !status.app[0]);
+    // The developer key's name, when a developer key signed the package.
+    CHECK(UiController::parseStatus("STATUS\t2\ttest\tv1\tv2\t2\t" DIGEST_A
+                                    "\tPackage verified; approve in iDrive\tAlice Dev",
+                                    status) == 0 &&
+          !strcmp(status.developer, "Alice Dev"));
+    CHECK(UiController::parseStatus("STATUS\t0\t-\t-\t-\t0\t-\tIdle\t-", status) == 0 &&
+          !status.developer[0]);
     CHECK(-1 == -1);
 }
 

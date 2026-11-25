@@ -6,12 +6,13 @@ namespace worker {
 namespace http {
 namespace {
 const char *const paths[] = {
-    "/v1/nonce",        "/v1/apps",         "/v1/settings/read", "/v1/settings/set",
-    "/v1/wake",         "/v1/pair",         "/v1/upload",        "/v1/remove",
-    "/v1/status",       "/v1/logs/app",     "/v1/logs/system",   "/v1/logs/clear",
-    "/v1/logs/manager", "/v1/files/list",   "/v1/files/put",     "/v1/files/data",
-    "/v1/files/remove", "/v1/autostart",    "/v1/manager",       "/v1/crashes",
-    "/v1/crashes/read", "/v1/crashes/clear"};
+    "/v1/nonce",        "/v1/apps",          "/v1/settings/read", "/v1/settings/set",
+    "/v1/wake",         "/v1/pair",          "/v1/upload",        "/v1/remove",
+    "/v1/status",       "/v1/logs/app",      "/v1/logs/system",   "/v1/logs/clear",
+    "/v1/logs/manager", "/v1/files/list",    "/v1/files/put",     "/v1/files/data",
+    "/v1/files/remove", "/v1/autostart",     "/v1/manager",       "/v1/crashes",
+    "/v1/crashes/read", "/v1/crashes/clear", "/v1/keys",          "/v1/keys/add",
+    "/v1/keys/remove"};
 }
 const char *path(Route route) {
     const unsigned i = static_cast<unsigned>(route);

@@ -93,6 +93,7 @@ confirm_older = Conferma versione precedente
 confirm_install = Conferma installazione
 versions = Installata: {1}, nuova: {2}
 version = Versione {1}
+developer_key = Chiave sviluppatore: {1}
 reject = Rifiuta
 install = Installa
 install_older = Installa, anche se precedente
@@ -180,6 +181,15 @@ phone_paired = Telefono associato
 app_uninstalled = Applicazione disinstallata
 phone_action_failed = Azione del telefono non riuscita
 phone_action_unavailable = Azione del telefono non disponibile
+add_key_question = Aggiungere la chiave sviluppatore {1}?
+key_fingerprint = Impronta: {1}
+key_warning = Le sue app possono fare tutto ciò che fanno le app NBTFoundry
+yes_add_key = Sì, aggiungi la chiave
+remove_key_question = Rimuovere la chiave sviluppatore {1}?
+key_remove_note = Le sue app restano installate ma non potranno più essere aggiornate
+yes_remove_key = Sì, rimuovi la chiave
+key_added = Chiave sviluppatore aggiunta
+key_removed = Chiave sviluppatore rimossa
 
 # Restarting the head unit
 restarting = Riavvio dell'unità principale

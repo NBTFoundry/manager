@@ -13,9 +13,9 @@
 namespace nbt {
 namespace worker {
 PhoneApi::PhoneApi(Worker &worker)
-    : worker_(worker), root_(worker.root()), phones_(root_), actions_(worker, phones_),
-      files_(worker), door_(false), receiving_(false), systemLog_(false), wakeMs_(0), bssid_(),
-      host_(), wakePath_() {
+    : worker_(worker), root_(worker.root()), phones_(root_), developers_(root_),
+      actions_(worker, phones_, developers_), files_(worker), door_(false), receiving_(false),
+      systemLog_(false), wakeMs_(0), bssid_(), host_(), wakePath_() {
 }
 void PhoneApi::address(const char *host, const char *interfaceName) {
     snprintf(host_, sizeof(host_), "%s", host);
@@ -23,7 +23,7 @@ void PhoneApi::address(const char *host, const char *interfaceName) {
 }
 bool PhoneApi::initialize(bool door) {
     door_ = door;
-    if (!phones_.initialize()) {
+    if (!phones_.initialize() || !developers_.initialize()) {
         return false;
     }
     if (!door && nbt_fs_unlink(root_.legacy(), NBT_FS_PHONE_UPLOAD, "manager", NULL) &&
@@ -48,8 +48,10 @@ bool PhoneApi::begin(const http::Request &request, uint64_t now) {
     }
     const bool files = request.route == http::FilesList || request.route == http::FilesPut ||
                        request.route == http::FilesData || request.route == http::FilesRemove;
-    if (door_ && (request.route == http::Pair || request.route == http::Upload ||
-                  request.route == http::Remove || request.route == http::Status || files)) {
+    const bool keyChange = request.route == http::KeysAdd || request.route == http::KeysRemove;
+    if (door_ &&
+        (request.route == http::Pair || request.route == http::Upload ||
+         request.route == http::Remove || request.route == http::Status || files || keyChange)) {
         return false;
     }
     if (!nonces_.take(request.nonce, now) || !nonces_.signatureAllowed(now)) {
@@ -66,7 +68,7 @@ bool PhoneApi::begin(const http::Request &request, uint64_t now) {
     if (!phones_.find(request.keyId, phone)) {
         return false;
     }
-    if (request.route == http::Upload || request.route == http::Remove) {
+    if (request.route == http::Upload || request.route == http::Remove || keyChange) {
         return !receiving_ && !actions_.pending() && worker_.state().state != State::Verified &&
                !worker_.busy();
     }
@@ -178,6 +180,12 @@ int PhoneApi::execute(const http::Request &request, const char *body, uint64_t n
         return actions_.pair(request.keyId, request.nonce, body, now, out);
     case http::Remove:
         return actions_.remove(request.keyId, body, now, out);
+    case http::Keys:
+        return phoneDeveloperKeys(developers_, out);
+    case http::KeysAdd:
+        return actions_.addKey(request.keyId, body, now, out);
+    case http::KeysRemove:
+        return actions_.removeKey(request.keyId, body, now, out);
     case http::Status:
         return actions_.status(request.keyId, now, bssid_, host_, out);
     case http::Wake:

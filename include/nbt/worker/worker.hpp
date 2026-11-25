@@ -40,6 +40,10 @@ struct WorkerState {
     bool newApp;                // the session's package installs an application not installed here
     bool managerUpdate = false; // the session's upload is a manager release (manager_upload.cpp)
     char managerInstalled[49] = {}; // the running manager's version, for STATUS
+    // The pending package's signer (nbt/signers.h) and, for a developer key,
+    // its name, which the car's review shows.
+    char signer[65] = {};
+    char developer[33] = {};
     nbt_package pending;
     char app[NBT_ID_MAX + 1];
     char hostApp[NBT_ID_MAX + 1];

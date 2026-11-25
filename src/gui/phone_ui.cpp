@@ -116,6 +116,7 @@ bool pending(UiController &ui, const char *reply) {
     if (!strcmp(reply, "PHONE\tnone")) {
         if (ui.phoneAction[0] && (ui.screen == PhoneConfirm || ui.screen == Uninstall)) {
             ui.phoneAction[0] = 0;
+            ui.phoneKey = 0;
             ui.showResult(text(T_PHONE_REQUEST_ENDED), text(T_RETRY_FROM_PHONE));
         }
         return true;
@@ -125,12 +126,12 @@ bool pending(UiController &ui, const char *reply) {
         return false;
     }
     strcpy(copy, reply);
-    char *fields[5];
+    char *fields[6];
     fields[0] = copy;
     size_t count = 1;
     for (char *p = copy; *p; ++p) {
         if (*p == '\t') {
-            if (count == 5) {
+            if (count == 6) {
                 return false;
             }
             *p = 0;
@@ -138,12 +139,30 @@ bool pending(UiController &ui, const char *reply) {
         }
     }
     unsigned char id[16];
-    if (count != 5 || strcmp(fields[0], "PHONE") || nbt_hex_decode(fields[2], id, 16) ||
+    if (count < 5 || strcmp(fields[0], "PHONE") || nbt_hex_decode(fields[2], id, 16) ||
         !fields[3][0] || strlen(fields[3]) > 32) {
         return false;
     }
+    const char key = !strcmp(fields[1], "key") ? 'k' : !strcmp(fields[1], "unkey") ? 'u' : 0;
+    if (key) {
+        // PHONE\t<key|unkey>\t<action>\t<phone>\t<key name>\t<fingerprint>
+        if (count != 6 || !fields[4][0] || strlen(fields[4]) > 32 || strlen(fields[5]) != 19) {
+            return false;
+        }
+        if (!strcmp(ui.phoneAction, fields[2])) {
+            return true;
+        }
+        strcpy(ui.phoneAction, fields[2]);
+        strcpy(ui.phoneName, fields[3]);
+        strcpy(ui.keyName, fields[4]);
+        strcpy(ui.keyPrint, fields[5]);
+        ui.phonePair = false;
+        ui.phoneKey = key;
+        ui.go(PhoneConfirm);
+        return true;
+    }
     const bool pair = !strcmp(fields[1], "pair");
-    if (!pair && strcmp(fields[1], "remove")) {
+    if (count != 5 || (!pair && strcmp(fields[1], "remove"))) {
         return false;
     }
     if (pair) {
@@ -162,6 +181,7 @@ bool pending(UiController &ui, const char *reply) {
     strcpy(ui.phoneAction, fields[2]);
     strcpy(ui.phoneName, fields[3]);
     ui.phonePair = pair;
+    ui.phoneKey = 0;
     if (pair) {
         strcpy(ui.phoneCode, fields[4]);
         ui.go(PhoneConfirm);
@@ -200,10 +220,13 @@ int phoneReply(UiController &ui, int kind, const char *reply, uint64_t now) {
         ui.queued = R_PHONES;
     } else if (kind == R_PHONE_YES || kind == R_PHONE_NO) {
         if (!strcmp(reply, "OK paired") || !strcmp(reply, "OK removed") ||
+            !strcmp(reply, "OK key-added") || !strcmp(reply, "OK key-removed") ||
             !strcmp(reply, "OK cancelled")) {
-            ui.showResult(text(kind == R_PHONE_NO ? T_REQUEST_REJECTED
-                               : ui.phonePair     ? T_PHONE_PAIRED
-                                                  : T_APP_UNINSTALLED),
+            ui.showResult(text(kind == R_PHONE_NO   ? T_REQUEST_REJECTED
+                               : ui.phoneKey == 'k' ? T_KEY_ADDED
+                               : ui.phoneKey == 'u' ? T_KEY_REMOVED
+                               : ui.phonePair       ? T_PHONE_PAIRED
+                                                    : T_APP_UNINSTALLED),
                           "");
         } else if (ReplyParser::isError(reply)) {
             ui.showResult(text(T_PHONE_ACTION_FAILED), text(T_RETRY_FROM_PHONE));
@@ -211,6 +234,7 @@ int phoneReply(UiController &ui, int kind, const char *reply, uint64_t now) {
             ok = false;
         }
         ui.phoneAction[0] = 0;
+        ui.phoneKey = 0;
         ui.queued = R_CANCEL;
     } else if (ReplyParser::isError(reply)) {
         ui.showResult(text(T_PHONE_ACTION_UNAVAILABLE), "");

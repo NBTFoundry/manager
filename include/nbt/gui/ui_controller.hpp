@@ -94,6 +94,7 @@ struct WorkerStatus {
     uint64_t sequence;
     char digest[65];
     char message[128];
+    char developer[33]; // the developer key's name; empty for the apps key
 };
 
 struct Request {
@@ -264,6 +265,11 @@ public:
     char phoneCode[7] = {};
     char phoneApp[49] = {};
     bool phonePair = false;
+    // A developer key the phone asks to add ('k') or remove ('u'), shown on
+    // PhoneConfirm with its name and fingerprint; 0 for pairing.
+    char phoneKey = 0;
+    char keyName[33] = {};
+    char keyPrint[20] = {};
     char phoneIds[4][65] = {};
     char phoneNames[4][33] = {};
     size_t phoneCount = 0;

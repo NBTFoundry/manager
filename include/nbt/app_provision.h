@@ -22,10 +22,12 @@ int nbt_app_provision(const char *root, int input, const char *app, const char *
                       char *error, unsigned error_size);
 
 /* A new application from a phone session, as approved in the GUI: verifies
- * the staged package (`package_fd`) against the apps key bundled with the
- * manager, its own compatibility id (which the profile then fixes) and the
+ * the staged package (`package_fd`) against the signer's key (nbt/signers.h:
+ * "" for the apps key bundled with the manager, or a developer key), its own
+ * compatibility id (which the profile then fixes, with the signer) and the
  * approved SHA-256, then installs it as above. Nothing of `app` may exist. */
 int nbt_app_install_new(nbt_fs *fs, const char *app, int package_fd,
-                        const unsigned char approved[32], char *error, unsigned error_size);
+                        const unsigned char approved[32], const char *signer, char *error,
+                        unsigned error_size);
 
 #endif

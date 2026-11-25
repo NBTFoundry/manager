@@ -3,13 +3,14 @@
 
 #include "nbt/app_provision.h"
 #include "nbt/app_settings.h"
-#include "nbt/apps_key.h"
 #include "nbt/core/unique_fd.hpp"
 #include "nbt/fs.h"
 #include "nbt/manager_bootstrap.h"
 #include "nbt/manager_stage.h"
+#include "nbt/model/installed_record.hpp"
 #include "nbt/package.h"
 #include "nbt/package/package_verifier.hpp"
+#include "nbt/signers.h"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
 
@@ -124,7 +125,7 @@ int activeProvider(nbt_fs *fs, nbt_bridge_provider *out) {
  * installed record and settings declaration, then the profile, which makes
  * it an application. Nothing of it may exist; what it created goes again on
  * failure. Holds the manager operation lock (or its launcher's) throughout. */
-int installBaseline(nbt_fs *fs, const char *app, const char *compat, int pkg,
+int installBaseline(nbt_fs *fs, const char *app, const char *compat, const char *signer, int pkg,
                     const nbt_package &package, char *error, unsigned errorSize) {
     nbt_installed record;
     nbt_bridge_provider provider;
@@ -175,9 +176,8 @@ int installBaseline(nbt_fs *fs, const char *app, const char *compat, int pkg,
         fail(error, errorSize, "cannot write application settings");
         goto done;
     }
-    n = snprintf(text, sizeof(text), "NBTAPP1\ncompat=%s\n", compat);
-    if (n < 0 || (size_t)n >= sizeof(text) ||
-        createText(fs, NBT_FS_PROFILE, app, NULL, text, (size_t)n) ||
+    n = nbt::model::InstalledRecord::profileFormat(compat, signer, text, sizeof(text));
+    if (n < 0 || createText(fs, NBT_FS_PROFILE, app, NULL, text, (size_t)n) ||
         nbt_fs_provision_sync(fs, app)) {
         fail(error, errorSize, "cannot complete application provisioning");
         goto done;
@@ -228,7 +228,7 @@ int provisionApp(const char *root, int input, const char *app, const char *compa
                !nbt_constant_equal(package.package_hash, digest, 32)) {
         fail(error, errorSize, "package signature, application, compatibility or digest rejected");
     } else {
-        result = installBaseline(&fs, app, compat, fileno(pkg), package, error, errorSize);
+        result = installBaseline(&fs, app, compat, "", fileno(pkg), package, error, errorSize);
     }
     if (key) {
         fclose(key);
@@ -269,10 +269,12 @@ int nbt_app_provision(const char *root, int input, const char *app, const char *
 }
 
 int nbt_app_install_new(nbt_fs *fs, const char *app, int package_fd,
-                        const unsigned char approved[32], char *error, unsigned error_size) {
+                        const unsigned char approved[32], const char *signer, char *error,
+                        unsigned error_size) {
     nbt_package package;
     char text[160];
-    if (!fs || !approved || !nbt_token_valid(app, NBT_ID_MAX, 0) || !strcmp(app, "manager")) {
+    if (!fs || !approved || !signer || !nbt_token_valid(app, NBT_ID_MAX, 0) ||
+        !strcmp(app, "manager")) {
         return nbt::lifecycle::fail(error, error_size, "invalid installation request");
     }
     nbt::core::Result<nbt_package> named = nbt::package::PackageVerifier::peekApp(package_fd);
@@ -282,9 +284,11 @@ int nbt_app_install_new(nbt_fs *fs, const char *app, int package_fd,
     if (nbt::lifecycle::absent(fs, app, error, error_size)) {
         return -1;
     }
-    nbt::core::UniqueFd key(nbt_apps_key_fd());
+    nbt::core::UniqueFd key(nbt_signer_key_fd(fs, signer));
     if (!key.valid()) {
-        return nbt::lifecycle::fail(error, error_size, "no apps key in this manager");
+        return nbt::lifecycle::fail(error, error_size,
+                                    signer[0] ? "signing key removed from this car"
+                                              : "no apps key in this manager");
     }
     // The application's compatibility id is its first package's.
     if (nbt_package_verify(package_fd, key.get(), app, named.value().compatibility, &package, text,
@@ -292,6 +296,6 @@ int nbt_app_install_new(nbt_fs *fs, const char *app, int package_fd,
         !nbt_constant_equal(package.package_hash, approved, 32)) {
         return nbt::lifecycle::fail(error, error_size, "approved package changed or not signed");
     }
-    return nbt::lifecycle::installBaseline(fs, app, package.compatibility, package_fd, package,
-                                           error, error_size);
+    return nbt::lifecycle::installBaseline(fs, app, package.compatibility, signer, package_fd,
+                                           package, error, error_size);
 }

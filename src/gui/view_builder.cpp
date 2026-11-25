@@ -178,10 +178,11 @@ void buildReviewConfirm(const UiController &ui, UiView *v) {
     }
     const bool manager = !strcmp(ui.review.app, "manager");
     addLine(v, manager ? "NBT Manager" : ui.review.app);
-    if (update) {
-        addText(v, T_VERSIONS, ui.review.installed, ui.review.proposed);
-    } else {
-        addText(v, T_VERSION, ui.review.proposed);
+    // "Installed: {1}, new: {2}", or "Version {1}" for a new application.
+    addText(v, update ? T_VERSIONS : T_VERSION, update ? ui.review.installed : ui.review.proposed,
+            ui.review.proposed);
+    if (ui.review.developer[0]) {
+        addText(v, T_DEVELOPER_KEY, ui.review.developer);
     }
     if (ui.screen == Review) {
         addItem(v, text(T_REJECT));

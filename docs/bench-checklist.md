@@ -123,6 +123,9 @@ as described in `README.md`; `test-runner` is the same application run by `nbt-r
 | Compare the digest with `sha256sum test-v2.nbt` | Equal | — |
 | Install, Yes | Progress, health check, "Update installed"; `TEST v2 - native` runs | `worker ... command APPROVE`, `state installing: ...`, `state installed: Update installed` |
 | Upload a package signed with another key | "Upload rejected" | `http upload of <n> bytes failed verification` |
+| Add a developer key from the phone (Developer keys) | "Add developer key <name>?" with the fingerprint the phone shows; Yes: "Developer key added" | `command PHONE YES ...` |
+| Upload a new application signed with that key | Review shows "Developer key: <name>"; it installs | `state verified`, `state installed` |
+| Remove the key from the phone, then upload an update of that application | It still runs; the update fails: "signing key removed from this car" | `state failed: Package rejected: ...` |
 | Install a v3 whose executable exits at once | "Update failed; previous application restored"; v2 runs again | `state failed: Update failed; previous application restored` |
 | Install an older sequence | Refused unless "Install as recovery" is chosen | — |
 | Reject on the review screen | Upload discarded; the phone shows "Cancelled in iDrive." | `command CANCEL`, `state idle: Session closed` |

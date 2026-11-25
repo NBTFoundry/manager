@@ -29,6 +29,10 @@ flowchart LR
 - `src/crypto/ec_public_key.cpp`: bounded P-256 SEC1 point import and canonical
   DER ECDSA verification through OpenSSL, beside the release and package RSA
   verifier.
+- `src/storage/developer_store.cpp`, `src/package/signers.cpp`: up to eight
+  developer keys (`NBTDEV1` records under `trust/developers/`) a phone adds or
+  removes with the driver's confirmation, and the signer each application is
+  bound to (PROTOCOL.md, "Developer keys").
 - `src/storage/phone_store.cpp`: up to four private `NBTPHONE1` records under
   `trust/phones/<key-id>.conf` (name, key and pairing epoch), managed by path policy
   and atomic replacement. Removing a phone on the car revokes its next signed

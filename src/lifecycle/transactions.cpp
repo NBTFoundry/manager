@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/lifecycle/transactions.hpp"
 
-#include "nbt/apps_key.h"
 #include "nbt/core/fault.hpp"
 #include "nbt/lifecycle/transaction_journal.hpp"
 #include "nbt/manager_state.h"
 #include "nbt/model/installed_record.hpp"
+#include "nbt/signers.h"
 #include "nbt/storage/path_open.hpp"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
@@ -23,17 +23,20 @@ namespace {
 using nbt::lifecycle::TransactionJournal;
 using nbt::model::InstalledRecord;
 
-// Every application package is signed with the apps key bundled with the
-// manager; the profile fixes the application's compatibility id.
+// An update is signed by the key that signed the application's first package
+// (nbt/signers.h): the apps key bundled with the manager, or the developer key
+// its profile names. The profile also fixes the application's compatibility id.
 int verifyUploadFd(nbt_fs *fs, const char *app, int upload, nbt_package *package, char *error,
                    unsigned errorSize) {
-    char compat[NBT_ID_MAX + 1];
-    if (InstalledRecord::profileCompat(fs, app, compat)) {
+    char compat[NBT_ID_MAX + 1], signer[NBT_SIGNER_MAX + 1];
+    if (InstalledRecord::profileRead(fs, app, compat, signer)) {
         return TransactionJournal::errorOut(error, errorSize, "invalid application profile");
     }
-    const int key = nbt_apps_key_fd();
+    const int key = nbt_signer_key_fd(fs, signer);
     if (key < 0) {
-        return TransactionJournal::errorOut(error, errorSize, "no apps key in this manager");
+        return TransactionJournal::errorOut(error, errorSize,
+                                            signer[0] ? "signing key removed from this car"
+                                                      : "no apps key in this manager");
     }
     const bool ok = !nbt_package_verify(upload, key, app, compat, package, error, errorSize);
     close(key);

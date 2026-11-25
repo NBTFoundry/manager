@@ -167,6 +167,38 @@ core::Result<nbt_package> PackageVerifier::peekApp(int fd) {
     return parseManifest(reinterpret_cast<char *>(manifest), payloadSize);
 }
 
+bool PackageVerifier::signedBy(int fd, int publicKeyFd) {
+    unsigned char header[kHeaderSize];
+    core::SecureBytes<NBT_SIGNATURE_SIZE> signature;
+    unsigned char manifest[NBT_MANIFEST_MAX + 1];
+    struct stat st;
+    if (fd < 0 || publicKeyFd < 0 || fstat(fd, &st) || !S_ISREG(st.st_mode) || st.st_size < 0 ||
+        lseek(fd, 0, SEEK_SET) < 0 ||
+        !PackageStream::readExact(fd, core::Span<uint8_t>(header)).ok() ||
+        memcmp(header, "NBTMGR1\n", 8)) {
+        return false;
+    }
+    const uint32_t manifestSize = PackageStream::be32(header + 8);
+    const uint32_t signatureSize = PackageStream::be32(header + 12);
+    const uint64_t payloadSize = PackageStream::be64(header + 16);
+    if (!manifestSize || manifestSize > NBT_MANIFEST_MAX || signatureSize != NBT_SIGNATURE_SIZE ||
+        payloadSize < 52 || payloadSize > NBT_PAYLOAD_MAX ||
+        static_cast<uint64_t>(st.st_size) !=
+            kHeaderSize + manifestSize + signatureSize + payloadSize ||
+        !PackageStream::readExact(fd, core::Span<uint8_t>(manifest, manifestSize)).ok() ||
+        !PackageStream::readExact(fd, core::Span<uint8_t>(signature.data(), signature.size()))
+             .ok()) {
+        return false;
+    }
+    crypto::Sha256 packageSha;
+    return PackageStream::verifySignature(
+               publicKeyFd, false, core::Span<const uint8_t>(header),
+               core::Span<const uint8_t>(manifest, manifestSize),
+               core::Span<const uint8_t>(signature.data(), signature.size()), &packageSha,
+               "package digest failed", "invalid package signature")
+        .ok();
+}
+
 core::Result<nbt_package> PackageVerifier::verify(int fd, int publicKeyFd, const char *appId,
                                                   const char *compatibility) {
     unsigned char header[kHeaderSize];

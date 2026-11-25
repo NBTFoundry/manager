@@ -94,6 +94,7 @@ confirm_older = 确认安装旧版本
 confirm_install = 确认安装
 versions = 已安装：{1}，新版本：{2}
 version = 版本 {1}
+developer_key = 开发者密钥：{1}
 reject = 拒绝
 install = 安装
 install_older = 安装（即使版本较旧）
@@ -181,6 +182,15 @@ phone_paired = 手机已配对
 app_uninstalled = 应用已卸载
 phone_action_failed = 手机操作失败
 phone_action_unavailable = 手机操作不可用
+add_key_question = 添加开发者密钥 {1}？
+key_fingerprint = 指纹：{1}
+key_warning = 其应用拥有与 NBTFoundry 应用相同的权限
+yes_add_key = 是，添加密钥
+remove_key_question = 移除开发者密钥 {1}？
+key_remove_note = 其应用仍保留安装，但无法再更新
+yes_remove_key = 是，移除密钥
+key_added = 已添加开发者密钥
+key_removed = 已移除开发者密钥
 
 # Restarting the head unit
 restarting = 正在重启主机

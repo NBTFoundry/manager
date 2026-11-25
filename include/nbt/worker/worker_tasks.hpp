@@ -30,7 +30,10 @@ struct TaskContext {
     nbt_fs *fs;
     char app[NBT_ID_MAX + 1];
     int fd;    // the upload (VerifyNew, InstallNew); closed by the task
-    int keyFd; // the apps key (VerifyNew); closed by the task
+    int keyFd; // unused: VerifyNew finds the signer's key (nbt/signers.h)
+    // The package's signer: found by VerifyNew, read from the profile by
+    // VerifyInstalled, given to InstallNew ("" for the apps key).
+    char signer[65];
     char compatibility[NBT_ID_MAX + 1];
     nbt_package pending;
     unsigned char digest[32];

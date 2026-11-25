@@ -35,6 +35,14 @@ void phoneView(const UiController &ui, UiView &v) {
         }
         item(v, T_PAIR_PHONE);
         item(v, T_CANCEL);
+    } else if (ui.screen == PhoneConfirm && ui.phoneKey) {
+        const bool add = ui.phoneKey == 'k';
+        title(v, add ? T_ADD_KEY_QUESTION : T_REMOVE_KEY_QUESTION, ui.keyName);
+        line(v, T_REQUESTED_BY, ui.phoneName);
+        line(v, T_KEY_FINGERPRINT, ui.keyPrint);
+        line(v, add ? T_KEY_WARNING : T_KEY_REMOVE_NOTE);
+        item(v, T_NO);
+        item(v, add ? T_YES_ADD_KEY : T_YES_REMOVE_KEY);
     } else if (ui.screen == PhoneConfirm) {
         title(v, T_PAIR_QUESTION, ui.phoneName);
         line(v, T_CONFIRM_CODE);

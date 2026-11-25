@@ -159,17 +159,45 @@ int InstalledRecord::writeRecord(nbt_fs *fs, const char *app, const nbt_installe
 }
 
 int InstalledRecord::profileCompat(nbt_fs *fs, const char *app, char out[NBT_ID_MAX + 1]) {
-    char text[128];
+    char signer[65];
+    return profileRead(fs, app, out, signer);
+}
+
+int InstalledRecord::profileRead(nbt_fs *fs, const char *app, char compat[NBT_ID_MAX + 1],
+                                 char signer[65]) {
+    char text[192];
     if (readText(fs, NBT_FS_PROFILE, app, text, sizeof(text)) || strncmp(text, "NBTAPP1\n", 8)) {
         return -1;
     }
     char *p = text + 8;
     char *value = nbt_field(&p, "compat");
-    if (!nbt_token_valid(value, NBT_ID_MAX, NBT_TOKEN_DOT) || *p) {
+    if (!nbt_token_valid(value, NBT_ID_MAX, NBT_TOKEN_DOT)) {
         return -1;
     }
-    memcpy(out, value, strlen(value) + 1);
+    memcpy(compat, value, strlen(value) + 1);
+    signer[0] = 0;
+    if (!*p) {
+        return 0;
+    }
+    value = nbt_field(&p, "signer");
+    unsigned char id[32];
+    if (!value || strlen(value) != 64 || nbt_hex_decode(value, id, sizeof(id)) || *p) {
+        return -1;
+    }
+    for (size_t i = 0; i < 64; ++i) {
+        if (value[i] >= 'A' && value[i] <= 'F') {
+            return -1;
+        }
+    }
+    memcpy(signer, value, 65);
     return 0;
+}
+
+int InstalledRecord::profileFormat(const char *compat, const char *signer, char *out, size_t size) {
+    const int n = signer && signer[0]
+                      ? snprintf(out, size, "NBTAPP1\ncompat=%s\nsigner=%s\n", compat, signer)
+                      : snprintf(out, size, "NBTAPP1\ncompat=%s\n", compat);
+    return n < 0 || static_cast<size_t>(n) >= size ? -1 : n;
 }
 
 int InstalledRecord::copyCandidate(nbt_fs *fs, const char *app, const char *tx, int upload,

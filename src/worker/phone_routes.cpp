@@ -137,5 +137,32 @@ int phoneManager(Worker &worker, core::Span<char> out) {
                            static_cast<unsigned long long>(state.active.sequence), formats);
     return n > 0 && static_cast<size_t>(n) < out.size() ? 200 : 500;
 }
+int phoneDeveloperKeys(storage::DeveloperStore &developers, core::Span<char> out) {
+    storage::Developer list[storage::DeveloperStore::kMax];
+    const int count = developers.list(list);
+    if (count < 0) {
+        return 500;
+    }
+    for (int i = 1; i < count; ++i) { // newest first, then by id
+        for (int j = i; j > 0 && (list[j].added > list[j - 1].added ||
+                                  (list[j].added == list[j - 1].added &&
+                                   strcmp(list[j].id, list[j - 1].id) < 0));
+             --j) {
+            const storage::Developer swap = list[j];
+            list[j] = list[j - 1];
+            list[j - 1] = swap;
+        }
+    }
+    size_t used = 0;
+    int n = snprintf(out.data(), out.size(), "KEYS\t%d\n", count);
+    for (int i = 0; n > 0 && i < count; ++i) {
+        used += static_cast<size_t>(n);
+        n = used < out.size()
+                ? snprintf(out.data() + used, out.size() - used, "%s\t%s\t%llu\n", list[i].id,
+                           list[i].name, static_cast<unsigned long long>(list[i].added))
+                : -1;
+    }
+    return n > 0 && used + static_cast<size_t>(n) < out.size() ? 200 : 500;
+}
 } // namespace worker
 } // namespace nbt

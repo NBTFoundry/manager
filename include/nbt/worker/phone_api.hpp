@@ -55,6 +55,7 @@ private:
     Worker &worker_;
     storage::ManagedRoot &root_;
     storage::PhoneStore phones_;
+    storage::DeveloperStore developers_;
     PhoneNonces nonces_;
     PhoneActions actions_;
     PhoneFiles files_;

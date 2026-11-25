@@ -266,6 +266,103 @@ class ManagerUiTests(unittest.TestCase):
         self.assertEqual(self.send("poll").screen, RESULT)
         self.finish()
 
+    def developer_key(self, name):
+        key = Path(self.tmp.name) / (name + ".pem")
+        self.assertEqual(run("openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt",
+                             "rsa_keygen_bits:3072", "-out", key).returncode, 0)
+        der = run("openssl", "pkey", "-in", key, "-pubout", "-outform", "DER").stdout
+        return key, der, hashlib.sha256(der).hexdigest()
+
+    def signed(self, key, app, version, sequence, content):
+        name = f"{app}-{version}-{hashlib.sha256(content + bytes(str(key), 'utf-8')).hexdigest()[:8]}"
+        source = Path(self.tmp.name) / f"{name}.elf"
+        source.write_bytes(elf(content))
+        package = Path(self.tmp.name) / f"{name}.nbt"
+        result = run("python3", PACK, "--app", app, "--version", version, "--sequence", sequence,
+                     "--compat", "demo-1", "--key", key, "--output", package, source)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return package.read_bytes()
+
+    def key_request(self, path, body):
+        return self.phone.request(self.host, "POST", path, body)
+
+    def test_developer_keys_install_update_and_removal(self):
+        self.pair_phone()
+        key, der, key_id = self.developer_key("alice")
+        add = f"NBTKEY1\nname=Alice\nkey={der.hex()}\n".encode()
+        # Malformed or weak keys never reach the car's screen.
+        weak = run("openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048",
+                   "-out", Path(self.tmp.name) / "weak.pem")
+        self.assertEqual(weak.returncode, 0)
+        weak_der = run("openssl", "pkey", "-in", Path(self.tmp.name) / "weak.pem", "-pubout",
+                       "-outform", "DER").stdout
+        for bad in (f"NBTKEY1\nname=Weak\nkey={weak_der.hex()}\n".encode(),
+                    f"NBTKEY1\nname=Alice\nkey={der.hex().upper()}\n".encode(),
+                    f"NBTKEY1\nname=\nkey={der.hex()}\n".encode(),
+                    f"NBTKEY1\nname=Alice\nkey={der.hex()[:-2]}\n".encode(), b"NBTKEY1\n"):
+            self.assertEqual(self.key_request("/v1/keys/add", bad)[0], 400, bad[:40])
+        self.assertEqual(self.phone.request(self.host, "GET", "/v1/keys"), (200, b"KEYS\t0\n"))
+        # Added only once the driver says yes, with the fingerprint the phone shows.
+        self.assertEqual(self.key_request("/v1/keys/add", add),
+                         (202, b"STATUS\twaiting\tConfirm the key on the car\n"))
+        view = self.until(PHONE_CONFIRM)
+        self.assertEqual((view.title, view.focus, view.items),
+                         ("Add developer key Alice?", 0, ["No", "Yes, add key"]))
+        fingerprint = " ".join(key_id[i:i + 4] for i in range(0, 16, 4))
+        self.assertEqual(view.lines, ["Requested by Test phone", "Fingerprint: " + fingerprint,
+                                      "Its apps can do everything NBTFoundry's apps can"])
+        view = self.send("down", "select")
+        self.assertIn("Developer key added", view.lines)
+        self.assertIn(b"STATUS\tkey-added\tDeveloper key added", self.phone.request(self.host, "GET", "/v1/status")[1])
+        self.send("select")
+        status, data = self.phone.request(self.host, "GET", "/v1/keys")
+        self.assertEqual(status, 200)
+        self.assertRegex(data.decode(), f"^KEYS\t1\n{key_id}\tAlice\t[1-9][0-9]*\n$")
+        self.assertEqual(self.key_request("/v1/keys/add", add)[0], 409)
+        # A new application signed with it installs, and its review names the developer.
+        view = self.upload_review(self.signed(key, "devapp", "v1", 1, b"developer app"))
+        self.assertIn("Developer key: Alice", view.lines)
+        view = self.send("down", "select")
+        if view.screen != RESULT:
+            view = self.until(RESULT)
+        self.assertIn("Update installed", view.lines)
+        self.send("select")
+        profile = (self.root / "trust/apps/devapp.conf").read_text()
+        self.assertEqual(profile, f"NBTAPP1\ncompat=demo-1\nsigner={key_id}\n")
+        # Each application stays with its signer: neither key updates the other's.
+        for package in (self.signed(self.key, "devapp", "v2", 2, b"taken over"),
+                        self.signed(key, "test", "v3", 3, b"taken over")):
+            self.assertEqual(self.phone.request(self.host, "POST", "/v1/upload", package)[0], 202)
+            for _ in range(8):
+                status = self.phone.request(self.host, "GET", "/v1/status")[1]
+                if b"\tfailed\t" in status:
+                    break
+                self.send("poll")
+            self.assertIn(b"\tfailed\t", status)
+            self.send("poll")
+        # Removed: its application stays and runs, but nothing signed with it installs.
+        self.assertEqual(self.key_request("/v1/keys/remove", key_id.encode() + b"\n"),
+                         (202, b"STATUS\twaiting\tConfirm on the car\n"))
+        view = self.until(PHONE_CONFIRM)
+        self.assertEqual((view.title, view.items), ("Remove developer key Alice?",
+                                                    ["No", "Yes, remove key"]))
+        self.assertIn("Its apps stay installed but can no longer be updated", view.lines)
+        view = self.send("down", "select")
+        self.assertIn("Developer key removed", view.lines)
+        self.send("select")
+        self.assertEqual(self.phone.request(self.host, "GET", "/v1/keys"), (200, b"KEYS\t0\n"))
+        self.assertEqual(self.key_request("/v1/keys/remove", key_id.encode() + b"\n")[0], 404)
+        self.assertTrue((self.root / "trust/apps/devapp.conf").exists())
+        self.assertEqual(self.phone.request(self.host, "POST", "/v1/upload",
+                                            self.signed(key, "devapp", "v2", 2, b"update"))[0], 202)
+        for _ in range(8):
+            status = self.phone.request(self.host, "GET", "/v1/status")[1]
+            if b"\tfailed\t" in status:
+                break
+            self.send("poll")
+        self.assertIn(b"signing key removed from this car", status)
+        self.finish()
+
     def test_pairing_qr_contains_only_wifi(self):
         try:
             import zxingcpp

@@ -10,17 +10,24 @@
 #include <time.h>
 namespace nbt {
 namespace worker {
-PhoneActions::PhoneActions(Worker &worker, storage::PhoneStore &phones)
-    : worker_(worker), phones_(phones), pairDeadline_(0), pendingDeadline_(0), resultDeadline_(0),
-      candidate_(), resultMessage_(), owner_(), pendingApp_(), result_(), code_(), actionId_() {
+PhoneActions::PhoneActions(Worker &worker, storage::PhoneStore &phones,
+                           storage::DeveloperStore &developers)
+    : worker_(worker), phones_(phones), developers_(developers), keyCandidate_(), keyRemove_(),
+      pairDeadline_(0), pendingDeadline_(0), resultDeadline_(0), candidate_(), resultMessage_(),
+      owner_(), pendingApp_(), result_(), code_(), actionId_() {
+}
+void PhoneActions::clearPending() {
+    pendingDeadline_ = 0;
+    pendingApp_[0] = 0;
+    keyCandidate_ = storage::Developer();
+    keyRemove_[0] = 0;
 }
 void PhoneActions::expire(uint64_t now) {
     if (pairDeadline_ && now >= pairDeadline_) {
         pairDeadline_ = 0;
     }
     if (pendingDeadline_ && now >= pendingDeadline_) {
-        pendingDeadline_ = 0;
-        pendingApp_[0] = 0;
+        clearPending();
         strcpy(result_, "expired");
         strcpy(resultMessage_, "Request expired; try again from the phone");
     }
@@ -80,6 +87,8 @@ int PhoneActions::pair(const char *key, const char *nonce, const char *body, uin
     strcpy(result_, "pairing");
     strcpy(resultMessage_, "Compare the digits and confirm on the car");
     pendingApp_[0] = 0;
+    keyCandidate_ = storage::Developer();
+    keyRemove_[0] = 0;
     pendingDeadline_ = pairDeadline_;
     resultDeadline_ = now + 300000;
     snprintf(out.data(), out.size(), "PAIR\tpending\t%s\n", code_);
@@ -110,12 +119,29 @@ int PhoneActions::remove(const char *key, const char *body, uint64_t now, core::
     strcpy(owner_, key);
     strcpy(pendingApp_, app);
     candidate_ = storage::Phone();
+    keyCandidate_ = storage::Developer();
+    keyRemove_[0] = 0;
     strcpy(result_, "removal");
     strcpy(resultMessage_, "Confirm uninstall on the car");
     pendingDeadline_ = now + 60000;
     resultDeadline_ = now + 300000;
     snprintf(out.data(), out.size(), "STATUS\twaiting\tConfirm uninstall on the car\n");
     return 202;
+}
+bool PhoneActions::begin(const char *key, const char *result, const char *message, uint64_t now) {
+    if (nbt_fs_random_tx(actionId_)) {
+        return false;
+    }
+    if (worker_.state().session.active(now)) {
+        worker_.cancel(now);
+    }
+    strcpy(owner_, key);
+    candidate_ = storage::Phone();
+    strcpy(result_, result);
+    snprintf(resultMessage_, sizeof(resultMessage_), "%s", message);
+    pendingDeadline_ = now + 60000;
+    resultDeadline_ = now + 300000;
+    return true;
 }
 bool PhoneActions::confirm(const char *id, bool yes, uint64_t now) {
     if (!pendingDeadline_ || now >= pendingDeadline_ || strcmp(actionId_, id)) {
@@ -124,11 +150,19 @@ bool PhoneActions::confirm(const char *id, bool yes, uint64_t now) {
     if (!yes) {
         strcpy(result_, "cancelled");
         strcpy(resultMessage_, "Rejected on the car");
+    } else if (keyCandidate_.id[0]) {
+        const bool added = developers_.add(keyCandidate_);
+        strcpy(result_, added ? "key-added" : "failed");
+        strcpy(resultMessage_, added ? "Developer key added" : "Cannot save the key on the car");
+    } else if (keyRemove_[0]) {
+        const bool removed = developers_.remove(keyRemove_);
+        strcpy(result_, removed ? "key-removed" : "failed");
+        strcpy(resultMessage_, removed ? "Developer key removed" : "Cannot remove the key");
     } else if (candidate_.id[0]) {
         if (!phones_.add(candidate_)) {
             strcpy(result_, "failed");
             strcpy(resultMessage_, "Cannot save phone on the car");
-            pendingDeadline_ = 0;
+            clearPending();
             return false;
         }
         strcpy(result_, "paired");
@@ -148,8 +182,7 @@ bool PhoneActions::confirm(const char *id, bool yes, uint64_t now) {
                                   : "Uninstall failed";
         snprintf(resultMessage_, sizeof(resultMessage_), "%s", message);
     }
-    pendingDeadline_ = 0;
-    pendingApp_[0] = 0;
+    clearPending();
     return true;
 }
 int PhoneActions::status(const char *key, uint64_t now, const char *bssid, const char *host,
@@ -177,7 +210,8 @@ int PhoneActions::status(const char *key, uint64_t now, const char *bssid, const
             code = "expired";
         }
     }
-    if (!strcmp(code, "pairing") || !strcmp(code, "removal")) {
+    if (!strcmp(code, "pairing") || !strcmp(code, "removal") || !strcmp(code, "key") ||
+        !strcmp(code, "unkey")) {
         code = "waiting";
     }
     const int n = !strcmp(code, "paired")
@@ -201,8 +235,7 @@ bool PhoneActions::local(const char *command, uint64_t now, core::Span<char> out
     if (!strcmp(command, "PHONE CLOSE")) {
         pairDeadline_ = 0;
         if (pendingDeadline_) {
-            pendingDeadline_ = 0;
-            pendingApp_[0] = 0;
+            clearPending();
             strcpy(result_, "cancelled");
             strcpy(resultMessage_, "Rejected on the car");
         }
@@ -224,6 +257,15 @@ bool PhoneActions::local(const char *command, uint64_t now, core::Span<char> out
         } else if (candidate_.id[0]) {
             snprintf(out.data(), out.size(), "PHONE\tpair\t%s\t%s\t%s\n", actionId_,
                      candidate_.name, code_);
+        } else if ((keyCandidate_.id[0] || keyRemove_[0]) && phones_.find(owner_, phone)) {
+            storage::Developer developer = keyCandidate_;
+            char print[20];
+            if (keyRemove_[0] && !developers_.find(keyRemove_, developer)) {
+                return false;
+            }
+            storage::DeveloperStore::fingerprint(developer.id, print);
+            snprintf(out.data(), out.size(), "PHONE\t%s\t%s\t%s\t%s\t%s\n",
+                     keyRemove_[0] ? "unkey" : "key", actionId_, phone.name, developer.name, print);
         } else if (phones_.find(owner_, phone)) {
             snprintf(out.data(), out.size(), "PHONE\tremove\t%s\t%s\t%s\n", actionId_, phone.name,
                      pendingApp_);

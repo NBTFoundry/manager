@@ -151,7 +151,14 @@ typedef enum {
      * the slot "0" to "4"; for the manager too (state/manager). Written as
      * crash.next, then renamed over the slot. */
     NBT_FS_CRASH_REPORT,
-    NBT_FS_CRASH_REPORT_NEXT
+    NBT_FS_CRASH_REPORT_NEXT,
+    /* trust/developers/<key id>.conf: the developer keys a paired phone added
+     * and the driver approved (nbt/storage/developer_store.hpp), `tx` the key
+     * id; replaced through its .next under the developers lock. */
+    NBT_FS_DEVELOPERS_DIR,
+    NBT_FS_DEVELOPER,
+    NBT_FS_DEVELOPER_NEXT,
+    NBT_FS_DEVELOPERS_LOCK
 } nbt_fs_path_kind;
 
 /* NBT_FS_APPEND opens an existing debug log (NBT_FS_MANAGER_LOG) for

@@ -244,9 +244,13 @@ link.
 ## Trust and storage
 
 - **Two keys.** The manager key signs manager releases only. One apps key signs
-  every application package; its public half is compiled into the manager, so a
-  manager release's signature covers it. Private keys stay on the signing
-  workstation.
+  every NBTFoundry application package; its public half is compiled into the
+  manager, so a manager release's signature covers it. Private keys stay on the
+  signing workstation.
+- **Developer keys.** A developer adds their own RSA-3072 key from a paired phone
+  and the driver confirms it on the car (up to eight). Their applications then
+  install and update like ours; each application stays bound to the key that
+  signed its first package ([PROTOCOL.md](PROTOCOL.md#developer-keys)).
 - **Local approval.** Installs, updates, uninstalls and pairing are approved on the
   car, bound to the verified package digest; no HTTP route approves anything.
   Paired phones sign every request with a P-256 key kept in the phone's Keystore

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/worker.hpp"
 
-#include "nbt/apps_key.h"
 #include "nbt/bridge.h"
 #include "nbt/fs.h"
 #include "nbt/package/package_verifier.hpp"
+#include "nbt/signers.h"
 #include "nbt/transaction.h"
 
 #include <errno.h>
@@ -84,6 +84,7 @@ core::Status Worker::openSession(const char *app, uint64_t nowMs) {
         return fail("cannot start session");
     }
     memset(&state_.pending, 0, sizeof(state_.pending));
+    state_.signer[0] = state_.developer[0] = 0;
     state_.state = State::Session;
     snprintf(state_.message, sizeof(state_.message), "Ready for upload");
     return core::Status();
@@ -127,6 +128,7 @@ core::Status Worker::reject(const char *reason) {
     snprintf(state_.message, sizeof(state_.message), "Package rejected: %s", reason);
     state_.state = State::Failed;
     memset(&state_.pending, 0, sizeof(state_.pending));
+    state_.signer[0] = state_.developer[0] = 0;
     return core::Status::error(EINVAL, "package rejected");
 }
 
@@ -178,9 +180,8 @@ core::Status Worker::bindUpload() {
 core::Status Worker::bindNewApp(const char *app) {
     core::Result<core::UniqueFd> upload =
         root_.open(NBT_FS_SESSION_UPLOAD, "manager", NULL, NBT_FS_READ);
-    core::UniqueFd key(nbt_apps_key_fd());
-    if (!upload.get() || !key.valid()) {
-        return reject(upload.get() ? "no apps key in this manager" : "upload missing");
+    if (!upload.get()) {
+        return reject("upload missing");
     }
     core::Result<nbt_package> named = package::PackageVerifier::peekApp(upload.value().get());
     if (!named.get()) {
@@ -191,7 +192,6 @@ core::Status Worker::bindNewApp(const char *app) {
     snprintf(task_.app, sizeof(task_.app), "%s", app);
     snprintf(task_.compatibility, sizeof(task_.compatibility), "%s", named.value().compatibility);
     task_.fd = upload.value().release();
-    task_.keyFd = key.release();
     memcpy(state_.app, app, strlen(app) + 1);
     state_.generic = false;
     state_.newApp = true;
@@ -236,6 +236,11 @@ void Worker::verified() {
         return;
     }
     state_.pending = task_.pending;
+    memcpy(state_.signer, task_.signer, sizeof(state_.signer));
+    if (nbt_signer_name(root_.legacy(), state_.signer, state_.developer)) {
+        (void)reject("signing key removed from this car");
+        return;
+    }
     // Before the car's review: the install would refuse it as "release
     // sequence rejected" (dev71 in the car: the same test app sent again).
     nbt_installed installed;
@@ -268,6 +273,7 @@ void Worker::cancel(uint64_t nowMs, Ended ended) {
     state_.newApp = false;
     state_.managerUpdate = false;
     memset(&state_.pending, 0, sizeof(state_.pending));
+    state_.signer[0] = state_.developer[0] = 0;
     state_.state = State::Idle;
     snprintf(state_.message, sizeof(state_.message), "%s",
              ended == Ended::Expired ? "Session expired" : "Session closed");

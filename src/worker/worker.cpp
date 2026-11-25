@@ -253,6 +253,7 @@ core::Status Worker::installNew(const unsigned char digest[32], uint64_t nowMs) 
     clearTask(task_);
     task_.task = Task::InstallNew;
     snprintf(task_.app, sizeof(task_.app), "%s", state_.app);
+    memcpy(task_.signer, state_.signer, sizeof(task_.signer));
     memcpy(task_.digest, digest, sizeof(task_.digest));
     core::Result<core::UniqueFd> upload =
         root_.open(NBT_FS_SESSION_UPLOAD, "manager", NULL, NBT_FS_READ);

@@ -33,9 +33,9 @@ Private phone commands (after `HELLO 1`):
 | Command | Reply / effect |
 | --- | --- |
 | `PHONE OPEN` | `OK`; pairing permitted for 60 seconds. Only Pair a phone emits this. |
-| `PHONE CLOSE` | `OK`; close pairing and reject any pending pairing/removal. `CANCEL` also does this. |
-| `PHONE STATUS` | `PHONE\tnone`, or `PHONE\t<pair\|remove>\t<action-id>\t<phone-name>\t<digits\|app>`. |
-| `PHONE YES <action-id>` | Confirm the immutable pending action; `OK paired`, `OK removed`, or error. |
+| `PHONE CLOSE` | `OK`; close pairing and reject any pending pairing, removal or key change. `CANCEL` also does this. |
+| `PHONE STATUS` | `PHONE\tnone`, `PHONE\t<pair\|remove>\t<action-id>\t<phone-name>\t<digits\|app>`, or for a developer key `PHONE\t<key\|unkey>\t<action-id>\t<phone-name>\t<key-name>\t<fingerprint>` (add or remove; the fingerprint is the key id's first 16 digits as `abcd ef01 2345 6789`). |
+| `PHONE YES <action-id>` | Confirm the immutable pending action; `OK paired`, `OK removed`, `OK key-added`, `OK key-removed`, or error. |
 | `PHONE NO <action-id>` | Reject that action; `OK cancelled`, or error. |
 | `PHONE LIST` | `PHONES\t<count>`, then `\t<key-id>\|<name>` for each (0-4). |
 | `PHONE FORGET <key-id>` | Remove the phone's trust record; its next signed request fails. |
@@ -45,8 +45,9 @@ pending action and are never exposed over HTTP. A stale confirmation cannot
 approve a replacement request from the same phone.
 
 `STATUS` replies with `STATUS`, then tab-separated state, application, installed
-version, proposed version, proposed sequence, package SHA-256 and message.
-Absent text is `-`; the absent sequence is `0`. States are `0` idle, `1`
+version, proposed version, proposed sequence, package SHA-256 and message, then,
+only when a developer key signed the proposed package, that key's name. Absent text is `-`;
+the absent sequence is `0`. States are `0` idle, `1`
 waiting, `2` verified, `3` installing, `4` installed and `5` failed. Proposed
 version, sequence and digest exist only in states 2 and 3. Sessions are local
 transaction deadlines (ten minutes), and carry no bearer credential.
@@ -56,7 +57,7 @@ the GUI closes that worker and listener. The independent door remains available
 on 8081. The phone follows a result on the worker for five minutes after its
 request; polling extends that period while installation is running.
 
-In a generic session the upload is staged in `state/manager/session.upload`. When it is complete, the worker reads the application id from the manifest (without trusting it yet; never `manager`). For an installed application (it has a profile) it selects and recovers it as for an application-bound session, moves the upload to that application's staging path and verifies it against the apps key bundled with the manager and the application's profile. For an application not installed here, it verifies the staged upload against the apps key and the package's own compatibility id and keeps it staged: `STATUS` reports the application with installed version `-`, and the GUI reviews it as a new application. `APPROVE` answers `OK installing` and then installs it from the staged upload on the worker's job (state `3`; `nbt_app_install_new`: executable, record, settings declaration, then the profile with the package's compatibility id), removing first anything an interrupted install or uninstall left of it; the outcome is state `4` "Application installed" or `5`. There is no health check for a first install: nothing older exists to restore. Otherwise the session fails with `Package rejected: not an NBT Manager package`, `Package rejected: not an application package`, a verification reason or the selection's reason, and the staging file is removed. A package never selects a destination or a key. A generic session starts with no application selected.
+In a generic session the upload is staged in `state/manager/session.upload`. When it is complete, the worker reads the application id from the manifest (without trusting it yet; never `manager`). For an installed application (it has a profile) it selects and recovers it as for an application-bound session, moves the upload to that application's staging path and verifies it against the key that signed the application's first package (the profile's signer, see "Developer keys") and the application's profile. For an application not installed here, it finds the trusted key that signed the staged upload (the apps key bundled with the manager first, then the developer keys), verifies it against that key and the package's own compatibility id and keeps it staged: `STATUS` reports the application with installed version `-`, and the GUI reviews it as a new application. `APPROVE` answers `OK installing` and then installs it from the staged upload on the worker's job (state `3`; `nbt_app_install_new`: executable, record, settings declaration, then the profile with the package's compatibility id and, for a developer key, `signer=<key id>`), removing first anything an interrupted install or uninstall left of it; the outcome is state `4` "Application installed" or `5`. There is no health check for a first install: nothing older exists to restore. Otherwise the session fails with `Package rejected: not an NBT Manager package`, `Package rejected: not an application package`, a verification reason or the selection's reason, and the staging file is removed. A package never selects a destination or a key. A generic session starts with no application selected.
 
 `APPROVE` is meaningful only after a session has verified a package, and is bound to that package's SHA-256. A client must not expose this command to HTTP. The worker recovers an application before selecting it for a session or starting it; startup does not currently scan and recover all provisioned applications.
 
@@ -674,6 +675,9 @@ connections, a 5-second header deadline, a 15-second inactivity timeout and a
 | `POST /v1/files/put` | `app\tname\tsize\tsha256\n` | `OK\n`; the file is admitted and this phone holds a 60-second ticket for its bytes | No |
 | `POST /v1/files/data` | the file announced, `application/octet-stream` | `OK\n` once stored; from the ticket's phone, of its size and SHA-256 | No |
 | `POST /v1/files/remove` | `app\tname\n` | `OK\n`; deleted at once, without a car prompt (the phone app asks) | No |
+| `GET /v1/keys` | empty | `KEYS\t<count>\n`, then `key-id\tname\tadded\n` per developer key, newest first (see "Developer keys") | Yes |
+| `POST /v1/keys/add` | below | HTTP 202 `STATUS\twaiting\tConfirm the key on the car\n`; local No/Yes prompt; 400 for a malformed or weak key, 409 for a key already there or a ninth key | No |
+| `POST /v1/keys/remove` | `key-id\n` | HTTP 202 `STATUS\twaiting\tConfirm on the car\n`; local No/Yes prompt; 404 for an unknown key | No |
 
 The files routes refuse with `ERR <reason>\n` and an HTTP status that says
 which ([docs/files-bridge.md](docs/files-bridge.md)).
@@ -717,6 +721,36 @@ the phone must decide behavior from the state, not message wording. A key
 cannot inspect another key's action. A later accepted action replaces the
 previous result. A reviewed or installing package and pending confirmations
 block a competing upload/removal.
+
+### Developer keys
+
+A developer key lets a developer install and update their own applications
+with a key of their own: an RSA-3072 key with exponent 65537, the same kind as
+the apps key. A paired phone adds or removes it, and the driver confirms on
+the car. The car keeps at most eight, in `trust/developers/<key-id>.conf`
+(`NBTDEV1`: name, the DER key in hex, the time it was added).
+
+The key id is the SHA-256 of the key's DER SubjectPublicKeyInfo (`openssl pkey
+-pubin -outform DER`), in lowercase hex; its first 16 digits are the
+fingerprint both the car and the phone show. Add-key body (exact ordered
+fields, final LF required), the key in lowercase hex, canonical DER:
+
+```
+NBTKEY1
+name=Alice
+key=<DER key hex>
+```
+
+Names follow the phone name rules. After the driver's answer, `/v1/status`
+reports `key-added`, `key-removed`, `cancelled`, `expired` or `failed`.
+
+A new application installs when its package is signed by the apps key or by
+one of the developer keys; the apps key is tried first. Its profile then names
+the developer key (`signer=<key-id>` after `compat=`), and only packages signed
+by that same key update it: neither key updates the other's applications. The
+review on the car names the developer (`Developer key: <name>`). Removing a
+developer key leaves its applications installed and running; their updates
+fail with `signing key removed from this car` until the key is added again.
 
 ### Logs
 

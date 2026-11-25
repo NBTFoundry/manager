@@ -96,6 +96,7 @@ confirm_older = Confirm older version
 confirm_install = Confirm install
 versions = Installed: {1}, new: {2}
 version = Version {1}
+developer_key = Developer key: {1}
 reject = Reject
 install = Install
 install_older = Install, even if older
@@ -183,6 +184,15 @@ phone_paired = Phone paired
 app_uninstalled = Application uninstalled
 phone_action_failed = Phone action failed
 phone_action_unavailable = Phone action unavailable
+add_key_question = Add developer key {1}?
+key_fingerprint = Fingerprint: {1}
+key_warning = Its apps can do everything NBTFoundry's apps can
+yes_add_key = Yes, add key
+remove_key_question = Remove developer key {1}?
+key_remove_note = Its apps stay installed but can no longer be updated
+yes_remove_key = Yes, remove key
+key_added = Developer key added
+key_removed = Developer key removed
 
 # Restarting the head unit
 restarting = Restarting the head unit

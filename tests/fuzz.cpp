@@ -581,6 +581,8 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
         copyText(input, text);
         nbt::storage::Phone phone;
         (void)nbt::worker::PhoneActions::parsePair(text, phone);
+        nbt::storage::Developer developer;
+        (void)nbt::worker::PhoneActions::parseKey(text, developer);
         break;
     }
     case PhoneContext: {

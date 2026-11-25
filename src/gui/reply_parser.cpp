@@ -141,15 +141,25 @@ bool ReplyParser::isError(const char *reply) {
 bool ReplyParser::samePackage(const WorkerStatus &a, const WorkerStatus &b) {
     return a.state == W_VERIFIED && b.state == W_VERIFIED && !strcmp(a.app, b.app) &&
            !strcmp(a.proposed, b.proposed) && a.sequence == b.sequence &&
-           !strcmp(a.digest, b.digest);
+           !strcmp(a.digest, b.digest) && !strcmp(a.developer, b.developer);
 }
 
 int ReplyParser::parseStatus(const char *reply, WorkerStatus &s) {
-    char copy[kReplyMax], *f[8];
-    if (!reply || split(copy, reply, f, 8) || strcmp(f[0], "STATUS")) {
+    char copy[kReplyMax], *f[9];
+    // The ninth field, the developer key's name, came with developer keys.
+    const bool nine = reply && !split(copy, reply, f, 9);
+    if (!reply || (!nine && split(copy, reply, f, 8)) || strcmp(f[0], "STATUS")) {
         return -1;
     }
     memset(&s, 0, sizeof(s));
+    if (nine && strcmp(f[8], "-")) {
+        const size_t n = strlen(f[8]);
+        if (!n || n >= sizeof(s.developer) || f[8][0] == ' ' || f[8][n - 1] == ' ' ||
+            strchr(f[8], '|')) {
+            return -1;
+        }
+        strcpy(s.developer, f[8]);
+    }
     if (strlen(f[1]) != 1 || f[1][0] < '0' || f[1][0] > '6') {
         return -1;
     }

@@ -31,6 +31,12 @@ public:
                           nbt_fs_path_kind target, const char *text);
     static int writeRecord(nbt_fs *fs, const char *app, const nbt_installed *record);
     static int profileCompat(nbt_fs *fs, const char *app, char out[NBT_ID_MAX + 1]);
+    /* trust/apps/<app>.conf: "NBTAPP1", "compat=<id>", then "signer=<key id>"
+     * for an application a developer key signs (nbt/signers.h); `signer` is
+     * "" for the apps key. */
+    static int profileRead(nbt_fs *fs, const char *app, char compat[NBT_ID_MAX + 1],
+                           char signer[65]);
+    static int profileFormat(const char *compat, const char *signer, char *out, size_t size);
     static int copyCandidate(nbt_fs *fs, const char *app, const char *tx, int upload,
                              const nbt_package *package);
 

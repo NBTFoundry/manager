@@ -121,9 +121,13 @@ core::Status IpcDispatcher::handleStatus() {
             return core::Status::error(EIO, "cannot format package hash");
         }
     }
+    // A ninth field names the developer whose key signed the pending package.
+    const bool developer =
+        (state.state == State::Verified || state.state == State::Installing) && state.developer[0];
     const int length =
-        snprintf(output, sizeof(output), "STATUS\t%d\t%s\t%s\t%s\t%llu\t%s\t%s\n", stateNumber, app,
-                 version, pending, sequence, hash, state.message[0] ? state.message : "-");
+        snprintf(output, sizeof(output), "STATUS\t%d\t%s\t%s\t%s\t%llu\t%s\t%s%s%s\n", stateNumber,
+                 app, version, pending, sequence, hash, state.message[0] ? state.message : "-",
+                 developer ? "\t" : "", developer ? state.developer : "");
     return length < 0 || length >= static_cast<int>(sizeof(output))
                ? core::Status::error(ERANGE, "status response too large")
                : control_.respond(output);

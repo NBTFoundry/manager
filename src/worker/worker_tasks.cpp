@@ -7,6 +7,7 @@
 #include "nbt/core/secure.hpp"
 #include "nbt/manager_refresh.h"
 #include "nbt/process/runner_path.hpp"
+#include "nbt/signers.h"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
 #include "nbt/worker/usb_files.hpp"
@@ -33,6 +34,16 @@ int verifyNew(TaskContext &c) {
     nbt_bridge_provider provider;
     nbt_bridge_current(&provider);
     process::withoutMissingRunner(&provider);
+    closeOwned(c.keyFd);
+    if (nbt_signer_find(c.fs, c.fd, c.signer)) {
+        snprintf(c.error, sizeof(c.error), "not signed by a key this car trusts");
+        return -1;
+    }
+    c.keyFd = nbt_signer_key_fd(c.fs, c.signer);
+    if (c.keyFd < 0) {
+        snprintf(c.error, sizeof(c.error), "cannot read the signing key");
+        return -1;
+    }
     return nbt_package_verify(c.fd, c.keyFd, c.app, c.compatibility, &c.pending, c.error,
                               sizeof(c.error)) ||
                    nbt_bridge_check(&c.pending.bridge, &provider, NULL, NULL, c.error,
@@ -51,7 +62,7 @@ int installNew(TaskContext &c) {
         snprintf(c.error, sizeof(c.error), "upload missing");
         return -1;
     }
-    return nbt_app_install_new(c.fs, c.app, c.fd, c.digest, c.error, sizeof(c.error));
+    return nbt_app_install_new(c.fs, c.app, c.fd, c.digest, c.signer, c.error, sizeof(c.error));
 }
 
 } // namespace
@@ -101,6 +112,9 @@ void runTask(void *raw) {
         break;
     case Task::VerifyInstalled:
         c.result = nbt_tx_verify(c.fs, c.app, &c.pending, c.error, sizeof(c.error));
+        if (!c.result && nbt_app_signer(c.fs, c.app, c.signer)) {
+            c.signer[0] = 0;
+        }
         break;
     case Task::InstallNew:
         c.result = installNew(c);
