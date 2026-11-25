@@ -159,10 +159,13 @@ class AppHostTests(unittest.TestCase):
     def tearDown(self):
         # Never leave a detached host (or its application) behind.
         if hasattr(self, "host_lock"):
-            pid = lock_holder(self.host_lock)
-            if pid:
-                os.kill(pid, signal.SIGKILL)
+            for lock in (self.host_lock, self.root / "state/test/service.lock"):
+                pid = lock_holder(lock)
+                if pid:
+                    os.kill(pid, signal.SIGKILL)
             self.wait_for(lambda: not lock_holder(self.lease), fail=False)
+            self.wait_for(lambda: not lock_holder(self.root / "state/test/service.lease"),
+                          fail=False)
         for daemon, parent in getattr(self, "daemons", []):
             parent.close()
             if daemon.poll() is None:
@@ -464,7 +467,7 @@ while not stopping:
         self.wait_for(lambda: show_holder(self.host_lock))
         host, application = lock_holder(self.host_lock), lock_holder(self.lease)
         self.assertEqual(show_holder(self.host_lock), host)
-        self.assertIn("bridge=1.8", self.events())
+        self.assertIn("bridge=1.9", self.events())
         self.assertIn("caps=show", self.events())
         # The one application surface, held by this host for its life.
         self.assertIn("surface=1291", self.events())
@@ -1191,6 +1194,52 @@ event("exit")
         self.assertEqual(command("STOP test"), "OK")
         self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
         self.assertFalse(want.exists())
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_bridge_19_service_outlives_its_application_and_restarts(self):
+        """Bridge 1.9 `service`: starting the application starts its service,
+        the same executable with NBT_ROLE=service and neither screen nor input;
+        it keeps running after the application ends, starts again when it ends
+        on its own (after 1, 5 and 30 s) and stops with the application."""
+        runs = self.root / "data/test/runs"
+        self.script_app(
+            "role = os.environ.get('NBT_ROLE', 'absent')\n"
+            "print('role=%s caps=%s surface=%s' % (role, os.environ.get('NBT_BRIDGE_CAPS'),\n"
+            "      os.environ.get('NBT_SURFACE', 'absent')), flush=True)\n"
+            "os.write(3, b'R')\n"
+            "if role == 'app':\n    time.sleep(1.0)\n    sys.exit(0)\n"
+            f"with open({str(runs)!r}, 'a') as out:\n    out.write('run\\n')\n"
+            f"short = open({str(runs)!r}).read().count('run') <= 2\n"
+            "end = time.monotonic() + (1.0 if short else 600)\n"
+            "while time.monotonic() < end:\n    time.sleep(0.3)\n    os.write(3, b'R')\n"
+            "sys.exit(3)\n")
+        record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE2\n")
+        (self.root / "state/test/installed").write_text(
+            record + "bridge=1.9\nbridge-uses=show\nbridge-optional=service\n")
+        service_lock = self.root / "state/test/service.lock"
+        service_log = self.root / "state/test/service.log"
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK screen")
+        self.wait_for(lambda: lock_holder(service_lock))
+        self.wait_for(lambda: "role=service" in (service_log.read_text() if service_log.exists() else ""))
+        self.assertIn("role=app caps=show,service surface=1291", self.app_log())
+        self.assertIn("role=service caps=service surface=absent", service_log.read_text())
+        # The application ends; its service runs on, and is listed as such.
+        self.wait_for(lambda: not lock_holder(self.host_lock))
+        self.assertTrue(lock_holder(service_lock))
+        self.assertEqual(command("RUNNING"), "RUNNING\t0")
+        self.assertEqual(command("SERVICES"), "SERVICES\t1\ttest")
+        # Ended on its own twice: started again after 1 s, then 5 s.
+        self.wait_for(lambda: runs.exists() and runs.read_text().count("run") == 3, seconds=20)
+        log = service_log.read_text()
+        self.assertIn("service ended; starting it again in 1 s", log)
+        self.assertIn("service ended; starting it again in 5 s", log)
+        self.assertFalse((self.root / "state/test/fault-guard").exists())
+        # Stopped with its application.
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: not lock_holder(service_lock))
+        self.assertIn("stopped by the manager", service_log.read_text())
+        self.assertEqual(command("SERVICES"), "SERVICES\t0")
         self.assertEqual(command("QUIT"), "OK")
 
     def test_native_audio_media_names_the_connection(self):

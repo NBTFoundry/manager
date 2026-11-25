@@ -79,7 +79,7 @@ size_t UiController::appIndex(const char *name) const {
 
 bool UiController::stopEntry() const {
     const size_t i = appIndex(settingsApp);
-    return !managerSettings() && i < appCount && running[i];
+    return !managerSettings() && runs(i);
 }
 
 void UiController::leaveSettings() {
@@ -150,7 +150,8 @@ size_t UiController::itemCount() const {
 }
 
 bool UiController::inputBusy() const {
-    return queued || (outstanding && !(outstanding == R_RUNNING && screen == Apps));
+    return queued || (outstanding &&
+                      !((outstanding == R_RUNNING || outstanding == R_SERVICES) && screen == Apps));
 }
 
 core::Status UiController::init(const char *interfaceValue, unsigned portNumber) {

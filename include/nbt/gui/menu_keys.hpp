@@ -17,6 +17,10 @@ int optionKey(UiController &ui);
  * (or while the manager update's own dialog shows). Starting and stopping show
  * on the application's row instead (view_builder.cpp). */
 const char *menuNote(const UiController &ui);
+/* What happens to application `i` (starting, stopping, running, only its
+ * service running, needs an update) shows on its row, so the list never
+ * moves; NULL for nothing. */
+const char *rowNote(const UiController &ui, size_t i);
 void closeMenuNote(UiController &ui);
 } // namespace gui
 } // namespace nbt

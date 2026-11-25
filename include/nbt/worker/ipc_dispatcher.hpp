@@ -35,6 +35,7 @@ private:
     core::Status handleStatus();
     core::Status handleList();
     core::Status handleRunning(char *cursor);
+    core::Status handleServices();
     core::Status handleAutostart(char *cursor);
     core::Status handleSettings(bool setting, char *cursor);
     core::Status handleStart(char *cursor, uint64_t nowMs);

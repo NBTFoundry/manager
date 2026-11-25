@@ -139,6 +139,7 @@ screen_taken = {1}: otra aplicación tiene la pantalla
 blocked_faults = {1} bloqueada tras fallos
 cannot_start = No se puede iniciar {1}
 needs_update = requiere actualización
+service_running = servicio activo
 app_needs_update = {1} necesita una actualización para este gestor
 app_not_shown = {1} no apareció
 app_unblocked = {1} desbloqueada

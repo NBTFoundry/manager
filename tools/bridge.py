@@ -4,7 +4,7 @@ import re
 
 VERSION = re.compile(r"([1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{0,23}\Z")
-CURRENT = ("1.8|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag",)  # nbt_bridge_current
+CURRENT = ("1.9|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag,service",)  # nbt_bridge_current
 # One rule of a MOST policy (src/model/most_policy.cpp, docs/most-bridge.md).
 MOST_RULE = re.compile(r"(?:rx:\*\.\*\.\*|(?:rx|tx):[0-9A-F]{2}\.(?:\*|[0-9A-F]{2})\.(?:\*|[0-9A-F]{3})"
                        r"|ctl:[0-9A-F]{2}\.[0-9A-F]{2}|sub:[0-9A-F]{2}\.[0-9A-F]{2}\.[0-9A-F]{3})\Z")
@@ -137,6 +137,8 @@ def requirement(ver, uses, optional, most="", files="", cds="", net="", diag="")
         raise ValueError("a diagnostics policy (--bridge-diag) is required exactly when diag is declared")
     if diag and major == 1 and minor < 8:
         raise ValueError("diag requires bridge 1.8")
+    if "service" in required | wanted and ((major == 1 and minor < 9) or "show" not in required | wanted):
+        raise ValueError("service requires bridge 1.9 and show (docs/service-bridge.md)")
     # A payload built without the QNX SDP cannot run without the runner.
     if "runner" in wanted:
         raise ValueError("runner is required (--bridge-uses), never optional")

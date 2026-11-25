@@ -23,9 +23,15 @@ static const uint64_t kSystemLogMax = UINT64_C(8) * 1024 * 1024;
 static const uint64_t kSystemLogWaitMs = 10000;
 static const uint64_t kSystemLogFileMax = UINT64_C(32) * 1024 * 1024;
 
+/* An application's log and its rotated part, then its service's
+ * (docs/service-bridge.md); two for the others. */
+static const unsigned kLogFiles = 4;
+
 struct LogReply {
     LogReply() : child(-1), startedMs(0) {
-        sizes[0] = sizes[1] = 0;
+        for (unsigned i = 0; i < kLogFiles; ++i) {
+            sizes[i] = 0;
+        }
     }
     ~LogReply() {
         reset();
@@ -36,14 +42,14 @@ struct LogReply {
     /* Stops a running sloginfo and closes the files. */
     void reset();
     uint64_t total() const {
-        return sizes[0] + sizes[1];
+        return sizes[0] + sizes[1] + sizes[2] + sizes[3];
     }
     bool pending() const {
         return child > 0;
     }
 
-    core::UniqueFd files[2];
-    uint64_t sizes[2];
+    core::UniqueFd files[kLogFiles];
+    uint64_t sizes[kLogFiles];
     pid_t child;
     uint64_t startedMs;
 };

@@ -4,6 +4,7 @@
 #include "nbt/app_compat.h"
 #include "nbt/app_host.h"
 #include "nbt/autostart.h"
+#include "nbt/bridge.h"
 #include "nbt/core/system.hpp"
 #include "nbt/crypto/threads.hpp"
 #include "nbt/firewall.h"
@@ -12,6 +13,7 @@
 #include "nbt/log.h"
 #include "nbt/process/runner_path.hpp"
 #include "nbt/process/sandbox_limits.hpp"
+#include "nbt/transaction.h"
 #include "nbt/worker/shortcut_dispatch.hpp"
 #include "nbt/worker/storage_report.hpp"
 
@@ -208,8 +210,16 @@ int hostMain(const char *root, int argc, char **argv) {
                  argv[2]);
     }
 #endif
-    const int result =
-        nbt_app_host_run_mode(rootObject.legacy(), argv[2], !strcmp(argv[1], "--host-auto"));
+    // An application host starts its service's host (docs/service-bridge.md).
+#ifdef NBT_TESTING
+    (void)nbt_app_host_set_self(argv[0], argc == 5 ? root : NULL);
+#else
+    (void)nbt_app_host_set_self(argv[0], NULL);
+#endif
+    const bool service = !strncmp(argv[1], "--service", 9);
+    const int automatic = !strcmp(argv[1], "--host-auto") || !strcmp(argv[1], "--service-auto");
+    const int result = service ? nbt_app_service_run(rootObject.legacy(), argv[2], automatic)
+                               : nbt_app_host_run_mode(rootObject.legacy(), argv[2], automatic);
     nbt_log_close();
     return result;
 }
@@ -246,6 +256,18 @@ int autostartMain(const char *root, const char *self, int argc, char **argv) {
     return result;
 }
 
+namespace {
+
+// With the car, an application with a service starts only its service (docs/service-bridge.md).
+bool declaresService(nbt_fs *fs, const char *app) {
+    nbt_installed record;
+    return !nbt_tx_installed(fs, app, &record) &&
+           (nbt_bridge_cap_has(record.bridge.uses, "service") ||
+            nbt_bridge_cap_has(record.bridge.optional, "service"));
+}
+
+} // namespace
+
 int autostartDispatch(nbt_fs *fs) {
     char names[NBT_APP_LIST_MAX][NBT_APP_NAME_MAX + 1];
     const int count = nbt_fs_list_apps(fs, names);
@@ -261,6 +283,13 @@ int autostartDispatch(nbt_fs *fs) {
             nbt_app_compatible(fs, names[i], reason, sizeof(reason)) == 1) {
             // Disabled until updated: not a failed start, so autostart is not paused.
             nbt_logf("autostart %s: skipped, needs an update: %s", names[i], reason);
+        } else if (state.enabled && state.failures < NBT_AUTOSTART_FAILURE_LIMIT &&
+                   declaresService(fs, names[i])) {
+            if (nbt_app_service_start(fs, names[i], 1)) {
+                result = 1;
+            } else {
+                nbt_logf("autostart %s: its service started", names[i]);
+            }
         } else if (state.enabled && state.failures < NBT_AUTOSTART_FAILURE_LIMIT) {
             const pid_t running = nbt_app_host_pid(fs, names[i]);
             if (running < 0 || (!running && nbt_app_host_autostart(fs, names[i]))) {

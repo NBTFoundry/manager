@@ -140,6 +140,7 @@ screen_taken = {1}：其他应用正在使用屏幕
 blocked_faults = {1} 因故障已被阻止
 cannot_start = 无法启动 {1}
 needs_update = 需要更新
+service_running = 服务运行中
 app_needs_update = {1} 需要更新才能在此管理器中运行
 app_not_shown = {1} 未显示
 app_unblocked = {1} 已解除阻止

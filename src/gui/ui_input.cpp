@@ -254,6 +254,9 @@ int UiController::nextRequest(uint64_t nowMs, Request &request) {
         case R_RUNNING:
             n = snprintf(command, size, "RUNNING status");
             break;
+        case R_SERVICES:
+            n = snprintf(command, size, "SERVICES");
+            break;
         case R_STATUS:
             n = snprintf(command, size, "STATUS");
             break;

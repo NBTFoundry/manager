@@ -139,6 +139,7 @@ screen_taken = {1}: Eine andere App nutzt den Bildschirm
 blocked_faults = {1} nach Fehlern gesperrt
 cannot_start = {1} kann nicht gestartet werden
 needs_update = Update nötig
+service_running = Dienst läuft
 app_needs_update = {1} braucht ein Update für diesen Manager
 app_not_shown = {1} wurde nicht angezeigt
 app_unblocked = {1} entsperrt

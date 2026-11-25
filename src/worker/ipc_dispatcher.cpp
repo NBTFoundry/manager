@@ -282,6 +282,9 @@ core::Status IpcDispatcher::dispatch(char *line, uint64_t nowMs) {
     if (!strcmp(name, "RUNNING") && (!cursor || !strcmp(cursor, "status"))) {
         return handleRunning(cursor);
     }
+    if (!strcmp(name, "SERVICES") && !cursor) {
+        return handleServices();
+    }
     if (!strcmp(name, "AUTOSTART")) {
         return handleAutostart(cursor);
     }

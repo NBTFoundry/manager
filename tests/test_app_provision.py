@@ -302,6 +302,13 @@ class AppUninstallTests(AppFixture):
                 fcntl.lockf(held, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, 0)
                 self.assertEqual(self.commands("REMOVE test"), [reply])
                 self.assertEqual(self.kept(), before)
+        # Its service running (docs/service-bridge.md): refused too.
+        with open(self.root / "state/test/service.lock", "a+b") as held:
+            os.chmod(self.root / "state/test/service.lock", 0o600)
+            fcntl.lockf(held, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, 0)
+            self.assertEqual(self.commands("REMOVE test"), ["ERR running"])
+        (self.root / "state/test/service.lock").unlink()
+        self.assertEqual(self.kept(), before)
         # Another process with the manager operation lock (a manager update being staged).
         holder = subprocess.Popen([sys.executable, "-c", HOLD_LOCK, str(self.root / "state/manager/operation.lock")],
                                   stdout=subprocess.PIPE)

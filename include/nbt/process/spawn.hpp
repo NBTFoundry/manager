@@ -16,7 +16,7 @@ struct ChildPlan {
 };
 
 core::Status prepareHost(ChildPlan *plan, char *executable, const char *app, bool automatic,
-                         char *testRoot);
+                         char *testRoot, bool service = false);
 core::Status detach(const ChildPlan &plan, pid_t *intermediate);
 void execChild(const ChildPlan &plan) __attribute__((noreturn));
 

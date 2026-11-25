@@ -162,6 +162,8 @@ while True:
             os.write(fd, b"APPS\\t0\\n")
         elif line == b"RUNNING status":
             os.write(fd, b"RUNNING\\t0\\n")
+        elif line == b"SERVICES":
+            os.write(fd, b"SERVICES\\t0\\n")
         elif line == b"PHONE STATUS":
             os.write(fd, b"PHONE\\tnone\\n")
         elif line == b"SETUP":

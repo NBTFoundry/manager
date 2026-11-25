@@ -82,9 +82,10 @@ void LogReply::reset() {
         }
     }
     child = -1;
-    files[0].reset();
-    files[1].reset();
-    sizes[0] = sizes[1] = 0;
+    for (unsigned i = 0; i < kLogFiles; ++i) {
+        files[i].reset();
+        sizes[i] = 0;
+    }
 }
 
 int phoneAppLog(storage::ManagedRoot &root, const char *body, LogReply &reply) {
@@ -93,9 +94,11 @@ int phoneAppLog(storage::ManagedRoot &root, const char *body, LogReply &reply) {
         return 400;
     }
     reply.reset();
-    const nbt_fs_path_kind kinds[2] = {NBT_FS_APP_LOG_OLD, NBT_FS_APP_LOG};
-    const char *names[2] = {"output.log.1", "output.log"};
-    for (unsigned i = 0; i < 2; ++i) {
+    // Then its service's, when it has one (docs/service-bridge.md).
+    const nbt_fs_path_kind kinds[kLogFiles] = {NBT_FS_APP_LOG_OLD, NBT_FS_APP_LOG,
+                                               NBT_FS_SERVICE_LOG_OLD, NBT_FS_SERVICE_LOG};
+    const char *names[kLogFiles] = {"output.log.1", "output.log", "service.log.1", "service.log"};
+    for (unsigned i = 0; i < kLogFiles; ++i) {
         const int fd = nbt_fs_open(root.legacy(), kinds[i], app, NULL, NBT_FS_READ);
         if (fd < 0) {
             if (errno != ENOENT) {
@@ -103,7 +106,9 @@ int phoneAppLog(storage::ManagedRoot &root, const char *body, LogReply &reply) {
                 reply.reset();
                 return 503;
             }
-            nbt_logf("phone: %s log %s missing", app, names[i]);
+            if (i < 2) {
+                nbt_logf("phone: %s log %s missing", app, names[i]);
+            }
             continue;
         }
         reply.files[i].reset(fd);
@@ -153,6 +158,19 @@ int phoneClearAppLog(storage::ManagedRoot &root, const char *body) {
     }
     if (truncated ||
         (nbt_fs_unlink(root.legacy(), NBT_FS_APP_LOG_OLD, app, NULL) && errno != ENOENT)) {
+        return 503;
+    }
+    // Its service's too: it has no log of its own on the phone.
+    const int service =
+        nbt_fs_exists(root.legacy(), NBT_FS_SERVICE_LOG, app, NULL) == 1
+            ? nbt_fs_open(root.legacy(), NBT_FS_SERVICE_LOG, app, NULL, NBT_FS_APPEND)
+            : -1;
+    const int cleared = service >= 0 ? ftruncate(service, 0) : 0;
+    if (service >= 0) {
+        close(service);
+    }
+    if (cleared ||
+        (nbt_fs_unlink(root.legacy(), NBT_FS_SERVICE_LOG_OLD, app, NULL) && errno != ENOENT)) {
         return 503;
     }
     return 200;

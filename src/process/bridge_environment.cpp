@@ -46,6 +46,14 @@ size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridg
             ++count;
         }
     }
+    // Capability `service`: which of the application's two processes this is
+    // (the service is granted no `show`; docs/service-bridge.md).
+    if (user && nbt_bridge_cap_has(grant.caps, "service")) {
+        strcpy(out->text[count],
+               nbt_bridge_cap_has(grant.caps, "show") ? "NBT_ROLE=app" : "NBT_ROLE=service");
+        out->list[count] = out->text[count];
+        ++count;
+    }
     const char *dir = nbt_fs_bridge_dir(fs);
     char path[200]; // /dev/shmem/nbt-bridge1-<48>.hmi, well within an entry
     if (user && app && dir && nbt_bridge_cap_has(grant.caps, "hold") &&

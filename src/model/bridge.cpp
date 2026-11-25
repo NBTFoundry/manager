@@ -98,6 +98,10 @@ bool validRequirement(const nbt_bridge_requirement *v) {
     } else if (v->net[0]) {
         return false;
     }
+    // `service` came with bridge 1.9, for an application with a screen.
+    if (declared(v, "service") && ((v->major == 1 && v->minor < 9) || !declared(v, "show"))) {
+        return false;
+    }
     // `diag` came with bridge 1.8.
     if (declared(v, "diag")) {
         return v->diag[0] && !nbt_diag_policy_parse(v->diag, NULL) &&

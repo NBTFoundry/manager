@@ -207,10 +207,10 @@ core::Status WebConnection::poll(PhoneApi &api, uint64_t now) {
 }
 /* The next piece of the log files into reply_; false when one cannot be read. */
 bool WebConnection::refill() {
-    while (file_ < 2 && !log_.sizes[file_]) {
+    while (file_ < kLogFiles && !log_.sizes[file_]) {
         ++file_;
     }
-    if (file_ == 2) {
+    if (file_ == kLogFiles) {
         return true;
     }
     const size_t want = log_.sizes[file_] < sizeof(reply_) ? static_cast<size_t>(log_.sizes[file_])

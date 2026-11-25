@@ -61,8 +61,17 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         }
         if (screen == Apps && !queued && !holding) {
             // SETUP first, so a manager on trial shows its check at once, the
-            // menu busy until the answer (setup_ui.hpp).
-            queued = setupNow(*this, nowMs) ? R_SETUP : R_PHONE_STATUS;
+            // menu busy until the answer (setup_ui.hpp); else which applications
+            // run only their service.
+            queued = setupNow(*this, nowMs) ? R_SETUP : R_SERVICES;
+        }
+        return 0;
+    case R_SERVICES:
+        if (ReplyParser::isError(replyText) || ReplyParser::parseServices(*this, replyText)) {
+            memset(service, 0, sizeof(service));
+        }
+        if (screen == Apps && !queued && !holding) {
+            queued = R_PHONE_STATUS;
         }
         return 0;
     case R_SESSION:

@@ -118,6 +118,13 @@ typedef enum {
      * ended (src/log/app_log.cpp), rotated to .1; not for the manager. */
     NBT_FS_APP_LOG,
     NBT_FS_APP_LOG_OLD,
+    /* An application's service (capability `service`, docs/service-bridge.md):
+     * its host's lock, its process's lease and its output, as host.lock, lease
+     * and output.log are the application's. */
+    NBT_FS_SERVICE_LOCK,
+    NBT_FS_SERVICE_LEASE,
+    NBT_FS_SERVICE_LOG,
+    NBT_FS_SERVICE_LOG_OLD,
     /* A copy of the capture shim loaded once into a test process before
      * starter.cfg names the shim (src/storage/capture_probe.cpp). */
     NBT_FS_CAPTURE_PROBE,
@@ -276,6 +283,8 @@ int nbt_fs_status_write(int fd, const char *line, size_t length);
 
 /* Exclusive lease is required before replacing or recovering an executable. */
 int nbt_fs_lease_exclusive(nbt_fs *fs, const char *app);
+/* The same for the application's service's lease (docs/service-bridge.md). */
+int nbt_fs_service_lease_exclusive(nbt_fs *fs, const char *app);
 /* Serialize manager slot staging, launch and recovery. Caller closes the fd. */
 int nbt_fs_manager_operation_lock(nbt_fs *fs);
 /* The launcher holds the manager operation lock for as long as the manager it

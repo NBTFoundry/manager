@@ -16,7 +16,7 @@ only while it installs or removes, then read-only again.
 - This kit, unzipped on the laptop: `NBT-Manager-Installer.exe`,
   `phone\NBT-Manager-0.1.0.apk`, `phone\test-v1.nbt` (the installer's), `phone\test-v2.nbt`, `phone\test-v3-broken.nbt`,
   `phone\test-runner-v1.nbt`, `phone\test-runner-v2.nbt`, `phone\test-runner-v3-broken.nbt`,
-  `phone\test-diag-v1.nbt`, `controller.conf.example`, `usb\car_inventory.sh` with `CAR-INVENTORY.md`
+  `phone\test-diag-v1.nbt`, `phone\test-service-v1.nbt`, `controller.conf.example`, `usb\car_inventory.sh` with `CAR-INVENTORY.md`
   (optional: collects head unit files for the bridge's car-data work),
   `VERSION.txt`, `SHA256SUMS.txt`.
 - An OBD-to-ENET cable, and an Ethernet port or USB Ethernet adapter.
@@ -27,7 +27,7 @@ only while it installs or removes, then read-only again.
   phone and open it; allow installing from that source when Android asks). A newer
   APK installs over an older one and keeps the paired cars; uninstalling the app
   deletes its keys, so each car must be paired again.
-- `phone\test-v2.nbt`, `phone\test-v3-broken.nbt`, the three `phone\test-runner-*.nbt` and `phone\test-diag-v1.nbt` copied to the phone
+- `phone\test-v2.nbt`, `phone\test-v3-broken.nbt`, the three `phone\test-runner-*.nbt`, `phone\test-diag-v1.nbt` and `phone\test-service-v1.nbt` copied to the phone
   (cloud drive, email to yourself or USB), where NBT Manager can pick or receive them.
 - Car parked, ignition on, engine off, battery charger connected.
 
@@ -376,6 +376,20 @@ apps key, and `hello-lvgl-dev-0.1.0.nbt`. Keep App Manager open.
 3. Gauges reads the engine through the manager's diagnostics: its own
    procedure, `gauges-car-test-0.0.9.pdf` in the kit folder (packages
    `gauges-0.0.9.nbt`, `gauges-0.0.10.nbt`).
+
+## 7d. Background service
+
+1. Install `test-service-v1.nbt` from the phone, then start test-service:
+   HELLO WORLD.
+2. Press BACK: the test app ends; its row says "test-service (service
+   running)".
+3. After a minute, phone: test-service › Show log: lines
+   `[test:service] service still running (1)`, `(2)`.
+4. Press MENU, open App Manager again: the row still says "service
+   running". Hold the push on it: it stops; the row is plain again.
+5. Settings › Start with the car: on for test-service. Restart the head unit:
+   after about 25 s its log gains a new `service still running` run, without
+   HELLO WORLD on the screen. Turn it off, stop it, uninstall it.
 
 ## 8. Boot listener and opening from the phone
 

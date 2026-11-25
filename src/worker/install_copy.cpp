@@ -44,7 +44,7 @@ void Worker::installCopied(uint64_t nowMs) {
             return;
         }
         releaseUpdateLock();
-        if (state_.previouslyRunning && !hostStart().ok()) {
+        if (!restartAfterUpdate().ok()) {
             fail("installation failed; previous application cannot start");
             return;
         }

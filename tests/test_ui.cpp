@@ -2,6 +2,7 @@
 #include "nbt/gui/capture_watch.hpp"
 #include "nbt/gui/files_ui.hpp"
 #include "nbt/gui/gamepad_input.hpp"
+#include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/setup_ui.hpp"
 #include "nbt/gui/ui_controller.hpp"
 #include "nbt/gui/ui_renderer.hpp"
@@ -140,6 +141,8 @@ static int encodeQr(QrCode &qr, const unsigned char *data, size_t size, int mask
 #define TOKEN "aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11"
 
 static uint64_t now = 1000;
+/* What SERVICES answers in the background (exchange). */
+static const char *services = "SERVICES\t0";
 
 /* Asserts the next command and answers it. */
 static void exchange(UiController *ui, const char *expected, const char *reply) {
@@ -153,12 +156,13 @@ static void exchange(UiController *ui, const char *expected, const char *reply) 
     }
     CHECK(timeout >= 5000);
     CHECK(replyUi(ui, reply, now) == 0);
-    while (ui->queued == nbt::gui::R_PHONE_STATUS ||
+    while (ui->queued == nbt::gui::R_PHONE_STATUS || ui->queued == nbt::gui::R_SERVICES ||
            (ui->queued == nbt::gui::R_STATUS && ui->screen == nbt::gui::Apps)) {
         Request background;
         CHECK(ui->nextRequest(now, background) == 1);
-        CHECK(ui->reply(!strcmp(background.command, "PHONE STATUS")
-                            ? "PHONE\tnone"
+        CHECK(ui->reply(!strcmp(background.command, "PHONE STATUS") ? "PHONE\tnone"
+                        : !strcmp(background.command, "SERVICES")
+                            ? services
                             : "STATUS\t0\t-\t-\t-\t0\t-\tIdle",
                         now) == 0);
     }
@@ -539,6 +543,31 @@ static void test_push_starts(void) {
     CHECK(!ui.holding && releaseUi(&ui, nbt::gui::KeySelect) == 0);
     CHECK(releaseUi(&ui, nbt::gui::KeyBack) == 0 && releaseUi(NULL, nbt::gui::KeySelect) == 0);
     idle(&ui);
+}
+
+/* Background services (docs/service-bridge.md): an application whose service
+ * runs alone says so on its row; holding the push stops it. */
+static void test_service_rows(void) {
+    UiController ui;
+    services = "SERVICES\t1\ttest";
+    loaded(&ui, "APPS\t2\tdemo\ttest", "RUNNING\t0");
+    now += nbt::gui::kPollMs; /* the next poll asks which run only their service */
+    exchange(&ui, "RUNNING status", "RUNNING\t0");
+    CHECK(!strcmp(view(&ui).items[0], "demo") &&
+          !strcmp(view(&ui).items[1], "test  (service running)"));
+    CHECK(nbt::gui::ReplyParser::parseServices(ui, "SERVICES\t1\tother") == -1);
+    CHECK(nbt::gui::ReplyParser::parseServices(ui, "SERVICES\t1\ttest|x") == -1);
+    CHECK(nbt::gui::ReplyParser::parseServices(ui, "SERVICES\t2\ttest\ttest") == -1);
+    CHECK(ui.service[1] && !ui.service[0]);
+    press(&ui, nbt::gui::KeyDown, 1);
+    idle(&ui);
+    const uint64_t pressed = now;
+    press(&ui, nbt::gui::KeySelect, 1);
+    now = pressed + nbt::gui::kHoldMs;
+    exchange(&ui, "STOP test", "OK");
+    CHECK(!strcmp(view(&ui).items[1], "test  (stopping)"));
+    CHECK(releaseUi(&ui, nbt::gui::KeySelect) == 0 && !ui.queued);
+    services = "SERVICES\t0";
 }
 
 static void test_hold_stops_and_option_opens_settings(void) {
@@ -990,6 +1019,7 @@ static void test_setup_and_idrive_restart(void) {
     CHECK(ui.reply("RUNNING\t0", now) == 0);
     while (ui.nextRequest(now, request) == 1) { // the background phone and status polls
         CHECK(ui.reply(!strcmp(request.command, "PHONE STATUS") ? "PHONE\tnone"
+                       : !strcmp(request.command, "SERVICES")   ? "SERVICES\t0"
                                                                 : "STATUS\t0\t-\t-\t-\t0\t-\tIdle",
                        now) == 0);
     }
@@ -1962,6 +1992,7 @@ int main(void) {
     test_main_menu_and_banner();
     test_push_starts();
     test_application_needing_an_update();
+    test_service_rows();
     test_hold_stops_and_option_opens_settings();
     test_stop_failures();
     test_uninstall();

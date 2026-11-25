@@ -37,19 +37,32 @@ int nbt_app_remove(nbt_fs *fs, const char *app) {
     }
     // Without a state directory (an earlier removal cut short) no host can run it.
     nbt::core::UniqueFd host;
+    nbt::core::UniqueFd service;
     nbt::core::UniqueFd tx;
     nbt::core::UniqueFd lease;
+    nbt::core::UniqueFd serviceLease;
+    bool served = false;
     if (!lstat(path, &st)) {
         host.reset(nbt::storage::SafePathOpen::lockNonBlocking(fs, NBT_FS_HOST_LOCK, app));
         if (!host.valid()) {
             return errno == EAGAIN || errno == EACCES ? NBT_APP_REMOVE_RUNNING : -1;
+        }
+        // And its service's (docs/service-bridge.md), when it ever had one.
+        served = nbt_fs_exists(fs, NBT_FS_SERVICE_LOCK, app, NULL) == 1;
+        if (served) {
+            service.reset(
+                nbt::storage::SafePathOpen::lockNonBlocking(fs, NBT_FS_SERVICE_LOCK, app));
+            if (!service.valid()) {
+                return errno == EAGAIN || errno == EACCES ? NBT_APP_REMOVE_RUNNING : -1;
+            }
         }
         tx.reset(nbt_tx_lock(fs, app));
         if (!tx.valid()) {
             return NBT_APP_REMOVE_BUSY;
         }
         lease.reset(nbt_fs_lease_exclusive(fs, app));
-        if (!lease.valid()) {
+        serviceLease.reset(lease.valid() && served ? nbt_fs_service_lease_exclusive(fs, app) : -1);
+        if (!lease.valid() || (served && !serviceLease.valid())) {
             return NBT_APP_REMOVE_RUNNING;
         }
     } else if (errno != ENOENT) {

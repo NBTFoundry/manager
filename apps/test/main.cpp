@@ -19,6 +19,7 @@
 #include <GLES2/gl2.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -127,8 +128,11 @@ int main(int argc, char **argv) {
                        lifecycle.bridge_caps());
     nbt::app::VideoEgl video;
     Overlay overlay;
-    // A health check runs without a window.
-    if (lifecycle.is_user_mode()) {
+    // Its service (bridge 1.9, test-service in the kits) runs without a window
+    // and notes that it still runs; a health check runs without a window too.
+    const char *role = getenv("NBT_ROLE");
+    const bool service = role && !strcmp(role, "service");
+    if (lifecycle.is_user_mode() && !service) {
         const nbt::app::VideoConfig window = {"NBT Manager test " NBT_TEST_VERSION, 800, 480};
         if (!video.init(lifecycle.surface_id(), &window) || !overlay.init()) {
             nbt::app::log_info("no window: the car will not show it");
@@ -140,6 +144,8 @@ int main(int argc, char **argv) {
     }
     nbt::controller::Input controller;
     const uint64_t start = nbt::app::monotonic_ms();
+    uint64_t noted = start;
+    unsigned notes = 0;
     int result = 0;
     while (!lifecycle.stopping()) {
         const uint64_t now = nbt::app::monotonic_ms();
@@ -152,6 +158,10 @@ int main(int argc, char **argv) {
 #else
         (void)start;
 #endif
+        if (service && now - noted >= 30000) {
+            noted = now;
+            nbt::app::log_info("service still running (%u)", ++notes);
+        }
         bool leave = false;
         if (lifecycle.controller_fd() >= 0) {
             controller.poll(lifecycle.controller_fd(), &onController, &leave);

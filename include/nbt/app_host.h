@@ -36,6 +36,13 @@ pid_t nbt_app_host_pid(nbt_fs *fs, const char *app);
 /* Signals the running host (SIGTERM to stop, SIGKILL as a last resort).
  * Returns 0 when it was signalled or none runs. */
 int nbt_app_host_signal(nbt_fs *fs, const char *app, int signal_number);
+/* The same for the application's service (capability `service`,
+ * docs/service-bridge.md): its host holds state/<app>/service.lock. */
+pid_t nbt_app_service_pid(nbt_fs *fs, const char *app);
+int nbt_app_service_signal(nbt_fs *fs, const char *app, int signal_number);
+/* Starts the service's host (`--service`, or `--service-auto` with the car)
+ * unless it runs; 0 when started or already running. */
+int nbt_app_service_start(nbt_fs *fs, const char *app, int automatic);
 /* Request show only from a ready host whose child was granted the capability.
  * 0 accepted, 1 running without show (or not yet ready), -1 no host/I/O error.
  * Byte 0 of host.lock is the lifetime write lock; byte 1 is the ready show's
@@ -66,6 +73,8 @@ void nbt_app_output_to_log(nbt_fs *fs);
  * 3 when another host already runs, 1 on errors). */
 int nbt_app_host_run(nbt_fs *fs, const char *app);
 int nbt_app_host_run_mode(nbt_fs *fs, const char *app, int automatic);
+/* The host of the application's service (docs/service-bridge.md). */
+int nbt_app_service_run(nbt_fs *fs, const char *app, int automatic);
 
 #ifdef __cplusplus
 }

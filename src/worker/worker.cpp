@@ -55,6 +55,20 @@ core::Result<bool> Worker::running(const char *app) {
     return core::Result<bool>::success(pid.value() > 0);
 }
 
+core::Result<bool> Worker::serviceRunning(const char *app) {
+    core::Result<pid_t> pid = hosts_.servicePid(root_, app);
+    if (!pid.get()) {
+        return core::Result<bool>::failure(pid.status());
+    }
+    return core::Result<bool>::success(pid.value() > 0);
+}
+
+core::Status Worker::restartAfterUpdate() {
+    return state_.previouslyRunning   ? hostStart()
+           : state_.serviceWasRunning ? hosts_.serviceStart(root_, state_.app)
+                                      : core::Status();
+}
+
 core::Status Worker::selectApp(const char *app) {
     if (!nbt_token_valid(app, NBT_ID_MAX, 0) || !strcmp(app, "manager") || busy() ||
         state_.updateLock.valid() ||
@@ -110,7 +124,11 @@ void Worker::releaseUpdateLock() {
 }
 
 core::Status Worker::beginHostStop(const char *app, Operation op, uint64_t nowMs) {
+    // The application and its service stop together (docs/service-bridge.md).
     core::Status status = hosts_.signal(root_, app, SIGTERM);
+    if (status.ok()) {
+        status = hosts_.serviceSignal(root_, app, SIGTERM);
+    }
     if (!status.ok()) {
         return status;
     }
@@ -215,10 +233,11 @@ core::Status Worker::stop(const char *app, uint64_t nowMs) {
         return core::Status();
     }
     core::Result<bool> isRunning = running(app);
-    if (!isRunning.get()) {
+    core::Result<bool> service = serviceRunning(app);
+    if (!isRunning.get() || !service.get()) {
         return fail("cannot stop application");
     }
-    if (!isRunning.value()) {
+    if (!isRunning.value() && !service.value()) {
         snprintf(state_.message, sizeof(state_.message), "Application stopped");
         return core::Status();
     }

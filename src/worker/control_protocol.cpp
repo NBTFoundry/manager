@@ -202,6 +202,37 @@ core::Status IpcDispatcher::handleList() {
     return control_.respond(list);
 }
 
+// The applications whose service runs (docs/service-bridge.md), as RUNNING names them.
+core::Status IpcDispatcher::handleServices() {
+    char names[NBT_APP_LIST_MAX][NBT_APP_NAME_MAX + 1];
+    char list[1024];
+    const int count = nbt_fs_list_apps(root_.legacy(), names);
+    if (count < 0) {
+        return control_.respond("ERR list\n");
+    }
+    int running = 0;
+    for (int i = 0; i < count; ++i) {
+        core::Result<bool> service = worker_.serviceRunning(names[i]);
+        if (service.get() && service.value()) {
+            memmove(names[running++], names[i], sizeof(names[i]));
+        }
+    }
+    int length = snprintf(list, sizeof(list), "SERVICES\t%d", running);
+    size_t used = length > 0 ? static_cast<size_t>(length) : 0;
+    for (int i = 0; length >= 0 && i < running; ++i) {
+        length = snprintf(list + used, sizeof(list) - used, "\t%s", names[i]);
+        if (length < 0 || static_cast<size_t>(length) >= sizeof(list) - used) {
+            length = -1;
+        } else {
+            used += static_cast<size_t>(length);
+        }
+    }
+    if (length < 0 || !terminateLine(list, sizeof(list), used)) {
+        return core::Status::error(ERANGE, "list too large");
+    }
+    return control_.respond(list);
+}
+
 core::Status IpcDispatcher::handleRunning(char *cursor) {
     char names[NBT_APP_LIST_MAX][NBT_APP_NAME_MAX + 1];
     char list[2048];

@@ -81,13 +81,13 @@ done:
 
 } // namespace
 
-pid_t nbt_app_host_pid(nbt_fs *fs, const char *app) {
+static pid_t lockOwner(nbt_fs *fs, const char *app, nbt_fs_path_kind kind) {
     struct flock lock;
     if (!fs || !nbt::process::HostControl::validApp(app)) {
         errno = EINVAL;
         return -1;
     }
-    const int fd = nbt_fs_open(fs, NBT_FS_HOST_LOCK, app, NULL, NBT_FS_READ);
+    const int fd = nbt_fs_open(fs, kind, app, NULL, NBT_FS_READ);
     if (fd < 0) {
         return errno == ENOENT ? 0 : -1;
     }
@@ -108,15 +108,27 @@ pid_t nbt_app_host_pid(nbt_fs *fs, const char *app) {
     return (lock.l_type == F_WRLCK && lock.l_pid > 0) ? lock.l_pid : -1;
 }
 
-int nbt_app_host_signal(nbt_fs *fs, const char *app, int signal_number) {
-    const pid_t pid = nbt_app_host_pid(fs, app);
-    if (pid < 0) {
-        return -1;
-    }
-    if (!pid) {
-        return 0;
+static int signalOwner(pid_t pid, int signal_number) {
+    if (pid <= 0) {
+        return pid;
     }
     return kill(pid, signal_number) && errno != ESRCH ? -1 : 0;
+}
+
+pid_t nbt_app_host_pid(nbt_fs *fs, const char *app) {
+    return lockOwner(fs, app, NBT_FS_HOST_LOCK);
+}
+
+int nbt_app_host_signal(nbt_fs *fs, const char *app, int signal_number) {
+    return signalOwner(nbt_app_host_pid(fs, app), signal_number);
+}
+
+pid_t nbt_app_service_pid(nbt_fs *fs, const char *app) {
+    return lockOwner(fs, app, NBT_FS_SERVICE_LOCK);
+}
+
+int nbt_app_service_signal(nbt_fs *fs, const char *app, int signal_number) {
+    return signalOwner(nbt_app_service_pid(fs, app), signal_number);
 }
 
 int nbt_app_host_show(nbt_fs *fs, const char *app) {
@@ -224,6 +236,31 @@ core::Status RealHostControl::start(const storage::ManagedRoot &root, const char
                                  : nbt_app_host_start(const_cast<nbt_fs *>(root.legacy()), app);
     if (result) {
         return core::Status::error(errno ? errno : EIO, "application host start failed");
+    }
+    return core::Status();
+}
+
+core::Result<pid_t> RealHostControl::servicePid(const storage::ManagedRoot &root, const char *app) {
+    const pid_t result =
+        root.valid() ? nbt_app_service_pid(const_cast<nbt_fs *>(root.legacy()), app) : -1;
+    if (result < 0) {
+        return core::Result<pid_t>::failure(core::Status::fromErrno("service lookup failed"));
+    }
+    return core::Result<pid_t>::success(result);
+}
+
+core::Status RealHostControl::serviceSignal(const storage::ManagedRoot &root, const char *app,
+                                            int signalNumber) {
+    if (!root.valid() ||
+        nbt_app_service_signal(const_cast<nbt_fs *>(root.legacy()), app, signalNumber)) {
+        return core::Status::error(errno ? errno : EIO, "service signal failed");
+    }
+    return core::Status();
+}
+
+core::Status RealHostControl::serviceStart(const storage::ManagedRoot &root, const char *app) {
+    if (!root.valid() || nbt_app_service_start(const_cast<nbt_fs *>(root.legacy()), app, 0)) {
+        return core::Status::error(errno ? errno : EIO, "service start failed");
     }
     return core::Status();
 }

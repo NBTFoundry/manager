@@ -55,6 +55,7 @@ enum RequestKind {
     R_SET,
     R_REMOVE,
     R_UNBLOCK,
+    R_SERVICES,
     R_PHONE_STATUS,
     R_PHONE_OPEN,
     R_PHONE_YES,
@@ -223,6 +224,11 @@ public:
     size_t appCount;
     char appStatus[kAppsMax][kAppStatusMax + 1];
     unsigned char running[kAppsMax];
+    unsigned char service[kAppsMax] = {}; // only its service runs (SERVICES)
+    // Application `i` or its service runs: holding the push stops them.
+    bool runs(size_t i) const {
+        return i < appCount && (running[i] || service[i]);
+    }
     unsigned char needsUpdate[kAppsMax] = {}; // disabled until updated (LIST "<app>|update")
     char app[kIdMax + 1];
     char target[kIdMax + 1];

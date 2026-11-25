@@ -219,28 +219,38 @@ int ReplyParser::parseApps(UiController &ui, const char *reply) {
     return 0;
 }
 
-int ReplyParser::parseRunning(UiController &ui, const char *reply) {
+// RUNNING ("<app>|<status>" or "<app>") or SERVICES (`status` NULL): each app once.
+static int parseAppSet(UiController &ui, const char *reply, const char *head, unsigned char *flags,
+                       char (*status)[kAppStatusMax + 1]) {
     char copy[kReplyMax], *f[kFieldsMax];
-    unsigned char running[kAppsMax];
-    char status[kAppsMax][kAppStatusMax + 1];
+    unsigned char set[kAppsMax] = {};
+    char text[kAppsMax][kAppStatusMax + 1] = {};
     uint64_t count = 0;
-    if (parseNames(reply, "RUNNING", copy, f, &count)) {
+    if (parseNames(reply, head, copy, f, &count)) {
         return -1;
     }
-    memset(running, 0, sizeof(running));
-    memset(status, 0, sizeof(status));
     for (size_t i = 0; i < count; ++i) {
-        const char *value = entry(f[i + 2], kAppStatusMax);
+        const char *value = entry(f[i + 2], status ? kAppStatusMax : 0);
         const size_t j = value ? ui.appIndex(f[i + 2]) : ui.appCount;
-        if (j == ui.appCount || running[j]) {
+        if (j == ui.appCount || set[j]) {
             return -1;
         }
-        running[j] = 1;
-        strcpy(status[j], value);
+        set[j] = 1;
+        strcpy(text[j], value);
     }
-    memcpy(ui.running, running, sizeof(running));
-    memcpy(ui.appStatus, status, sizeof(status));
+    memcpy(flags, set, sizeof(set));
+    if (status) {
+        memcpy(status, text, sizeof(text));
+    }
     return 0;
+}
+
+int ReplyParser::parseRunning(UiController &ui, const char *reply) {
+    return parseAppSet(ui, reply, "RUNNING", ui.running, ui.appStatus);
+}
+
+int ReplyParser::parseServices(UiController &ui, const char *reply) {
+    return parseAppSet(ui, reply, "SERVICES", ui.service, NULL);
 }
 
 int ReplyParser::parseSettings(UiController &ui, const char *reply) {

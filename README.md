@@ -55,7 +55,8 @@ NBT are trademarks of BMW AG; QNX is a trademark of BlackBerry Limited.
 - **An application bridge.** Applications get a small, versioned interface to the
   car: bring to front, a status line in the menu, live settings, MOST messages
   under a signed policy, the decoded iDrive controller, a wired USB gamepad,
-  and the car's control units (values, fault codes, clearing them parked)
+  the car's control units (values, fault codes, clearing them parked) and a
+  background service that keeps running when the application leaves the screen
   ([docs/app-bridge.md](docs/app-bridge.md)).
 - **Input capture.** While the manager or an application is shown, iDrive does
   not act on the controller ([docs/input-capture.md](docs/input-capture.md)).

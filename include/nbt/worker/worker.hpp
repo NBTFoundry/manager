@@ -53,6 +53,7 @@ struct WorkerState {
     uint64_t installStartedMs;
     core::UniqueFd updateLock;
     bool previouslyRunning;
+    bool serviceWasRunning = false; // its service ran alone: started again after an update
     bool settingsFailed;
     bool recovery;
     core::SecureBytes<32> approved;
@@ -88,6 +89,8 @@ public:
      * (nbt/app_remove.h), BUSY while a session, install or stop is under way. */
     core::Result<int> remove(const char *app, uint64_t nowMs);
     core::Result<bool> running(const char *app);
+    // Whether the application's service runs (docs/service-bridge.md).
+    core::Result<bool> serviceRunning(const char *app);
     core::Status approve(const unsigned char digest[32], bool recovery, uint64_t nowMs);
     void cancel(uint64_t nowMs);
     void poll(uint64_t nowMs);
@@ -132,6 +135,8 @@ private:
     core::Status beginStop(Operation op, uint64_t nowMs);
     void releaseUpdateLock();
     core::Status beginHostStop(const char *app, Operation op, uint64_t nowMs);
+    // After an update: the application again when it ran, else its service when that ran.
+    core::Status restartAfterUpdate();
     core::Status hostStart();
     void restoreFinish(uint64_t nowMs);
     void restoreBegin(uint64_t nowMs);

@@ -42,7 +42,8 @@ int main(int argc, char **argv) {
     if (argc >= 2 && !strcmp(argv[1], "--door")) {
         return nbt::worker::doorMain(root, argc, argv);
     }
-    if (argc >= 3 && (!strcmp(argv[1], "--host") || !strcmp(argv[1], "--host-auto"))) {
+    if (argc >= 3 && (!strcmp(argv[1], "--host") || !strcmp(argv[1], "--host-auto") ||
+                      !strcmp(argv[1], "--service") || !strcmp(argv[1], "--service-auto"))) {
         return finishWorker(nbt::worker::hostMain(root, argc, argv));
     }
     if (argc >= 2 && !strcmp(argv[1], "--autostart")) {

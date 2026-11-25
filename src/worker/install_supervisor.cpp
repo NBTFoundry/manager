@@ -32,7 +32,7 @@ void Worker::restoreFinish(uint64_t nowMs) {
         return;
     }
     releaseUpdateLock();
-    if (state_.previouslyRunning && !hostStart().ok()) {
+    if (!restartAfterUpdate().ok()) {
         fail("previous application restored but cannot start");
         return;
     }
@@ -73,8 +73,10 @@ core::Status Worker::approveUpdate(const unsigned char digest[32], bool recovery
     state_.recovery = recovery;
     sessionEnd(nowMs, Ended::None);
     core::Result<bool> isRunning = running(state_.app);
+    core::Result<bool> service = serviceRunning(state_.app);
     state_.previouslyRunning =
         isRunning.get() && isRunning.value() && state_.op != Operation::HostStop;
+    state_.serviceWasRunning = service.get() && service.value() && state_.op != Operation::HostStop;
     state_.updateLock =
         core::UniqueFd(isRunning.get() ? nbt_tx_lock(root_.legacy(), state_.app) : -1);
     if (!state_.updateLock.valid()) {
@@ -84,7 +86,7 @@ core::Status Worker::approveUpdate(const unsigned char digest[32], bool recovery
     core::Status stopped;
     if (state_.op == Operation::HostStop) {
         state_.op = Operation::HostInstall;
-    } else if (isRunning.get() && isRunning.value()) {
+    } else if ((isRunning.get() && isRunning.value()) || state_.serviceWasRunning) {
         stopped = beginHostStop(state_.app, Operation::HostInstall, nowMs);
     } else {
         stopped = beginStop(Operation::Install, nowMs);
@@ -102,7 +104,7 @@ core::Status Worker::approveUpdate(const unsigned char digest[32], bool recovery
 }
 
 void Worker::installed() {
-    if (state_.previouslyRunning && !hostStart().ok()) {
+    if (!restartAfterUpdate().ok()) {
         fail("installed, but cannot start application");
         return;
     }
@@ -117,11 +119,12 @@ void Worker::installed() {
 
 core::Result<bool> Worker::hostGone(uint64_t nowMs) {
     core::Result<pid_t> pid = hosts_.pid(root_, state_.hostApp);
-    if (!pid.get()) {
-        return core::Result<bool>::failure(pid.status());
+    core::Result<pid_t> service = hosts_.servicePid(root_, state_.hostApp);
+    if (!pid.get() || !service.get()) {
+        return core::Result<bool>::failure(pid.get() ? service.status() : pid.status());
     }
     const uint64_t waited = nowMs >= state_.hostStopMs ? nowMs - state_.hostStopMs : 0;
-    if (!pid.value()) {
+    if (!pid.value() && !service.value()) {
         return core::Result<bool>::success(false);
     }
     if (waited >= kHostGiveUpMs) {
@@ -129,6 +132,9 @@ core::Result<bool> Worker::hostGone(uint64_t nowMs) {
     }
     if (waited >= kHostKillMs && !state_.hostKilled) {
         core::Status status = hosts_.signal(root_, state_.hostApp, SIGKILL);
+        if (status.ok()) {
+            status = hosts_.serviceSignal(root_, state_.hostApp, SIGKILL);
+        }
         if (!status.ok()) {
             return core::Result<bool>::failure(status);
         }
@@ -255,7 +261,7 @@ void Worker::shutdown() {
     checkLog_.end();
     state_.op = Operation::None;
     if (state_.updateLock.valid()) {
-        state_.previouslyRunning = false;
+        state_.previouslyRunning = state_.serviceWasRunning = false;
         restoreFinish(state_.installStartedMs);
     }
     if (state_.child.running()) {

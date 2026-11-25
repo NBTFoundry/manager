@@ -216,7 +216,7 @@ int nbt_fs_open(nbt_fs *fs, nbt_fs_path_kind kind, const char *app, const char *
             return -1;
         }
         flags = O_WRONLY | O_APPEND;
-    } else if (mode == NBT_FS_APPEND && kind == NBT_FS_APP_LOG) {
+    } else if (mode == NBT_FS_APPEND && (kind == NBT_FS_APP_LOG || kind == NBT_FS_SERVICE_LOG)) {
         if (!nbt::storage::SafePathOpen::safeExisting(fs, path)) {
             flags = O_WRONLY | O_APPEND;
         } else if (errno == ENOENT) {

@@ -66,17 +66,7 @@ void buildMainMenu(const UiController &ui, UiView *v) {
     ViewBuilder::formatText(v->title, sizeof(v->title), "NBT App Manager %s", ui.version);
     for (size_t i = 0; i < ui.appCount; ++i) {
         char label[kItemTextMax + 1];
-        // What happens to it shows on its row, so the list never moves.
-        const bool aimed = !strcmp(ui.target, ui.apps[i]);
-        const bool stopping =
-            aimed && (ui.stopping || ui.queued == R_STOP || ui.outstanding == R_STOP);
-        const bool starting = aimed && (ui.queued == R_START || ui.outstanding == R_START);
-        const char *note = stopping   ? text(T_ROW_STOPPING)
-                           : starting ? text(T_ROW_STARTING)
-                           : ui.running[i]
-                               ? (ui.appStatus[i][0] ? ui.appStatus[i] : text(T_RUNNING))
-                           : ui.needsUpdate[i] ? text(T_NEEDS_UPDATE)
-                                               : NULL;
+        const char *note = rowNote(ui, i);
         if (note) {
             ViewBuilder::formatText(label, sizeof(label), "%s  (%s)", ui.apps[i], note);
         }
@@ -92,7 +82,7 @@ void buildMainMenu(const UiController &ui, UiView *v) {
         textf(v->modal.text, sizeof(v->modal.text), T_CHECKING_MANAGER, ui.version);
         v->modal.progress =
             spent >= kAppHealthMs ? 99 : static_cast<int>(spent * 100u / kAppHealthMs);
-    } else if (ui.holding && ui.holdIndex < ui.appCount && ui.running[ui.holdIndex] &&
+    } else if (ui.holding && ui.holdIndex < ui.appCount && ui.runs(ui.holdIndex) &&
                ui.clockMs >= ui.holdMs && ui.clockMs - ui.holdMs >= kHoldShowMs) {
         // Holding stops a running application (ui_input.cpp); nothing to show otherwise.
         const uint64_t held = ui.clockMs - ui.holdMs;
@@ -253,8 +243,9 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
     v.modal.progress = -1;
     // A background poll (every kPollMs on the waiting, pairing and review screens) does
     // not light the indicator; requests the driver started do.
-    const bool poll = !ui.queued && (ui.outstanding == R_STATUS || ui.outstanding == R_RUNNING ||
-                                     ui.outstanding == R_PHONE_STATUS);
+    const bool poll =
+        !ui.queued && (ui.outstanding == R_STATUS || ui.outstanding == R_RUNNING ||
+                       ui.outstanding == R_SERVICES || ui.outstanding == R_PHONE_STATUS);
     v.busy =
         (ui.inputBusy() && !poll) || ui.stopping || ui.screen == Loading || ui.screen == Progress;
     switch (ui.screen) {

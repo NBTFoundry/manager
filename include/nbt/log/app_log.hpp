@@ -30,9 +30,11 @@ static const size_t kRunTailMax = 32 * 1024;
 
 class AppLog {
 public:
-    AppLog(nbt_fs *fs, const char *app)
-        : fs_(fs), app_(app), fd_(-1), dirty_(false), seekEnd_(false), syncedMs_(0), failures_(0),
-          tail_(NULL), tailHead_(0), tailUsed_(0) {
+    /* `service`: the application's service's log (service.log). */
+    AppLog(nbt_fs *fs, const char *app, bool service = false)
+        : fs_(fs), app_(app), kind_(service ? NBT_FS_SERVICE_LOG : NBT_FS_APP_LOG),
+          oldKind_(service ? NBT_FS_SERVICE_LOG_OLD : NBT_FS_APP_LOG_OLD), fd_(-1), dirty_(false),
+          seekEnd_(false), syncedMs_(0), failures_(0), tail_(NULL), tailHead_(0), tailUsed_(0) {
     }
     ~AppLog();
     AppLog(const AppLog &) = delete;
@@ -64,6 +66,7 @@ private:
 
     nbt_fs *fs_;
     const char *app_;
+    nbt_fs_path_kind kind_, oldKind_;
     int fd_;
     bool dirty_;
     bool seekEnd_; // opened without O_APPEND: seek to the end before each write

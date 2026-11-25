@@ -235,6 +235,8 @@ static void worker(const char *command, char *reply, size_t size, uint64_t now) 
     }
     if (!strcmp(command, "LIST")) {
         snprintf(reply, size, "APPS\t%d\t%s\t%s", APPS, apps[0], apps[1]);
+    } else if (!strcmp(command, "SERVICES")) {
+        snprintf(reply, size, "SERVICES\t0");
     } else if (!strcmp(command, "RUNNING status")) {
         int i, count = 0;
         size_t used;

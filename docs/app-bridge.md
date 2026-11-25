@@ -13,8 +13,8 @@ the push on a running one stops it. Capabilities give an application more: comin
 a status label in the menu, live settings, MOST messages under a signed policy,
 a wired USB gamepad, the decoded iDrive controller and a folder of files.
 
-The current provider is **bridge 1.5 with
-`show,status,live-settings,most,gamepad,controller,files`**. Applications on the SDK
+The current provider is **bridge 1.9 with
+`show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag,service`**. Applications on the SDK
 (`NBTFoundry/sdk`) get the application side of every capability.
 
 | Capability | Since | Section |
@@ -30,6 +30,8 @@ The current provider is **bridge 1.5 with
 | `car-data` (iDrive car data) | 1.6 | [6](#6-car-data-capability-car-data-bridge-16) |
 | `net` (packet-filter rules) | 1.6 | [7](#7-network-capability-net-bridge-16) |
 | `runner` (built without the QNX SDP) | 1.7 | [8](#8-applications-built-without-the-qnx-sdp-capability-runner-bridge-17) |
+| `diag` (requests to the car's control units) | 1.8 | [9](#9-diagnostics-capability-diag-bridge-18), [diag-bridge.md](diag-bridge.md) |
+| `service` (a background service beside the screen) | 1.9 | [10](#10-background-service-capability-service-bridge-19), [service-bridge.md](service-bridge.md) |
 
 A favourite entry is designed in [bridge-design.md](bridge-design.md); no bridge
 version provides it yet.
@@ -105,6 +107,7 @@ how the manager provides each part.
 | Network | phone -> app | `net` (1.6): the signed `bridge-net` rules let in through the packet filter while it runs; `NBT_NET` (7) |
 | Runner | manager -> app | `runner` (1.7): a payload with the SDK's NBT ABI note runs under the release's `nbt-runner` (8) |
 | Diagnostics | app <-> car | `diag` (1.8): requests to the car's control units on `NBT_DIAG_FD=10`, limited by the signed `bridge-diag` policy ([diag-bridge.md](diag-bridge.md)) (9) |
+| Background service | manager -> app | `service` (1.9): the executable started again as `NBT_ROLE=service`, without screen or input, running on after the application (10) |
 | Audio connection | manager -> app | `NBT_AUDIO_CONN=0x1d0` and `NBT_AUDIO_A2I=input_stereo_0` for a user launch while the manager's `native_audio` setting is `media` (PROTOCOL.md, "Manager settings"); no capability: an application that plays sound builds that connection instead of its default and plays into that io-amp input (the SDK's audio route and audio output do) |
 
 Every name, path and format here belongs to one interface version; see
@@ -538,6 +541,20 @@ underneath ([bridge-design.md](bridge-design.md)).
 - **Safety.** Anything outside the classes is refused before it leaves the
   head unit; a clear needs the car standing still (car data
   `driving.speedActual` 0, which the host asks for).
+
+### 10. Background service (capability `service`, bridge 1.9)
+
+- **Declaration.** `service` beside `show`: screen applications never run in
+  the background; what must is their service ([service-bridge.md](service-bridge.md)).
+- **Process.** The same executable, started by a second host (`--service`)
+  with `NBT_ROLE=service` (the application gets `NBT_ROLE=app`): no
+  `NBT_SURFACE`, controller, gamepad, focus hold or status line, every other
+  granted capability. Its lease is `state/<app>/service.lease`, its log
+  `service.log`, returned to the phone after the application's.
+- **Life.** Started with its application (with the car: alone), running on
+  after it, started again after 1, 5 and 30 s when it ends on its own, stopped
+  with its application, by an update (started again after it) or an
+  uninstall (refused while it runs).
 
 ## Design notes
 

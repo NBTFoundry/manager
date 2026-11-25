@@ -18,8 +18,8 @@ namespace process {
 
 class AppOutput {
 public:
-    AppOutput(nbt_fs *fs, const char *app)
-        : log_(fs, app), fd_(-1), reportFd_(-1), sequence_(0), pid_(0), startedMs_(0),
+    AppOutput(nbt_fs *fs, const char *app, bool service = false)
+        : log_(fs, app, service), fd_(-1), reportFd_(-1), sequence_(0), pid_(0), startedMs_(0),
           start_(NULL) {
         ending_[0] = version_[0] = 0;
     }

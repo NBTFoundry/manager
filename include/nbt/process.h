@@ -46,6 +46,7 @@ int nbt_process_start_host(nbt_fs *fs, const char *app, char *const *environment
  * fd 8, hold fd 9 and diag fd 10 (docs/app-bridge.md). */
 typedef struct {
     int status, most, gamepad, controller, hold, diag;
+    int service; /* 1: the application's service, holding service.lease instead of lease */
 } nbt_app_channels;
 int nbt_process_start_host_channels(nbt_fs *fs, const char *app, char *const *environment,
                                     const nbt_app_channels *channels, nbt_process *child,

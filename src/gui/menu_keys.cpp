@@ -13,7 +13,7 @@ void advanceHold(UiController &ui, uint64_t nowMs) {
     }
     ui.holdFired = 1;
     ui.holding = 0;
-    if (!ui.running[ui.holdIndex] || ui.stopping) {
+    if (!ui.runs(ui.holdIndex) || ui.stopping) {
         return;
     }
     strcpy(ui.target, ui.apps[ui.holdIndex]);
@@ -29,6 +29,18 @@ bool stopMessage(const UiController &ui) {
     return ui.stopNote[0] && !strcmp(ui.message, ui.stopNote);
 }
 } // namespace
+
+const char *rowNote(const UiController &ui, size_t i) {
+    const bool aimed = !strcmp(ui.target, ui.apps[i]);
+    const bool stopping = aimed && (ui.stopping || ui.queued == R_STOP || ui.outstanding == R_STOP);
+    const bool starting = aimed && (ui.queued == R_START || ui.outstanding == R_START);
+    return stopping            ? text(T_ROW_STOPPING)
+           : starting          ? text(T_ROW_STARTING)
+           : ui.running[i]     ? (ui.appStatus[i][0] ? ui.appStatus[i] : text(T_RUNNING))
+           : ui.service[i]     ? text(T_SERVICE_RUNNING)
+           : ui.needsUpdate[i] ? text(T_NEEDS_UPDATE)
+                               : NULL;
+}
 
 const char *menuNote(const UiController &ui) {
     if (ui.trialSinceMs) {

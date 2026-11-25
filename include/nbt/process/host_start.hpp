@@ -27,11 +27,13 @@ struct HostStart {
     uint64_t nowMs;
 };
 
-/* Closes `lease` once recovery ran. 0, or -1 with `reason` for the logs and
- * *error: the failed call's errno, or 0 when no system call failed (a refusal,
- * or a check that sets none), so no stale value passes for the cause. */
+/* Closes `lease` once recovery ran (-1: no recovery). 0, or -1 with `reason`
+ * for the logs and *error: the failed call's errno, or 0 when no system call
+ * failed (a refusal, or a check that sets none), so no stale value passes for
+ * the cause. `service`: the application's service, granted neither screen nor
+ * input (docs/service-bridge.md); refused when it declares no `service`. */
 int prepareHostStart(nbt_fs *fs, const char *app, int lease, HostStart *out, char *reason,
-                     size_t size, int *error, HostChannels &channels);
+                     size_t size, int *error, HostChannels &channels, bool service = false);
 
 } // namespace process
 } // namespace nbt

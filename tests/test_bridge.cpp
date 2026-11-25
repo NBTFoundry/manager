@@ -342,7 +342,7 @@ static void cds_net_declarations(void) {
     assert(strstr(text, "new_bridge-cds=driving.gear,sensors.PDCStatus\n"
                         "new_bridge-net=tcp:5277@uap0+wfd0\n"));
     nbt_bridge_current(&provider);
-    assert(provider.versions[0].minor == 8);
+    assert(provider.versions[0].minor == 9);
     assert(!nbt_bridge_check(&need, &provider, NULL, &grant, error, sizeof(error)) &&
            !strcmp(grant.caps, "status,hold,car-data,net"));
     memset(&old, 0, sizeof(old));
@@ -461,9 +461,30 @@ static void diag_policy_and_wire(void) {
     assert(nbt_bridge_requirement_parse(&p, "", &need)); /* diag needs its policy */
 }
 
+/* Background services (bridge 1.9): `service` with `show`, granted with it. */
+static void service_declarations(void) {
+    nbt_bridge_requirement need;
+    nbt_bridge_provider provider;
+    nbt_bridge_version grant;
+    char error[128], *p;
+    char record[] = "bridge=1.9\nbridge-uses=show\nbridge-optional=service\n";
+    p = record;
+    assert(!nbt_bridge_requirement_parse(&p, "", &need));
+    nbt_bridge_current(&provider);
+    assert(!nbt_bridge_check(&need, &provider, NULL, &grant, error, sizeof(error)) &&
+           !strcmp(grant.caps, "show,service"));
+    char old[] = "bridge=1.8\nbridge-uses=show\nbridge-optional=service\n";
+    p = old;
+    assert(nbt_bridge_requirement_parse(&p, "", &need)); /* service came with 1.9 */
+    char screenless[] = "bridge=1.9\nbridge-uses=status\nbridge-optional=service\n";
+    p = screenless;
+    assert(nbt_bridge_requirement_parse(&p, "", &need)); /* runs in the background already */
+}
+
 int main(void) {
     status_lines();
     diag_policy_and_wire();
+    service_declarations();
     nbt_bridge_provider provider;
     nbt_bridge_requirement need;
     nbt_bridge_version grant;
@@ -489,10 +510,10 @@ int main(void) {
     assert(!nbt_bridge_caps_valid(text));
     nbt_bridge_current(&provider);
     assert(provider.count == 1 && provider.versions[0].major == 1 &&
-           provider.versions[0].minor == 8 &&
+           provider.versions[0].minor == 9 &&
            provider.versions[0].oldest == NBT_BRIDGE_OLDEST_MINOR &&
            !strcmp(provider.versions[0].caps, "show,status,live-settings,most,gamepad,controller,"
-                                              "files,hold,car-data,net,runner,diag"));
+                                              "files,hold,car-data,net,runner,diag,service"));
     /* Bridge 1.7: an application built without the QNX SDP requires runner. */
     memset(&need, 0, sizeof(need));
     need.major = 1;

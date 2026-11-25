@@ -96,14 +96,14 @@ bool AppLog::open() {
         errno = ENOSYS;
     } else
 #endif
-        fd_ = nbt_fs_open(fs_, NBT_FS_APP_LOG, app_, NULL, NBT_FS_APPEND);
+        fd_ = nbt_fs_open(fs_, kind_, app_, NULL, NBT_FS_APPEND);
     if (fd_ >= 0) {
         (void)fcntl(fd_, F_SETFD, FD_CLOEXEC); // the application gets the pipe, not this
         return true;
     }
     const int checkedError = errno;
     char path[NBT_PATH_MAX];
-    if (!nbt_fs_path(fs_, NBT_FS_APP_LOG, app_, NULL, path, sizeof(path))) {
+    if (!nbt_fs_path(fs_, kind_, app_, NULL, path, sizeof(path))) {
         fd_ = fallbackOpen(path, checkedError);
     }
     if (fd_ < 0) {
@@ -189,7 +189,7 @@ bool AppLog::rotate() {
     sync();
     close(fd_);
     fd_ = -1;
-    const bool renamed = !nbt_fs_rename(fs_, NBT_FS_APP_LOG, NBT_FS_APP_LOG_OLD, app_, NULL);
+    const bool renamed = !nbt_fs_rename(fs_, kind_, oldKind_, app_, NULL);
     if (!renamed) {
         failed(Rotate, "rotate", errno);
     }

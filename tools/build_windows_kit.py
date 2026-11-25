@@ -114,12 +114,16 @@ TEST_FORMS = {"test": ("1.5", "show,status,live-settings", "test-", ""),
 # install review's line about it (it never asks the car anything).
 TEST_DIAG = ("--bridge", "1.8", "--bridge-uses", "show,status,live-settings",
              "--bridge-optional", "controller,diag", "--bridge-diag", "12:read+codes+clear")
+# "test-service": test v1 with its background service (bridge 1.9), which
+# notes in the log every 30 s that it still runs.
+TEST_SERVICE = ("--bridge", "1.9", "--bridge-uses", "show,status,live-settings",
+                "--bridge-optional", "controller,service")
 
 
 def package(app, version, sequence, key, output, form=None):
     bridge, uses, prefix, suffix = TEST_FORMS[form or app]
-    declared = TEST_DIAG if app == "test-diag" else ("--bridge", bridge, "--bridge-uses", uses,
-                                                     "--bridge-optional", "controller")
+    declared = {"test-diag": TEST_DIAG, "test-service": TEST_SERVICE}.get(
+        app, ("--bridge", bridge, "--bridge-uses", uses, "--bridge-optional", "controller"))
     settings = [argument for setting in TEST_SETTINGS for argument in ("--setting", setting)]
     run(sys.executable, ROOT / "tools/package.py", "--app", app, "--version", version, "--sequence", sequence,
         "--compat", TEST_COMPAT, "--key", key, "--output", output, *declared, *settings,
@@ -139,9 +143,10 @@ def test_packages(kit, staging, key, public):
     for path, (app, version, sequence) in packages.items():
         package(app, version, sequence, key, path)
         run(BUILD / "nbt-verify", path, public, app, TEST_COMPAT, stdout=subprocess.DEVNULL)
-    diag = kit / "phone/test-diag-v1.nbt"
-    package("test-diag", "v1", 1, key, diag, form="test")
-    run(BUILD / "nbt-verify", diag, public, "test-diag", TEST_COMPAT, stdout=subprocess.DEVNULL)
+    for app in ("test-diag", "test-service"):
+        path = kit / f"phone/{app}-v1.nbt"
+        package(app, "v1", 1, key, path, form="test")
+        run(BUILD / "nbt-verify", path, public, app, TEST_COMPAT, stdout=subprocess.DEVNULL)
     # v1 for the phone too: a car set up once needs no laptop for the test
     # application either (uninstalled, then installed again from the phone).
     shutil.copy2(v1, kit / "phone/test-v1.nbt")
@@ -282,8 +287,9 @@ def main():
         + (f"Step release {version}-step (sequence {sequence - 1}): phone/NBT-Manager-{version}-step.nbtr\n"
            if step else "") +
         f"Test applications (compatibility {TEST_COMPAT}): test, an ordinary QNX program (v1 is inside\n"
-        "the installer), test-runner, run by the manager's nbt-runner, and test-diag, test v1\n"
-        "declaring diagnostics that may clear fault codes.\n", newline="\r\n")
+        "the installer), test-runner, run by the manager's nbt-runner, test-diag, test v1\n"
+        "declaring diagnostics that may clear fault codes, and test-service, test v1 with its\n"
+        "background service.\n", newline="\r\n")
     # No line of either private key may appear in any kit file. (The installer
     # contains PEM labels such as "PRIVATE KEY" from its libraries, so search
     # for the keys' own base64 lines rather than for labels.)

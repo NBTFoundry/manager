@@ -87,17 +87,19 @@ int ProcessGroup::ended(nbt_process *child, unsigned tries) {
 
 int ProcessGroup::start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, const char *slot,
                         char *const *environment, int statusFd, int mostFd, nbt_process *child,
-                        uint64_t nowMs, int gamepadFd, int controllerFd, int holdFd, int diagFd) {
+                        uint64_t nowMs, int gamepadFd, int controllerFd, int holdFd, int diagFd,
+                        nbt_fs_path_kind leaseKind) {
     const ChildSandbox sandbox = defaultAppSandbox();
     return start(fs, app, kind, slot, environment, statusFd, mostFd, -1,
                  kind == NBT_FS_ACTIVE ? &sandbox : NULL, child, nowMs, gamepadFd, controllerFd,
-                 holdFd, diagFd);
+                 holdFd, diagFd, leaseKind);
 }
 
 int ProcessGroup::start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, const char *slot,
                         char *const *environment, int statusFd, int mostFd, int outputFd,
                         const ChildSandbox *sandbox, nbt_process *child, uint64_t nowMs,
-                        int gamepadFd, int controllerFd, int holdFd, int diagFd) {
+                        int gamepadFd, int controllerFd, int holdFd, int diagFd,
+                        nbt_fs_path_kind leaseKind) {
     char path[NBT_PATH_MAX];
     char *argv[16];
     const char *executable = path;
@@ -130,7 +132,7 @@ int ProcessGroup::start(nbt_fs *fs, const char *app, nbt_fs_path_kind kind, cons
         closeIfOpen(active);
         buildProcessArgv(argv, path, kind, slot, &executable, runner);
     }
-    lease = nbt_fs_open(fs, NBT_FS_LEASE, app, NULL, NBT_FS_OPEN_LOCK);
+    lease = nbt_fs_open(fs, leaseKind, app, NULL, NBT_FS_OPEN_LOCK);
     if (lease < 0 || pipe(pipefds)) {
         goto fail;
     }
@@ -250,80 +252,6 @@ int ProcessGroup::signal(const nbt_process *child, int sig) {
         return -1;
     }
     return signalTarget(child->pid, sig);
-}
-
-int ProcessGroup::stop(nbt_process *child) {
-    int status = 0;
-    if (!child || child->pid <= 0) {
-        return 0;
-    }
-    if (signalTarget(child->pid, SIGTERM) && errno != ESRCH) {
-        return -1;
-    }
-    const int running = ended(child, 250);
-    if (running <= 0) {
-        if (running < 0 && errno != ECHILD) {
-            return -1;
-        }
-        closeHandles(child);
-        return 0;
-    }
-    if (signalTarget(child->pid, SIGKILL) && errno != ESRCH) {
-        return -1;
-    }
-    while (waitpid(child->pid, &status, 0) < 0) {
-        if (errno != EINTR) {
-            if (errno != ECHILD) {
-                return -1;
-            }
-            break;
-        }
-    }
-    closeHandles(child);
-    return 0;
-}
-
-int ProcessGroup::terminate(nbt_process *child, uint64_t nowMs) {
-    if (!child) {
-        return -1;
-    }
-    if (child->pid > 0 && !child->stopping) {
-        if (signalTarget(child->pid, SIGTERM) && errno != ESRCH) {
-            return -1;
-        }
-        child->stopping = 1;
-        child->stop_ms = nowMs;
-    }
-    return 0;
-}
-
-int ProcessGroup::reap(nbt_process *child, uint64_t nowMs) {
-    int status = 0;
-    pid_t result = 0;
-    if (!child || (child->pid > 0 && !child->stopping)) {
-        return -1;
-    }
-    if (child->pid <= 0) {
-        return 0;
-    }
-    do {
-        result = waitpid(child->pid, &status, WNOHANG);
-    } while (result < 0 && errno == EINTR);
-    if (result == child->pid || (result < 0 && errno == ECHILD)) {
-        closeHandles(child);
-        return 0;
-    }
-    if (result < 0) {
-        return -1;
-    }
-    if (!child->killed &&
-        (nowMs < child->stop_ms || nowMs - child->stop_ms >= NBT_PROCESS_STOP_GRACE_MS)) {
-        if (signalTarget(child->pid, SIGKILL) && errno != ESRCH) {
-            return -1;
-        }
-        child->killed = 1;
-    }
-    return 1;
 }
 
 } // namespace process

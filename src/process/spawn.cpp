@@ -20,7 +20,8 @@ namespace {
 char selfPath[NBT_PATH_MAX];
 char selfRoot[NBT_PATH_MAX];
 
-int startHost(nbt_fs *fs, const char *app, int automatic) {
+/* `mode`: 0 --host, 1 --host-auto, 2 --service, 3 --service-auto. */
+int startHost(nbt_fs *fs, const char *app, int mode) {
     char name[NBT_ID_MAX + 1];
     nbt::process::spawn::ChildPlan plan;
     pid_t intermediate = 0;
@@ -29,8 +30,8 @@ int startHost(nbt_fs *fs, const char *app, int automatic) {
         return -1;
     }
     memcpy(name, app, strlen(app) + 1);
-    nbt::core::Status status =
-        nbt::process::spawn::prepareHost(&plan, selfPath, name, automatic != 0, selfRoot);
+    nbt::core::Status status = nbt::process::spawn::prepareHost(
+        &plan, selfPath, name, (mode & 1) != 0, selfRoot, mode >= 2);
     if (status.ok()) {
         status = nbt::process::spawn::detach(plan, &intermediate);
     }
@@ -66,19 +67,29 @@ int nbt_app_host_autostart(nbt_fs *fs, const char *app) {
     return startHost(fs, app, 1);
 }
 
+int nbt_app_service_start(nbt_fs *fs, const char *app, int automatic) {
+    const pid_t running = nbt_app_service_pid(fs, app);
+    if (running) {
+        return running > 0 ? 0 : -1;
+    }
+    return startHost(fs, app, automatic ? 3 : 2);
+}
+
 namespace nbt {
 namespace process {
 namespace spawn {
 
 core::Status prepareHost(ChildPlan *plan, char *executable, const char *app, bool automatic,
-                         char *testRoot) {
+                         char *testRoot, bool service) {
     if (!plan || !executable || executable[0] != '/' || !app) {
         return core::Status::error(EINVAL, "invalid child plan");
     }
     unsigned count = 0;
     plan->executable = executable;
     plan->arguments[count++] = executable;
-    plan->arguments[count++] = const_cast<char *>(automatic ? "--host-auto" : "--host");
+    static const char *const modes[2][2] = {{"--host", "--host-auto"},
+                                            {"--service", "--service-auto"}};
+    plan->arguments[count++] = const_cast<char *>(modes[service][automatic]);
     plan->arguments[count++] = const_cast<char *>(app);
     if (testRoot && testRoot[0]) {
         plan->arguments[count++] = const_cast<char *>("--root");

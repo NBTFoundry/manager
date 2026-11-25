@@ -30,6 +30,17 @@ public:
     virtual core::Result<bool> show(const storage::ManagedRoot &root, const char *app) = 0;
     virtual core::Status status(const storage::ManagedRoot &root, const char *app,
                                 core::Span<char> text) = 0;
+    /* The application's service's host (docs/service-bridge.md): its pid (0
+     * when none runs), a signal to it, a start. None by default. */
+    virtual core::Result<pid_t> servicePid(const storage::ManagedRoot &, const char *) {
+        return core::Result<pid_t>::success(0);
+    }
+    virtual core::Status serviceSignal(const storage::ManagedRoot &, const char *, int) {
+        return core::Status();
+    }
+    virtual core::Status serviceStart(const storage::ManagedRoot &, const char *) {
+        return core::Status();
+    }
 };
 
 class RealHostControl : public HostControl {
@@ -41,6 +52,10 @@ public:
     core::Result<bool> show(const storage::ManagedRoot &root, const char *app) override;
     core::Status status(const storage::ManagedRoot &root, const char *app,
                         core::Span<char> text) override;
+    core::Result<pid_t> servicePid(const storage::ManagedRoot &root, const char *app) override;
+    core::Status serviceSignal(const storage::ManagedRoot &root, const char *app,
+                               int signalNumber) override;
+    core::Status serviceStart(const storage::ManagedRoot &root, const char *app) override;
 };
 
 } // namespace process

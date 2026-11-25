@@ -215,6 +215,10 @@ int nbt_fs_lease_exclusive(nbt_fs *fs, const char *app) {
     return nbt::storage::SafePathOpen::lockNonBlocking(fs, NBT_FS_LEASE, app);
 }
 
+int nbt_fs_service_lease_exclusive(nbt_fs *fs, const char *app) {
+    return nbt::storage::SafePathOpen::lockNonBlocking(fs, NBT_FS_SERVICE_LEASE, app);
+}
+
 int nbt_fs_manager_operation_lock(nbt_fs *fs) {
     return nbt::storage::SafePathOpen::lockNonBlocking(fs, NBT_FS_MANAGER_OPERATION_LOCK,
                                                        "manager");

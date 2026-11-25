@@ -36,7 +36,8 @@ int nbt_process_start_host_channels(nbt_fs *fs, const char *app, char *const *en
         return -1;
     }
     return ProcessGroup::start(fs, app, NBT_FS_ACTIVE, NULL, environment, c->status, c->most, child,
-                               now_ms, c->gamepad, c->controller, c->hold, c->diag);
+                               now_ms, c->gamepad, c->controller, c->hold, c->diag,
+                               c->service ? NBT_FS_SERVICE_LEASE : NBT_FS_LEASE);
 }
 
 int nbt_process_start_manager(nbt_fs *fs, unsigned slot, int worker_fd, nbt_process *child,

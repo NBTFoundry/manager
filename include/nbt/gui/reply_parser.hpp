@@ -14,6 +14,8 @@ public:
     static int parseStatus(const char *reply, WorkerStatus &status);
     static int parseApps(UiController &ui, const char *reply);
     static int parseRunning(UiController &ui, const char *reply);
+    /* SERVICES: the applications whose service runs (docs/service-bridge.md). */
+    static int parseServices(UiController &ui, const char *reply);
     static int parseSettings(UiController &ui, const char *reply);
     static int parseSession(UiController &ui, const char *reply);
 };
