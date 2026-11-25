@@ -273,15 +273,29 @@ class ManagerUiTests(unittest.TestCase):
         der = run("openssl", "pkey", "-in", key, "-pubout", "-outform", "DER").stdout
         return key, der, hashlib.sha256(der).hexdigest()
 
-    def signed(self, key, app, version, sequence, content):
-        name = f"{app}-{version}-{hashlib.sha256(content + bytes(str(key), 'utf-8')).hexdigest()[:8]}"
+    def signed(self, key, app, version, sequence, content, extra=()):
+        tag = content + bytes(str(key) + " ".join(extra), "utf-8")
+        name = f"{app}-{version}-{hashlib.sha256(tag).hexdigest()[:8]}"
         source = Path(self.tmp.name) / f"{name}.elf"
         source.write_bytes(elf(content))
         package = Path(self.tmp.name) / f"{name}.nbt"
         result = run("python3", PACK, "--app", app, "--version", version, "--sequence", sequence,
-                     "--compat", "demo-1", "--key", key, "--output", package, source)
+                     "--compat", "demo-1", "--key", key, "--output", package, *extra, source)
         self.assertEqual(result.returncode, 0, result.stderr)
         return package.read_bytes()
+
+    def test_review_tells_when_an_app_may_clear_fault_codes(self):
+        self.pair_phone()
+        diag = lambda policy: ["--bridge", "1.8", "--bridge-optional", "diag", "--bridge-diag", policy]
+        clears = "Can clear fault codes (only when parked)"
+        # Rejecting a new application leaves nothing that blocks the next upload.
+        for policy, shown in (("12:read+codes+clear,29:read", True), ("12:read+codes", False)):
+            view = self.upload_review(self.signed(self.key, "diagapp", "v1", 1, policy.encode(),
+                                                  diag(policy)))
+            self.assertEqual(clears in view.lines, shown, view.lines)
+            self.assertFalse(any(line.startswith("Developer key") for line in view.lines))
+            self.assertEqual(self.send("select").screen, APPS)  # Reject
+        self.finish()
 
     def key_request(self, path, body):
         return self.phone.request(self.host, "POST", path, body)

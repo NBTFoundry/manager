@@ -53,8 +53,7 @@ void addWrapped(UiView *v, const char *reason) {
         cut = reason[space] == ' ' ? space : cut;
     }
     char first[kTextMax + 1];
-    memcpy(first, reason, cut);
-    first[cut] = 0;
+    snprintf(first, sizeof(first), "%.*s", static_cast<int>(cut), reason);
     if (cut) {
         addLine(v, first);
     }
@@ -167,15 +166,13 @@ void buildSettings(const UiController &ui, UiView *v) {
     }
 }
 
-// Only what the driver can act on: which application, which versions. The
-// approval stays bound to the package's SHA-256 (APPROVE), never shown.
+// What the driver acts on: application, versions, key, fault-code clearing.
+// The approval stays bound to the package's SHA-256 (APPROVE), never shown.
 void buildReviewConfirm(const UiController &ui, UiView *v) {
     const bool update = ui.review.installed[0] != 0;
-    if (ui.screen == Review) {
-        textf(v->title, sizeof(v->title), update ? T_REVIEW_UPDATE : T_REVIEW_NEW);
-    } else {
-        textf(v->title, sizeof(v->title), ui.recovery ? T_CONFIRM_OLDER : T_CONFIRM_INSTALL);
-    }
+    textf(v->title, sizeof(v->title),
+          ui.screen == Review ? (update ? T_REVIEW_UPDATE : T_REVIEW_NEW)
+                              : (ui.recovery ? T_CONFIRM_OLDER : T_CONFIRM_INSTALL));
     const bool manager = !strcmp(ui.review.app, "manager");
     addLine(v, manager ? "NBT Manager" : ui.review.app);
     // "Installed: {1}, new: {2}", or "Version {1}" for a new application.
@@ -183,6 +180,9 @@ void buildReviewConfirm(const UiController &ui, UiView *v) {
             ui.review.proposed);
     if (ui.review.developer[0]) {
         addText(v, T_DEVELOPER_KEY, ui.review.developer);
+    }
+    if (ui.review.clearsCodes) {
+        addText(v, T_MAY_CLEAR_CODES);
     }
     if (ui.screen == Review) {
         addItem(v, text(T_REJECT));

@@ -1309,7 +1309,15 @@ static void test_errors_and_misuse(void) {
                                     status) == 0 &&
           !strcmp(status.developer, "Alice Dev"));
     CHECK(UiController::parseStatus("STATUS\t0\t-\t-\t-\t0\t-\tIdle\t-", status) == 0 &&
-          !status.developer[0]);
+          !status.developer[0] && !status.clearsCodes);
+    // `clear-codes` when its diagnostics policy may clear fault codes.
+    CHECK(UiController::parseStatus("STATUS\t2\ttest\tv1\tv2\t2\t" DIGEST_A
+                                    "\tPackage verified; approve in iDrive\t-\tclear-codes",
+                                    status) == 0 &&
+          status.clearsCodes && !status.developer[0]);
+    CHECK(UiController::parseStatus("STATUS\t2\ttest\tv1\tv2\t2\t" DIGEST_A
+                                    "\tPackage verified; approve in iDrive\tAlice\tclear-all",
+                                    status) == -1);
     CHECK(-1 == -1);
 }
 

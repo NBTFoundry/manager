@@ -97,6 +97,7 @@ confirm_install = Confirm install
 versions = Installed: {1}, new: {2}
 version = Version {1}
 developer_key = Developer key: {1}
+may_clear_codes = Can clear fault codes (only when parked)
 reject = Reject
 install = Install
 install_older = Install, even if older

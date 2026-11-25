@@ -94,6 +94,7 @@ confirm_install = Confirmar instalación
 versions = Instalada: {1}, nueva: {2}
 version = Versión {1}
 developer_key = Clave de desarrollador: {1}
+may_clear_codes = Puede borrar códigos de avería (solo parado)
 reject = Rechazar
 install = Instalar
 install_older = Instalar, aunque sea anterior

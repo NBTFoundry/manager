@@ -141,17 +141,22 @@ bool ReplyParser::isError(const char *reply) {
 bool ReplyParser::samePackage(const WorkerStatus &a, const WorkerStatus &b) {
     return a.state == W_VERIFIED && b.state == W_VERIFIED && !strcmp(a.app, b.app) &&
            !strcmp(a.proposed, b.proposed) && a.sequence == b.sequence &&
-           !strcmp(a.digest, b.digest) && !strcmp(a.developer, b.developer);
+           !strcmp(a.digest, b.digest) && !strcmp(a.developer, b.developer) &&
+           a.clearsCodes == b.clearsCodes;
 }
 
 int ReplyParser::parseStatus(const char *reply, WorkerStatus &s) {
-    char copy[kReplyMax], *f[9];
-    // The ninth field, the developer key's name, came with developer keys.
-    const bool nine = reply && !split(copy, reply, f, 9);
-    if (!reply || (!nine && split(copy, reply, f, 8)) || strcmp(f[0], "STATUS")) {
+    char copy[kReplyMax], *f[10];
+    // The ninth field, the developer key's name, came with developer keys; the
+    // tenth, `clear-codes`, with diagnostics.
+    const bool ten = reply && !split(copy, reply, f, 10);
+    const bool nine = ten || (reply && !split(copy, reply, f, 9));
+    if (!reply || (!nine && split(copy, reply, f, 8)) || strcmp(f[0], "STATUS") ||
+        (ten && strcmp(f[9], "clear-codes"))) {
         return -1;
     }
     memset(&s, 0, sizeof(s));
+    s.clearsCodes = ten;
     if (nine && strcmp(f[8], "-")) {
         const size_t n = strlen(f[8]);
         if (!n || n >= sizeof(s.developer) || f[8][0] == ' ' || f[8][n - 1] == ' ' ||

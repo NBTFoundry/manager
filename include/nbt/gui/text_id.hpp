@@ -92,6 +92,7 @@ enum TextId {
     T_VERSIONS,
     T_VERSION,
     T_DEVELOPER_KEY,
+    T_MAY_CLEAR_CODES,
     T_REJECT,
     T_INSTALL,
     T_INSTALL_OLDER,

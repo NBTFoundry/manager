@@ -269,6 +269,9 @@ void Worker::cancel(uint64_t nowMs, Ended ended) {
         fail("cannot remove upload");
         return;
     }
+    if (state_.newApp) {
+        state_.app[0] = 0; // not installed: nothing of it to select
+    }
     state_.generic = false;
     state_.newApp = false;
     state_.managerUpdate = false;

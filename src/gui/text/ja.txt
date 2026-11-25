@@ -95,6 +95,7 @@ confirm_install = インストールを確認
 versions = インストール済み：{1}、新規：{2}
 version = バージョン {1}
 developer_key = 開発者キー：{1}
+may_clear_codes = 故障コードを消去できます（停車中のみ）
 reject = 拒否
 install = インストール
 install_older = 古くてもインストール

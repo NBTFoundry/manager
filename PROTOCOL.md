@@ -46,7 +46,9 @@ approve a replacement request from the same phone.
 
 `STATUS` replies with `STATUS`, then tab-separated state, application, installed
 version, proposed version, proposed sequence, package SHA-256 and message, then,
-only when a developer key signed the proposed package, that key's name. Absent text is `-`;
+only when a developer key signed the proposed package, that key's name, then, only when
+its diagnostics policy (`diag`) may clear fault codes, `clear-codes` (the key's name is
+then `-` for the apps key). Absent text is `-`;
 the absent sequence is `0`. States are `0` idle, `1`
 waiting, `2` verified, `3` installing, `4` installed and `5` failed. Proposed
 version, sequence and digest exist only in states 2 and 3. Sessions are local

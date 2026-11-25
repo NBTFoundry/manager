@@ -20,6 +20,8 @@ hex digits in ascending order, classes in this order.
 Every other request is refused on the head unit: writes (`2E`), routines
 (`31`), input/output control (`2F`), security access (`27`), resets (`11`),
 programming and transfers. Example: `12:read+codes+clear` (the engine).
+The install review on the car says when a policy holds `clear` ("Can clear
+fault codes (only when parked)").
 
 ## Wire
 

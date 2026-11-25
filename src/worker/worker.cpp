@@ -270,6 +270,7 @@ void Worker::installNewDone() {
     if (task_.result) {
         nbt_logf("new application %s: %s", state_.app, task_.error);
         fail("Installation failed");
+        state_.app[0] = 0; // nothing of it stays to select
         return;
     }
     (void)nbt_app_fault_clear(root_.legacy(), state_.app);

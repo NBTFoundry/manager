@@ -95,6 +95,7 @@ struct WorkerStatus {
     char digest[65];
     char message[128];
     char developer[33]; // the developer key's name; empty for the apps key
+    bool clearsCodes;   // its diagnostics policy may clear fault codes
 };
 
 struct Request {
