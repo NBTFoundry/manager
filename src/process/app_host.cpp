@@ -5,6 +5,7 @@
 #include "nbt/app_host.h"
 #include "nbt/autostart.h"
 #include "nbt/log.h"
+#include "nbt/process/audio_mixer.hpp"
 #include "nbt/process/host_control.hpp"
 #include "nbt/process/host_signals.hpp"
 #include "nbt/process/host_start.hpp"
@@ -141,6 +142,8 @@ int AppHostSupervisor::spawnChild() {
         nbt_app_environment_remove(&start.environment, "NBT_STATUS_FD=5");
     }
     bridge_.prepare(fs_, app_, start.grantCaps, start.record.bridge, &start.environment);
+    // Every application's and service's sound through the mixer (docs/audio-mixer.md).
+    (void)grantMixer(&start.environment);
     errno = 0;
     const nbt_app_channels appChannels = {
         statusFd_,        channels_.most(), channels_.gamepad(), channels_.controller(),

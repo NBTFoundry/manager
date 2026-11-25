@@ -45,15 +45,16 @@ int nbt_app_settings_set(nbt_fs *fs, const char *app, const char *key, const cha
  * HMI's runtime variables (at most 5), data dir, settings file, files dir, then
  * bridge (2), status, MOST, gamepad, controller, hold (2), diag, role, car
  * data, network, audio connection and input, launch and the settings: at most
- * NBT_SETTINGS_MAX + 23 entries. A host adds NBT_SURFACE in `surface`, then
- * the NULL. */
+ * NBT_SETTINGS_MAX + 23 entries. A host adds NBT_AUDIO_MIXER in `mixer` and
+ * NBT_SURFACE in `surface`, then the NULL. */
 typedef struct {
     char text[NBT_SETTINGS_MAX + 23][NBT_APP_ENV_TEXT_MAX];
-    char *list[NBT_SETTINGS_MAX + 25];
+    char *list[NBT_SETTINGS_MAX + 26];
     char data_dir[NBT_PATH_MAX + 16];
     char settings_file[NBT_PATH_MAX + 20];
     char files_dir[NBT_PATH_MAX + 16];
     char surface[24];
+    char mixer[48];         /* NBT_AUDIO_MIXER, added by a host (docs/audio-mixer.md) */
     char library_path[512]; /* the HMI's LD_LIBRARY_PATH with /opt/mm/lib */
     char preload[512];      /* LD_PRELOAD with capture shim stripped */
 } nbt_app_environment;

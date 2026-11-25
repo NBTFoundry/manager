@@ -53,10 +53,8 @@ manager is involved.
 
 ## Audio
 
-Several processes may play at once. Until the manager mixes them (planned:
-each process's audio through the manager, one output on the head unit), the
-second to open the output may fail: a service that plays should own the
-output and its application send it what to play.
+Several processes play at once: the application, its service and any other
+through the manager's mixer ([audio-mixer.md](audio-mixer.md)).
 
 ## On the car
 

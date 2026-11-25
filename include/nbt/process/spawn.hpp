@@ -13,6 +13,7 @@ namespace spawn {
 struct ChildPlan {
     const char *executable;
     char *arguments[6];
+    char *const *environment = NULL; // NULL: the caller's
 };
 
 core::Status prepareHost(ChildPlan *plan, char *executable, const char *app, bool automatic,

@@ -117,7 +117,11 @@ void execChild(const ChildPlan &plan) {
     if (null > 2) {
         close(null);
     }
-    execv(plan.executable, plan.arguments);
+    if (plan.environment) {
+        execve(plan.executable, plan.arguments, plan.environment);
+    } else {
+        execv(plan.executable, plan.arguments);
+    }
     _exit(127);
 }
 
@@ -142,8 +146,8 @@ core::Status detach(const ChildPlan &plan, pid_t *intermediate) {
     sigfillset(&inherit.sigdefault);
     sigemptyset(&inherit.sigmask);
     char *const empty[] = {NULL};
-    const pid_t host =
-        ::spawn(plan.executable, 3, fdmap, &inherit, plan.arguments, environ ? environ : empty);
+    char *const *env = plan.environment ? plan.environment : environ ? environ : empty;
+    const pid_t host = ::spawn(plan.executable, 3, fdmap, &inherit, plan.arguments, env);
     const int error = errno;
     close(null);
     if (host < 0) {

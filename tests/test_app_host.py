@@ -1242,6 +1242,44 @@ event("exit")
         self.assertEqual(command("SERVICES"), "SERVICES\t0")
         self.assertEqual(command("QUIT"), "OK")
 
+    def test_the_audio_mixer_starts_once_and_is_named_to_the_application(self):
+        """docs/audio-mixer.md: the host starts the release's nbt-runner as the
+        mixer, with the application's environment, unless one answers, and
+        names it in NBT_AUDIO_MIXER."""
+        listener = socket.socket()
+        listener.bind(("127.0.0.1", 0))
+        address = "127.0.0.1:%d" % listener.getsockname()[1]
+        listener.close()
+        marks = Path(self.tmp.name) / "mixer-starts"
+        runner = Path(self.tmp.name) / "runner"
+        runner.write_text("#!/usr/bin/python3\n"
+                          "import os, socket, sys, time\n"
+                          f"open({str(marks)!r}, 'a').write(' '.join(sys.argv[1:]) + ' ' + "
+                          "os.environ.get('NBT_DATA_DIR', 'absent') + '\\n')\n"
+                          "host, port = sys.argv[2].rsplit(':', 1)\n"
+                          "s = socket.socket(); s.bind((host, int(port))); s.listen(4)\n"
+                          "time.sleep(20)\n")
+        runner.chmod(0o700)
+        self.script_app("print('mixer=' + os.environ.get('NBT_AUDIO_MIXER', 'absent'), flush=True)\n"
+                        "os.write(3, b'R')\n"
+                        "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
+        with mock.patch.dict(os.environ, {"NBT_TEST_RUNNER": str(runner),
+                                          "NBT_TEST_MIXER_ADDRESS": address}):
+            _, command = self.worker()
+            self.assertEqual(command("START test"), "OK")
+            self.wait_for(lambda: f"mixer={address}" in self.app_log())
+            self.wait_for(lambda: marks.exists() and "--mixer" in marks.read_text())
+            self.assertEqual(marks.read_text(), f"--mixer {address} {self.root / 'data/test'}\n")
+            self.assertEqual(command("STOP test"), "OK")
+            self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+            # Started again: the mixer answers, so none is started.
+            self.assertEqual(command("START test"), "OK")
+            self.wait_for(lambda: self.app_log().count(f"mixer={address}") == 2)
+            self.assertEqual(marks.read_text().count("--mixer"), 1)
+            self.assertEqual(command("STOP test"), "OK")
+            self.assertEqual(command("QUIT"), "OK")
+        subprocess.run(["pkill", "-f", f"{runner} --mixer"], check=False)
+
     def test_native_audio_media_names_the_connection(self):
         """The manager's native_audio setting: `media` gives a user launch
         NBT_AUDIO_CONN=0x1d0 (the media player's online stream source) and

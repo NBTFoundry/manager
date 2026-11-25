@@ -108,6 +108,7 @@ how the manager provides each part.
 | Runner | manager -> app | `runner` (1.7): a payload with the SDK's NBT ABI note runs under the release's `nbt-runner` (8) |
 | Diagnostics | app <-> car | `diag` (1.8): requests to the car's control units on `NBT_DIAG_FD=10`, limited by the signed `bridge-diag` policy ([diag-bridge.md](diag-bridge.md)) (9) |
 | Background service | manager -> app | `service` (1.9): the executable started again as `NBT_ROLE=service`, without screen or input, running on after the application (10) |
+| Audio mixer | manager -> app | `NBT_AUDIO_MIXER=127.0.0.1:42863`: the mixer every application's and service's sound plays through at once; the SDK's audio output uses it by itself ([audio-mixer.md](audio-mixer.md)) |
 | Audio connection | manager -> app | `NBT_AUDIO_CONN=0x1d0` and `NBT_AUDIO_A2I=input_stereo_0` for a user launch while the manager's `native_audio` setting is `media` (PROTOCOL.md, "Manager settings"); no capability: an application that plays sound builds that connection instead of its default and plays into that io-amp input (the SDK's audio route and audio output do) |
 
 Every name, path and format here belongs to one interface version; see
