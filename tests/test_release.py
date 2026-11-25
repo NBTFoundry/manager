@@ -105,17 +105,17 @@ class ReleaseTests(unittest.TestCase):
         data = self.release.read_bytes()
         size = struct.unpack(">I", data[8:12])[0]
         manifest, payload = data[16:16 + size], data[16 + size + 384:]
-        self.assertIn(b"bridge=1.7|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner\n", manifest)
+        self.assertIn(b"bridge=1.8|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag\n", manifest)
         for bridge in (b"", b"bridge=1.3|show,status\nbridge=2.0|status\n",
                        b"bridge=65535.65535|future-cap\n"):
-            result = self.verify(self.resign(manifest.replace(b"bridge=1.7|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner\n", bridge), payload))
+            result = self.verify(self.resign(manifest.replace(b"bridge=1.8|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag\n", bridge), payload))
             self.assertEqual(result.returncode, 0, result.stderr)
         for bridge in (b"bridge=1.0\n", b"bridge=0.1|\n", b"bridge=1.00|\n", b"bridge=1.65536|\n",
                        b"bridge=1.0|show,show\n", b"bridge=1.0|show,\n", b"bridge=1.0|Show\n",
                        b"bridge=1.0|\nbridge=1.1|\n", b"bridge=2.0|\nbridge=1.0|\n",
                        b"bridge=1.0|\nbridge=2.0|\nbridge=3.0|\n"):
             with self.subTest(bridge=bridge):
-                self.assertEqual(self.verify(self.resign(manifest.replace(b"bridge=1.7|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner\n", bridge), payload)).returncode, 1)
+                self.assertEqual(self.verify(self.resign(manifest.replace(b"bridge=1.8|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag\n", bridge), payload)).returncode, 1)
 
     def test_packer_preserves_existing_output(self):
         result = run("python3", PACK, "--version", "v1", "--sequence", "1", "--compat", "demo-1",

@@ -104,6 +104,7 @@ how the manager provides each part.
 | Car data | car -> app | `car-data` (1.6): the iDrive car data named in the signed `bridge-cds` list, one file per name in `NBT_CDS_DIR` (6) |
 | Network | phone -> app | `net` (1.6): the signed `bridge-net` rules let in through the packet filter while it runs; `NBT_NET` (7) |
 | Runner | manager -> app | `runner` (1.7): a payload with the SDK's NBT ABI note runs under the release's `nbt-runner` (8) |
+| Diagnostics | app <-> car | `diag` (1.8): requests to the car's control units on `NBT_DIAG_FD=10`, limited by the signed `bridge-diag` policy ([diag-bridge.md](diag-bridge.md)) (9) |
 | Audio connection | manager -> app | `NBT_AUDIO_CONN=0x1d0` and `NBT_AUDIO_A2I=input_stereo_0` for a user launch while the manager's `native_audio` setting is `media` (PROTOCOL.md, "Manager settings"); no capability: an application that plays sound builds that connection instead of its default and plays into that io-amp input (the SDK's audio route and audio output do) |
 
 Every name, path and format here belongs to one interface version; see
@@ -524,6 +525,19 @@ underneath ([bridge-design.md](bridge-design.md)).
   A.B` in the application log), so the install's health check fails cleanly.
   ABI minors only add host functions; a payload keeps working across manager
   updates.
+
+### 9. Diagnostics (capability `diag`, bridge 1.8)
+
+- **Declaration.** The signed `bridge-diag` policy: the control units (two hex
+  digits) and the request classes each takes, `read`, `codes`, `clear`
+  ([diag-bridge.md](diag-bridge.md)).
+- **Channel.** A datagram socket, `NBT_DIAG_FD=10`: one request, one reply,
+  in order (`include/nbt/diag_wire.h`). The host is the car's one tester on
+  the central gateway (HSFZ, [engine-diagnostics.md](engine-diagnostics.md)),
+  shared with other testers on the head unit through their loopback lock.
+- **Safety.** Anything outside the classes is refused before it leaves the
+  head unit; a clear needs the car standing still (car data
+  `driving.speedActual` 0, which the host asks for).
 
 ## Design notes
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/bridge.h"
 #include "nbt/cds_policy.h"
+#include "nbt/diag_policy.h"
+#include "nbt/diag_wire.h"
 #include "nbt/files_policy.h"
 #include "nbt/net_policy.h"
 #include <assert.h>
@@ -340,7 +342,7 @@ static void cds_net_declarations(void) {
     assert(strstr(text, "new_bridge-cds=driving.gear,sensors.PDCStatus\n"
                         "new_bridge-net=tcp:5277@uap0+wfd0\n"));
     nbt_bridge_current(&provider);
-    assert(provider.versions[0].minor == 7);
+    assert(provider.versions[0].minor == 8);
     assert(!nbt_bridge_check(&need, &provider, NULL, &grant, error, sizeof(error)) &&
            !strcmp(grant.caps, "status,hold,car-data,net"));
     memset(&old, 0, sizeof(old));
@@ -378,8 +380,90 @@ static void cds_net_declarations(void) {
     assert(!nbt_bridge_requirement_parse(&p, "old_", &need) && !*p);
 }
 
+/* Diagnostics (bridge 1.8): the policy, the request classes and the wire. */
+static void diag_policy_and_wire(void) {
+    nbt_diag_policy policy;
+    const char *bad[] = {"",
+                         "12",
+                         "12:",
+                         "1:read",
+                         "12:write",
+                         "12:clear+read",
+                         "12:read+read",
+                         "12:read,12:codes",
+                         "40:read,12:read",
+                         "12:read,",
+                         "12:READ",
+                         "1g:read",
+                         "12:read+"};
+    unsigned i;
+    for (i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
+        assert(nbt_diag_policy_parse(bad[i], NULL));
+    }
+    assert(!nbt_diag_policy_parse("12:read+codes+clear,40:read,60:codes", &policy));
+    assert(policy.count == 3 && policy.rules[0].ecu == 0x12 && policy.rules[0].classes == 7 &&
+           policy.rules[1].ecu == 0x40 && policy.rules[1].classes == NBT_DIAG_READ &&
+           policy.rules[2].classes == NBT_DIAG_CODES);
+    const uint8_t read[] = {0x22, 0xf4, 0x0c}, readOdd[] = {0x22, 0xf4}, define[] = {0x2c, 0x01},
+                  codes[] = {0x19, 0x02, 0xff}, clear[] = {0x14, 0xff, 0xff, 0xff},
+                  session[] = {0x10, 0x03}, programming[] = {0x10, 0x02},
+                  write[] = {0x2e, 0xf1, 0x90, 0x01}, routine[] = {0x31, 0x01, 0x0f, 0x0b},
+                  security[] = {0x27, 0x01}, reset[] = {0x11, 0x01};
+    assert(nbt_diag_request_class(read, sizeof(read)) == NBT_DIAG_READ);
+    assert(!nbt_diag_request_class(readOdd, sizeof(readOdd)));
+    assert(nbt_diag_request_class(define, sizeof(define)) == NBT_DIAG_READ);
+    assert(nbt_diag_request_class(codes, sizeof(codes)) == NBT_DIAG_CODES);
+    assert(nbt_diag_request_class(clear, sizeof(clear)) == NBT_DIAG_CLEAR);
+    assert(nbt_diag_request_class(session, sizeof(session)) == NBT_DIAG_CLEAR);
+    assert(!nbt_diag_request_class(programming, sizeof(programming)));
+    assert(!nbt_diag_request_class(write, sizeof(write)));
+    assert(!nbt_diag_request_class(routine, sizeof(routine)));
+    assert(!nbt_diag_request_class(security, sizeof(security)));
+    assert(!nbt_diag_request_class(reset, sizeof(reset)));
+    assert(nbt_diag_policy_allows(&policy, 0x12, clear, sizeof(clear)) == NBT_DIAG_CLEAR);
+    assert(!nbt_diag_policy_allows(&policy, 0x40, clear, sizeof(clear)));
+    assert(!nbt_diag_policy_allows(&policy, 0x60, read, sizeof(read)));
+    assert(!nbt_diag_policy_allows(&policy, 0x13, read, sizeof(read)));
+    uint8_t wire[NBT_DIAG_WIRE_MAX];
+    nbt_diag_request request;
+    nbt_diag_reply reply;
+    int n = nbt_diag_request_encode(0x12, 0x1234, 0, read, sizeof(read), wire, sizeof(wire));
+    assert(n == 9 && !nbt_diag_request_decode(wire, (size_t)n, &request));
+    assert(request.ecu == 0x12 && request.id == 0x1234 && request.timeout_ms == 2000 &&
+           request.size == 3 && !memcmp(request.uds, read, 3));
+    assert(nbt_diag_request_decode(wire, 6, &request)); /* no UDS bytes */
+    wire[4] = 0x11, wire[5] = 0x27;                     /* 10001 ms */
+    assert(nbt_diag_request_decode(wire, (size_t)n, &request));
+    const uint8_t answer[] = {0x62, 0xf4, 0x0c, 0x1a};
+    n = nbt_diag_reply_encode(0x12, 7, NBT_DIAG_OK, NBT_DIAG_VIA_HSFZ, answer, sizeof(answer), wire,
+                              sizeof(wire));
+    assert(n == 10 && !nbt_diag_reply_decode(wire, (size_t)n, &reply));
+    assert(reply.status == NBT_DIAG_OK && reply.size == 4 && reply.uds[0] == 0x62);
+    n = nbt_diag_reply_encode(0x12, 8, NBT_DIAG_REFUSED, NBT_DIAG_VIA_NONE, NULL, 0, wire,
+                              sizeof(wire));
+    assert(n == 6 && !nbt_diag_reply_decode(wire, 6, &reply) && reply.status == NBT_DIAG_REFUSED);
+    assert(nbt_diag_reply_encode(0x12, 8, NBT_DIAG_REFUSED, 0, answer, 4, wire, sizeof(wire)) < 0);
+    assert(nbt_diag_reply_decode(wire, 7, &reply)); /* bytes with a refusal */
+    wire[4] = 9;
+    assert(nbt_diag_reply_decode(wire, 6, &reply));
+    nbt_bridge_requirement need;
+    char text[NBT_BRIDGE_TEXT_MAX], *p;
+    char record[] = "bridge=1.8\nbridge-uses=diag\nbridge-optional=\nbridge-diag=12:read\n";
+    p = record;
+    assert(!nbt_bridge_requirement_parse(&p, "", &need) && !strcmp(need.diag, "12:read"));
+    assert(nbt_bridge_requirement_format(&need, "", text, sizeof(text)) > 0 &&
+           strstr(text, "bridge-diag=12:read\n"));
+    char old[] = "bridge=1.7\nbridge-uses=diag\nbridge-optional=\nbridge-diag=12:read\n";
+    p = old;
+    assert(nbt_bridge_requirement_parse(&p, "", &need)); /* diag came with 1.8 */
+    char missing[] = "bridge=1.8\nbridge-uses=diag\nbridge-optional=\n";
+    p = missing;
+    assert(nbt_bridge_requirement_parse(&p, "", &need)); /* diag needs its policy */
+}
+
 int main(void) {
     status_lines();
+    diag_policy_and_wire();
     nbt_bridge_provider provider;
     nbt_bridge_requirement need;
     nbt_bridge_version grant;
@@ -405,10 +489,10 @@ int main(void) {
     assert(!nbt_bridge_caps_valid(text));
     nbt_bridge_current(&provider);
     assert(provider.count == 1 && provider.versions[0].major == 1 &&
-           provider.versions[0].minor == 7 &&
+           provider.versions[0].minor == 8 &&
            provider.versions[0].oldest == NBT_BRIDGE_OLDEST_MINOR &&
            !strcmp(provider.versions[0].caps, "show,status,live-settings,most,gamepad,controller,"
-                                              "files,hold,car-data,net,runner"));
+                                              "files,hold,car-data,net,runner,diag"));
     /* Bridge 1.7: an application built without the QNX SDP requires runner. */
     memset(&need, 0, sizeof(need));
     need.major = 1;

@@ -158,7 +158,10 @@ typedef enum {
     NBT_FS_DEVELOPERS_DIR,
     NBT_FS_DEVELOPER,
     NBT_FS_DEVELOPER_NEXT,
-    NBT_FS_DEVELOPERS_LOCK
+    NBT_FS_DEVELOPERS_LOCK,
+    /* state/manager/diag.lock: held (flock) by the application host that is
+     * using the car's diagnostic gateway (capability `diag`), one at a time. */
+    NBT_FS_DIAG_LOCK
 } nbt_fs_path_kind;
 
 /* NBT_FS_APPEND opens an existing debug log (NBT_FS_MANAGER_LOG) for

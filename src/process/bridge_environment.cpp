@@ -34,13 +34,12 @@ size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridg
         ++count;
     }
     // Descriptors exist only for a user launch (the host maps them; docs/app-bridge.md).
-    static const char *const channels[][2] = {{"status", "NBT_STATUS_FD=5"},
-                                              {"most", "NBT_MOST_FD=6"},
-                                              {"gamepad", "NBT_GAMEPAD_FD=7"},
-                                              {"controller", "NBT_CONTROLLER_FD=8"},
-                                              {"hold", "NBT_HOLD_FD=9"}};
+    static const char *const channels[][2] = {
+        {"status", "NBT_STATUS_FD=5"},   {"most", "NBT_MOST_FD=6"},
+        {"gamepad", "NBT_GAMEPAD_FD=7"}, {"controller", "NBT_CONTROLLER_FD=8"},
+        {"hold", "NBT_HOLD_FD=9"},       {"diag", "NBT_DIAG_FD=10"}};
     const bool user = launch && !strcmp(launch, "user");
-    for (unsigned i = 0; user && i < 5; ++i) {
+    for (unsigned i = 0; user && i < sizeof(channels) / sizeof(channels[0]); ++i) {
         if (nbt_bridge_cap_has(grant.caps, channels[i][0])) {
             strcpy(out->text[count], channels[i][1]);
             out->list[count] = out->text[count];

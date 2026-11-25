@@ -10,7 +10,10 @@
  *    every second while it runs, which the plugin subscribes to;
  *  - `net`: the packet-filter rules it declared, opened before the start and
  *    closed at its end, with a record saying so (a wfd0 rule keeps the Wi-Fi
- *    Direct group on). */
+ *    Direct group on);
+ *  - `diag` (1.8): the application's socket (the child's fd 10) and the
+ *    service answering it (process/diag_service.hpp); a policy that may clear
+ *    fault codes adds driving.speedActual to the car data it asks for. */
 
 #include "nbt/app_settings.h"
 #include "nbt/bridge.h"
@@ -18,6 +21,7 @@
 #include "nbt/cds_policy.h"
 #include "nbt/fs.h"
 #include "nbt/net_policy.h"
+#include "nbt/process/diag_service.hpp"
 
 #include <stdint.h>
 
@@ -35,6 +39,10 @@ public:
     int holdFd() const {
         return holdFd_;
     }
+    /* The application's end of the diag socket, or -1. */
+    int diagFd() const {
+        return diagChild_;
+    }
     void poll(uint64_t nowMs, bool ready);
     void stop();
 
@@ -42,13 +50,16 @@ private:
     HostBridge(const HostBridge &);
     HostBridge &operator=(const HostBridge &);
     void relay(uint64_t nowMs, nbt_hold_word word);
+    void prepareDiag(const nbt_bridge_requirement &need, const char *grantCaps,
+                     nbt_app_environment *environment);
 
     nbt_fs *fs_;
     char app_[NBT_HOLD_APP_MAX + 1];
     const char *dir_;
-    int holdFd_;
-    bool carData_, netOpen_, haveRequest_, relayed_;
+    int holdFd_, diagChild_;
+    bool carData_, netOpen_, haveRequest_, relayed_, wantSpeed_;
     char cds_[NBT_CDS_POLICY_MAX + 1];
+    DiagService diag_;
     char net_[NBT_NET_POLICY_MAX + 1];
     uint64_t requestSequence_, relayMs_, recordMs_;
     nbt_hold_word requestWord_;

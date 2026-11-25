@@ -93,6 +93,8 @@ def main():
                         help="car-data policy, required with capability car-data: name.name,name.name")
     parser.add_argument("--bridge-net", default="",
                         help="network policy, required with capability net: tcp:<port>@uap0+wfd0,...")
+    parser.add_argument("--bridge-diag", default="",
+                        help="diagnostics policy, required with capability diag: 12:read+codes+clear,...")
     parser.add_argument("--property", action="append", default=[],
                         help="information shown before an install: label|value (at most 8)")
     parser.add_argument("--text", action="append", default=[],
@@ -105,7 +107,8 @@ def main():
         parser.error("invalid version or release sequence")
     try:
         bridge_text = bridge.requirement(args.bridge, args.bridge_uses, args.bridge_optional, args.bridge_most,
-                                         args.bridge_files, args.bridge_cds, args.bridge_net)
+                                         args.bridge_files, args.bridge_cds, args.bridge_net,
+                                         args.bridge_diag)
     except ValueError as error:
         parser.error(str(error))
     keys = set()

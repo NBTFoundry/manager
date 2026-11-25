@@ -132,18 +132,19 @@ int InstalledRecord::parseFields(char **cursor, const char *prefix, nbt_installe
 }
 
 // 1 no bridge, 2 bridge, 3 with a MOST policy, 4 with a files policy, 5 with
-// car data or network rules (a release before bridge 1.5, or 1.6, refuses
-// level 4, or 5, rather than drop the policy).
+// car data or network rules, 6 with a diagnostics policy (a release before
+// bridge 1.5, 1.6 or 1.8 refuses level 4, 5 or 6, rather than drop the policy).
 unsigned InstalledRecord::recordLevel(const nbt_installed *record) {
-    return record->bridge.cds[0] || record->bridge.net[0] ? 5
-           : record->bridge.files[0]                      ? 4
-           : record->bridge.most[0]                       ? 3
-                                                          : (record->bridge.major ? 2 : 1);
+    return record->bridge.diag[0]                           ? 6
+           : record->bridge.cds[0] || record->bridge.net[0] ? 5
+           : record->bridge.files[0]                        ? 4
+           : record->bridge.most[0]                         ? 3
+                                                            : (record->bridge.major ? 2 : 1);
 }
 
 int InstalledRecord::levelOf(const char *text, const char *magic) {
     const size_t n = strlen(magic);
-    if (strncmp(text, magic, n) || text[n] < '1' || text[n] > '5' || text[n + 1] != '\n') {
+    if (strncmp(text, magic, n) || text[n] < '1' || text[n] > '6' || text[n + 1] != '\n') {
         return -1;
     }
     return text[n] - '0';

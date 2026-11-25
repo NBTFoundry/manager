@@ -18,9 +18,11 @@
 #define NBT_BRIDGE_CDS_MAX 255
 /* Equal to NBT_NET_POLICY_MAX (include/nbt/net_policy.h). */
 #define NBT_BRIDGE_NET_MAX 96
+/* Equal to NBT_DIAG_POLICY_MAX (include/nbt/diag_policy.h). */
+#define NBT_BRIDGE_DIAG_MAX 160
 /* Formatted requirement: three lines of at most 300 bytes, the MOST line, the
  * files line, the car-data line and the network line. */
-#define NBT_BRIDGE_TEXT_MAX 2200
+#define NBT_BRIDGE_TEXT_MAX 2400
 
 typedef struct {
     uint16_t major, minor;
@@ -37,6 +39,9 @@ typedef struct {
     /* The packet-filter rules it needs (capability `net`, bridge 1.6), or
      * empty. Only with `net` declared. */
     char net[NBT_BRIDGE_NET_MAX + 1];
+    /* The control units and request classes it may use (capability `diag`,
+     * bridge 1.8), or empty. Only with `diag` declared. */
+    char diag[NBT_BRIDGE_DIAG_MAX + 1];
 } nbt_bridge_requirement;
 
 /* The oldest bridge 1 minor this manager runs (nbt_bridge_current): an
@@ -65,7 +70,8 @@ int nbt_bridge_cap_has(const char *list, const char *name);
  * bridge-most when the application declares `most` (required then), then
  * bridge-files when it declares `files` (required then; bridge 1.5 or later),
  * then bridge-cds and bridge-net when it declares `car-data` and `net`
- * (required then; bridge 1.6 or later).
+ * (required then; bridge 1.6 or later), then bridge-diag when it declares
+ * `diag` (required then; bridge 1.8 or later).
  * nbt_field consumes input in place. Missing bridge means no dependency. */
 int nbt_bridge_requirement_parse(char **text, const char *prefix, nbt_bridge_requirement *out);
 /* 1 when `value` is a valid declaration (as parsed), else 0. */

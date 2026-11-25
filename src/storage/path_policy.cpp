@@ -48,6 +48,7 @@ const KindPath kManagerPaths[] = {
     {NBT_FS_PHONES_LOCK, "state/manager/phones.lock"},
     {NBT_FS_DEVELOPERS_DIR, "trust/developers"},
     {NBT_FS_DEVELOPERS_LOCK, "state/manager/developers.lock"},
+    {NBT_FS_DIAG_LOCK, "state/manager/diag.lock"},
     {NBT_FS_PHONE_OPEN, "state/manager/phone-open"},
     {NBT_FS_PHONE_OPEN_NEXT, "state/manager/phone-open.next"},
     {NBT_FS_MANAGER_CONTROLLER_CONFIG, "manager/controller.conf"},
@@ -262,10 +263,10 @@ bool PathPolicy::canCreate(PathKind kind) {
 
 bool PathPolicy::canLock(PathKind kind) {
     return kind == NBT_FS_DOOR_LOCK || kind == NBT_FS_PHONES_LOCK ||
-           kind == NBT_FS_DEVELOPERS_LOCK || kind == NBT_FS_LOCK || kind == NBT_FS_LEASE ||
-           kind == NBT_FS_HOST_LOCK || kind == NBT_FS_SYNC || kind == NBT_FS_MANAGER_LOCK ||
-           kind == NBT_FS_MANAGER_OPERATION_LOCK || kind == NBT_FS_SURFACE_LOCK ||
-           kind == NBT_FS_GAMEPAD_LOCK;
+           kind == NBT_FS_DEVELOPERS_LOCK || kind == NBT_FS_DIAG_LOCK || kind == NBT_FS_LOCK ||
+           kind == NBT_FS_LEASE || kind == NBT_FS_HOST_LOCK || kind == NBT_FS_SYNC ||
+           kind == NBT_FS_MANAGER_LOCK || kind == NBT_FS_MANAGER_OPERATION_LOCK ||
+           kind == NBT_FS_SURFACE_LOCK || kind == NBT_FS_GAMEPAD_LOCK;
 }
 
 bool PathPolicy::canUnlink(PathKind kind) {

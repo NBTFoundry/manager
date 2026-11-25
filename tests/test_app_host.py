@@ -4,6 +4,7 @@ import hashlib
 import os
 from pathlib import Path
 import shutil
+import threading
 import signal
 import socket
 import struct
@@ -62,6 +63,67 @@ def payload_with_note(mode=1, abi=(1, 1)):
     struct.pack_into("<HHH", header, 40, 52, 32, 1)  # e_ehsize, e_phentsize, e_phnum
     phdr = struct.pack("<IIIIIIII", 4, 84, 0, 0, len(note), len(note), 4, 4)
     return bytes(header) + phdr + note + b"payload"
+
+
+class FakeHsfzGateway:
+    """The car's central gateway on HSFZ (TCP): acknowledges each request,
+    checks once that the tester is alive, and answers the DME (0x12)."""
+
+    ANSWERS = {"22f40c": "62f40c1af8", "1902ff": "5902ff", "14ffffff": "54"}
+
+    def __init__(self):
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server.bind(("127.0.0.1", 0))
+        self.server.listen(4)
+        self.port = self.server.getsockname()[1]
+        self.requests, self.alive_replies, self.running = [], [], True
+        self.thread = threading.Thread(target=self.serve, daemon=True)
+        self.thread.start()
+
+    @staticmethod
+    def frame(control, payload):
+        return struct.pack(">IH", len(payload), control) + payload
+
+    def serve(self):
+        while self.running:
+            try:
+                connection, _ = self.server.accept()
+            except OSError:
+                return
+            threading.Thread(target=self.talk, args=(connection,), daemon=True).start()
+
+    def talk(self, connection):
+        buffer, alive_asked = b"", False
+        with connection:
+            while self.running:
+                try:
+                    data = connection.recv(4096)
+                except OSError:
+                    return
+                if not data:
+                    return
+                buffer += data
+                while len(buffer) >= 6:
+                    length, control = struct.unpack(">IH", buffer[:6])
+                    if len(buffer) < 6 + length:
+                        break
+                    payload, buffer = buffer[6:6 + length], buffer[6 + length:]
+                    if control == 0x0013:
+                        self.alive_replies.append(payload)
+                        continue
+                    src, dst, uds = payload[0], payload[1], payload[2:]
+                    self.requests.append((src, dst, uds))
+                    connection.sendall(self.frame(0x0002, payload))
+                    if not alive_asked:
+                        alive_asked = True
+                        connection.sendall(self.frame(0x0012, b""))
+                    answer = bytes.fromhex(self.ANSWERS.get(uds.hex(), "7f%02x11" % uds[0]))
+                    connection.sendall(self.frame(0x0001, bytes([dst, src]) + answer))
+
+    def close(self):
+        self.running = False
+        self.server.close()
 
 
 class AppHostTests(unittest.TestCase):
@@ -402,7 +464,7 @@ while not stopping:
         self.wait_for(lambda: show_holder(self.host_lock))
         host, application = lock_holder(self.host_lock), lock_holder(self.lease)
         self.assertEqual(show_holder(self.host_lock), host)
-        self.assertIn("bridge=1.7", self.events())
+        self.assertIn("bridge=1.8", self.events())
         self.assertIn("caps=show", self.events())
         # The one application surface, held by this host for its life.
         self.assertIn("surface=1291", self.events())
@@ -1068,6 +1130,67 @@ event("exit")
         self.wait_for(lambda: relay.read_text().endswith(" 1 test release\n"))
         self.assertFalse(want.exists() or net.exists())
         self.assertEqual(app_rules()[-1], "app close test")
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_bridge_18_diag_through_a_fake_gateway(self):
+        """Bridge 1.8 `diag`: the application's requests reach the gateway over
+        HSFZ only when its policy allows them; a clear waits for the car to
+        stand still; the speed is asked for as car data."""
+        gateway = FakeHsfzGateway()
+        self.addCleanup(gateway.close)
+        previous = os.environ.get("NBT_DIAG_GATEWAY")
+        os.environ["NBT_DIAG_GATEWAY"] = f"127.0.0.1:{gateway.port}"
+        self.addCleanup(lambda: os.environ.__setitem__("NBT_DIAG_GATEWAY", previous)
+                        if previous is not None else os.environ.pop("NBT_DIAG_GATEWAY", None))
+        speed = self.root / "nbt-bridge1-cds-driving.speedActual"
+        self.script_app(
+            "import socket, struct\n"
+            "print('diag=' + os.environ.get('NBT_DIAG_FD', 'absent'), flush=True)\n"
+            "os.write(3, b'R')\n"
+            "link = socket.socket(fileno=10)\n"
+            "def ask(ecu, uds, ident):\n"
+            "    link.send(bytes([1, ecu]) + struct.pack('<HH', ident, 0) + uds)\n"
+            "    reply = link.recv(8192)\n"
+            "    print('reply %d status %d via %d %s' % (ident, reply[4], reply[5], reply[6:].hex()), flush=True)\n"
+            "ask(0x12, bytes.fromhex('22f40c'), 1)\n"
+            "ask(0x40, bytes.fromhex('22f190'), 2)\n"
+            "ask(0x12, bytes.fromhex('2ef19001'), 3)\n"
+            "ask(0x12, bytes.fromhex('1902ff'), 4)\n"
+            "ask(0x12, bytes.fromhex('14ffffff'), 5)\n"
+            f"while not os.path.exists({str(speed)!r}):\n    time.sleep(0.05)\n"
+            "ask(0x12, bytes.fromhex('14ffffff'), 6)\n"
+            "link.send(b'\\x01')\n"
+            "print('malformed %d' % link.recv(64)[4], flush=True)\n"
+            "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
+        record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE6\n")
+        record += ("bridge=1.8\nbridge-uses=\nbridge-optional=diag\n"
+                   "bridge-diag=12:read+codes+clear\n")
+        (self.root / "state/test/installed").write_text(record)
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "reply 5 status" in self.app_log())
+        log = self.app_log()
+        self.assertIn("diag=10", log)
+        self.assertIn("reply 1 status 0 via 1 62f40c1af8", log)
+        self.assertIn("reply 2 status 2 via 0 ", log)  # ECU not in its policy
+        self.assertIn("reply 3 status 2 via 0 ", log)  # a write: never allowed
+        self.assertIn("reply 4 status 0 via 1 5902ff", log)
+        self.assertIn("reply 5 status 4 via 0 ", log)  # not known to stand still
+        want = self.root / "nbt-bridge1-test.want"
+        self.wait_for(lambda: want.exists() and "driving.speedActual" in want.read_text())
+        speed.write_text('7 {"speedActual":0}')
+        self.wait_for(lambda: "malformed" in self.app_log())
+        log = self.app_log()
+        self.assertIn("reply 6 status 0 via 1 54", log)
+        self.assertIn("malformed 6", log)
+        # Only what the policy allows reached the gateway, from the tester 0xF4.
+        self.assertEqual([uds.hex() for _, _, uds in gateway.requests],
+                         ["22f40c", "1902ff", "14ffffff"])
+        self.assertTrue(all(src == 0xF4 and dst == 0x12 for src, dst, _ in gateway.requests))
+        self.assertIn(b"\x00\xf4", gateway.alive_replies)
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertFalse(want.exists())
         self.assertEqual(command("QUIT"), "OK")
 
     def test_native_audio_media_names_the_connection(self):

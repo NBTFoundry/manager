@@ -11,6 +11,8 @@
 #include "nbt/core/span.hpp"
 #include "nbt/core/unique_fd.hpp"
 #include "nbt/crypto/ec_public_key.hpp"
+#include "nbt/diag_policy.h"
+#include "nbt/diag_wire.h"
 #include "nbt/files_policy.h"
 #include "nbt/gamepad/input.hpp"
 #include "nbt/gamepad/reports.hpp"
@@ -85,6 +87,7 @@ enum Target {
     LanguageTarget,
     CdsPolicy,
     NetPolicy,
+    DiagTarget,
     BridgeHold,
     ZipArchiveTarget,
     PayloadNoteTarget
@@ -125,6 +128,7 @@ const TargetName kTargets[] = {{"gamepad-wire", GamepadWire},
                                {"language", LanguageTarget},
                                {"cds-policy", CdsPolicy},
                                {"net-policy", NetPolicy},
+                               {"diag", DiagTarget},
                                {"bridge-hold", BridgeHold},
                                {"zip-archive", ZipArchiveTarget},
                                {"payload-note", PayloadNoteTarget}};
@@ -469,6 +473,11 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
         addSeed(&out, "driving.gear,sensors.PDCStatus,vehicle.dayNightChangeOver");
         addSeed(&out, "a.b,c..d,.e,f.");
         break;
+    case DiagTarget:
+        addSeed(&out, "12:read+codes+clear,40:read");
+        out.push_back(std::vector<uint8_t>{0x01, 0x12, 0x01, 0x00, 0x00, 0x00, 0x22, 0xf4, 0x0c});
+        out.push_back(std::vector<uint8_t>{0x81, 0x12, 0x01, 0x00, 0x00, 0x01, 0x62, 0xf4, 0x0c});
+        break;
     case NetPolicy:
         addSeed(&out, "tcp:5277@uap0+wfd0");
         addSeed(&out, "tcp:1@uap0,tcp:65535@wfd0,tcp:80@uap0+wfd0,tcp:8080@wfd0");
@@ -731,6 +740,21 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
         nbt_net_policy policy;
         copyText(input, text);
         (void)nbt_net_policy_parse(text, &policy);
+        break;
+    }
+    case DiagTarget: {
+        nbt_diag_policy policy;
+        nbt_diag_request request;
+        nbt_diag_reply reply;
+        copyText(input, text);
+        if (!nbt_diag_policy_parse(text, &policy) && !input.empty()) {
+            (void)nbt_diag_policy_allows(&policy, input[0], &input[0], input.size());
+        }
+        if (!input.empty()) {
+            (void)nbt_diag_request_decode(&input[0], input.size(), &request);
+            (void)nbt_diag_reply_decode(&input[0], input.size(), &reply);
+            (void)nbt_diag_request_class(&input[0], input.size());
+        }
         break;
     }
     case BridgeHold: {

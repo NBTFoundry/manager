@@ -171,9 +171,8 @@ private:
             return failStart(txLock, reason, error);
         }
         canShow_ = start.canShow;
-        // An application that places its own surface and asks for the focus
-        // hold comes back on a show request too (selected in the manager,
-        // the App shortcut): SIGUSR1, as for `show` (docs/app-bridge.md).
+        // An application with its own surface and the focus hold comes back on a
+        // show request too (the manager, App shortcut): SIGUSR1 (docs/app-bridge.md).
         forwardsShow_ = canShow_ || nbt_bridge_cap_has(start.grantCaps, "hold");
         canStatus_ = start.canStatus;
         if (canStatus_ && (statusFd_ = nbt_fs_status_open(fs_, app_, 1)) < 0) {
@@ -183,8 +182,9 @@ private:
         }
         bridge_.prepare(fs_, app_, start.grantCaps, start.record.bridge, &start.environment);
         errno = 0;
-        const nbt_app_channels appChannels = {statusFd_, channels_.most(), channels_.gamepad(),
-                                              channels_.controller(), bridge_.holdFd()};
+        const nbt_app_channels appChannels = {statusFd_,           channels_.most(),
+                                              channels_.gamepad(), channels_.controller(),
+                                              bridge_.holdFd(),    bridge_.diagFd()};
         const char *failed =
             canShow_ && nbt_app_surface_grant(fs_, app_, &start.environment, &surfaceFd_)
                 ? "cannot start: environment full"

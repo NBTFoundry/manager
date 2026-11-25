@@ -4,7 +4,7 @@ import re
 
 VERSION = re.compile(r"([1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{0,23}\Z")
-CURRENT = ("1.7|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner",)  # nbt_bridge_current
+CURRENT = ("1.8|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag",)  # nbt_bridge_current
 # One rule of a MOST policy (src/model/most_policy.cpp, docs/most-bridge.md).
 MOST_RULE = re.compile(r"(?:rx:\*\.\*\.\*|(?:rx|tx):[0-9A-F]{2}\.(?:\*|[0-9A-F]{2})\.(?:\*|[0-9A-F]{3})"
                        r"|ctl:[0-9A-F]{2}\.[0-9A-F]{2}|sub:[0-9A-F]{2}\.[0-9A-F]{2}\.[0-9A-F]{3})\Z")
@@ -18,6 +18,9 @@ CDS_NAME = re.compile(r"[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+\Z")
 CDS_MAX, CDS_NAMES, CDS_NAME_MAX = 255, 16, 64
 NET_RULE = re.compile(r"tcp:([1-9][0-9]{0,4})@((?:uap0|wfd0)(?:\+(?:uap0|wfd0))?)\Z")
 NET_MAX, NET_RULES = 96, 4
+# A diagnostics policy (src/model/diag_policy.cpp, docs/diag-bridge.md).
+DIAG_RULE = re.compile(r"([0-9a-f]{2}):(read(?:\+codes)?(?:\+clear)?|codes(?:\+clear)?|clear)\Z")
+DIAG_MAX, DIAG_RULES = 160, 8
 
 
 def version(text):
@@ -96,9 +99,20 @@ def net_policy(text):
     return text
 
 
-def requirement(ver, uses, optional, most="", files="", cds="", net=""):
+def diag_policy(text):
+    """Validates a diagnostics policy as the C parser does; returns it unchanged."""
+    rules = [DIAG_RULE.fullmatch(r) for r in text.split(",")]
+    ecus = [int(m.group(1), 16) for m in rules if m]
+    if (not text or len(text) > DIAG_MAX or len(rules) > DIAG_RULES or not all(rules) or
+            ecus != sorted(set(ecus))):
+        raise ValueError("invalid diagnostics policy: <ecu hex>:read[+codes][+clear],... "
+                         "ECUs ascending, at most 8")
+    return text
+
+
+def requirement(ver, uses, optional, most="", files="", cds="", net="", diag=""):
     if ver is None:
-        if uses or optional or most or files or cds or net:
+        if uses or optional or most or files or cds or net or diag:
             raise ValueError("bridge capabilities require --bridge")
         return ""
     major, minor = version(ver)
@@ -119,6 +133,10 @@ def requirement(ver, uses, optional, most="", files="", cds="", net=""):
         raise ValueError("a network policy (--bridge-net) is required exactly when net is declared")
     if (cds or net) and major == 1 and minor < 6:
         raise ValueError("car-data and net require bridge 1.6")
+    if ("diag" in required | wanted) != bool(diag):
+        raise ValueError("a diagnostics policy (--bridge-diag) is required exactly when diag is declared")
+    if diag and major == 1 and minor < 8:
+        raise ValueError("diag requires bridge 1.8")
     # A payload built without the QNX SDP cannot run without the runner.
     if "runner" in wanted:
         raise ValueError("runner is required (--bridge-uses), never optional")
@@ -128,7 +146,8 @@ def requirement(ver, uses, optional, most="", files="", cds="", net=""):
     text += f"bridge-most={most_policy(most)}\n" if most else ""
     text += f"bridge-files={files_policy(files)}\n" if files else ""
     text += f"bridge-cds={cds_policy(cds)}\n" if cds else ""
-    return text + (f"bridge-net={net_policy(net)}\n" if net else "")
+    text += f"bridge-net={net_policy(net)}\n" if net else ""
+    return text + (f"bridge-diag={diag_policy(diag)}\n" if diag else "")
 
 
 def provider(values):

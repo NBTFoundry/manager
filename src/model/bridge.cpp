@@ -2,6 +2,7 @@
 #include "nbt/model/bridge.hpp"
 
 #include "nbt/cds_policy.h"
+#include "nbt/diag_policy.h"
 #include "nbt/files_policy.h"
 #include "nbt/most_policy.h"
 #include "nbt/net_policy.h"
@@ -52,12 +53,12 @@ bool validRequirement(const nbt_bridge_requirement *v) {
         !memchr(v->optional, 0, sizeof(v->optional)) || !nbt_bridge_caps_valid(v->uses) ||
         !nbt_bridge_caps_valid(v->optional) || !memchr(v->most, 0, sizeof(v->most)) ||
         !memchr(v->files, 0, sizeof(v->files)) || !memchr(v->cds, 0, sizeof(v->cds)) ||
-        !memchr(v->net, 0, sizeof(v->net))) {
+        !memchr(v->net, 0, sizeof(v->net)) || !memchr(v->diag, 0, sizeof(v->diag))) {
         return false;
     }
     if (!v->major) {
         return !v->minor && !v->uses[0] && !v->optional[0] && !v->most[0] && !v->files[0] &&
-               !v->cds[0] && !v->net[0];
+               !v->cds[0] && !v->net[0] && !v->diag[0];
     }
     for (const char *p = v->optional; *p;) {
         p = nextCapName(p, name);
@@ -91,9 +92,18 @@ bool validRequirement(const nbt_bridge_requirement *v) {
         return false;
     }
     if (declared(v, "net")) {
-        return v->net[0] && !nbt_net_policy_parse(v->net, NULL) && !(v->major == 1 && v->minor < 6);
+        if (!v->net[0] || nbt_net_policy_parse(v->net, NULL) || (v->major == 1 && v->minor < 6)) {
+            return false;
+        }
+    } else if (v->net[0]) {
+        return false;
     }
-    return !v->net[0];
+    // `diag` came with bridge 1.8.
+    if (declared(v, "diag")) {
+        return v->diag[0] && !nbt_diag_policy_parse(v->diag, NULL) &&
+               !(v->major == 1 && v->minor < 8);
+    }
+    return !v->diag[0];
 }
 
 } // namespace
@@ -245,7 +255,8 @@ int nbt_bridge_requirement_parse(char **text, const char *prefix, nbt_bridge_req
         const char *name;
         size_t field, max;
     } kLater[] = {{"bridge-cds=", offsetof(nbt_bridge_requirement, cds), NBT_BRIDGE_CDS_MAX},
-                  {"bridge-net=", offsetof(nbt_bridge_requirement, net), NBT_BRIDGE_NET_MAX}};
+                  {"bridge-net=", offsetof(nbt_bridge_requirement, net), NBT_BRIDGE_NET_MAX},
+                  {"bridge-diag=", offsetof(nbt_bridge_requirement, diag), NBT_BRIDGE_DIAG_MAX}};
     for (size_t i = 0; i < sizeof(kLater) / sizeof(kLater[0]); ++i) {
         n = snprintf(field, sizeof(field), "%s%s", prefix, kLater[i].name);
         if (n < 0 || n >= static_cast<int>(sizeof(field))) {
@@ -277,12 +288,14 @@ int nbt_bridge_requirement_format(const nbt_bridge_requirement *v, const char *p
     }
     const int n = snprintf(
         out, size,
-        "%sbridge=%u.%u\n%sbridge-uses=%s\n%sbridge-optional=%s\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+        "%sbridge=%u.%u\n%sbridge-uses=%s\n%sbridge-optional=%s\n"
+        "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
         prefix, v->major, v->minor, prefix, v->uses, prefix, v->optional, v->most[0] ? prefix : "",
         v->most[0] ? "bridge-most=" : "", v->most, v->most[0] ? "\n" : "",
         v->files[0] ? prefix : "", v->files[0] ? "bridge-files=" : "", v->files,
         v->files[0] ? "\n" : "", v->cds[0] ? prefix : "", v->cds[0] ? "bridge-cds=" : "", v->cds,
         v->cds[0] ? "\n" : "", v->net[0] ? prefix : "", v->net[0] ? "bridge-net=" : "", v->net,
-        v->net[0] ? "\n" : "");
+        v->net[0] ? "\n" : "", v->diag[0] ? prefix : "", v->diag[0] ? "bridge-diag=" : "", v->diag,
+        v->diag[0] ? "\n" : "");
     return n < 0 || static_cast<size_t>(n) >= size ? -1 : n;
 }
