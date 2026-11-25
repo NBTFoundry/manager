@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/reply_parser.hpp"
-#include "nbt/manager_settings.h"
 
+#include "nbt/manager_settings.h"
+#include "nbt/permissions.h"
 #include "nbt/util.h"
 
 #include <string.h>
@@ -47,15 +48,9 @@ bool validHost(const char *s) {
     if (!digits(colon + 1, 1, 5) || nbt_parse_u64(colon + 1, &value, 0) || value > 65535) {
         return false;
     }
-    char *cursor = copy;
-    char *part = NULL;
-    while ((part = cursor) != NULL) {
-        char *dot = strchr(part, '.');
-        if (dot) {
+    for (char *part = copy, *dot = NULL; part; part = dot ? dot + 1 : NULL) {
+        if ((dot = strchr(part, '.')) != NULL) {
             *dot = 0;
-            cursor = dot + 1;
-        } else {
-            cursor = NULL;
         }
         if (++parts > 4 || !digits(part, 1, 3) || nbt_parse_u64(part, &value, 0) || value > 255) {
             return false;
@@ -142,21 +137,23 @@ bool ReplyParser::samePackage(const WorkerStatus &a, const WorkerStatus &b) {
     return a.state == W_VERIFIED && b.state == W_VERIFIED && !strcmp(a.app, b.app) &&
            !strcmp(a.proposed, b.proposed) && a.sequence == b.sequence &&
            !strcmp(a.digest, b.digest) && !strcmp(a.developer, b.developer) &&
-           a.clearsCodes == b.clearsCodes;
+           a.permissions == b.permissions && a.newPermissions == b.newPermissions;
 }
 
 int ReplyParser::parseStatus(const char *reply, WorkerStatus &s) {
     char copy[kReplyMax], *f[10];
     // The ninth field, the developer key's name, came with developer keys; the
-    // tenth, `clear-codes`, with diagnostics.
+    // tenth, `perm:<hex>:<hex>`, with permissions (docs/permissions.md).
     const bool ten = reply && !split(copy, reply, f, 10);
     const bool nine = ten || (reply && !split(copy, reply, f, 9));
+    unsigned granted = 0, added = 0;
     if (!reply || (!nine && split(copy, reply, f, 8)) || strcmp(f[0], "STATUS") ||
-        (ten && strcmp(f[9], "clear-codes"))) {
+        (ten && nbt_permissions_parse(f[9], &granted, &added))) {
         return -1;
     }
     memset(&s, 0, sizeof(s));
-    s.clearsCodes = ten;
+    s.permissions = granted;
+    s.newPermissions = added;
     if (nine && strcmp(f[8], "-")) {
         const size_t n = strlen(f[8]);
         if (!n || n >= sizeof(s.developer) || f[8][0] == ' ' || f[8][n - 1] == ' ' ||

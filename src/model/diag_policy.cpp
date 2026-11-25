@@ -8,7 +8,11 @@ namespace {
 const struct {
     const char *name;
     unsigned bit;
-} kClasses[] = {{"read", NBT_DIAG_READ}, {"codes", NBT_DIAG_CODES}, {"clear", NBT_DIAG_CLEAR}};
+} kClasses[] = {{"read", NBT_DIAG_READ},
+                {"codes", NBT_DIAG_CODES},
+                {"clear", NBT_DIAG_CLEAR},
+                {"control", NBT_DIAG_CONTROL},
+                {"drive", NBT_DIAG_DRIVE}};
 
 int hexDigit(char c) {
     return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1;
@@ -36,7 +40,8 @@ bool parseClasses(const char *p, size_t n, uint8_t *out) {
         p += plus ? len + 1 : len;
     }
     *out = static_cast<uint8_t>(bits);
-    return bits != 0;
+    // `drive` modifies clear or control.
+    return bits != 0 && (!(bits & NBT_DIAG_DRIVE) || (bits & (NBT_DIAG_CLEAR | NBT_DIAG_CONTROL)));
 }
 
 } // namespace
@@ -87,9 +92,15 @@ unsigned nbt_diag_request_class(const uint8_t *uds, size_t size) {
         return size >= 2 ? NBT_DIAG_CODES : 0;
     case 0x14: // clear fault codes: a 3-byte group
         return size == 4 ? NBT_DIAG_CLEAR : 0;
-    case 0x10: // the default or the extended session, before a clear
-        return size == 2 && ((uds[1] & 0x7f) == 0x01 || (uds[1] & 0x7f) == 0x03) ? NBT_DIAG_CLEAR
+    case 0x10: // the default or the extended session, before a clear or a control
+        return size == 2 && ((uds[1] & 0x7f) == 0x01 || (uds[1] & 0x7f) == 0x03) ? NBT_DIAG_SESSION
                                                                                  : 0;
+    case 0x2E: // write data by identifier: the identifier and at least one byte
+    case 0x2F: // input/output control by identifier: the identifier and its parameter
+        return size >= 4 ? NBT_DIAG_CONTROL : 0;
+    case 0x31: // routine control: start, stop or results of a routine
+        return size >= 4 && (uds[1] & 0x7f) >= 0x01 && (uds[1] & 0x7f) <= 0x03 ? NBT_DIAG_CONTROL
+                                                                               : 0;
     default:
         return 0;
     }
@@ -103,7 +114,10 @@ unsigned nbt_diag_policy_allows(const nbt_diag_policy *policy, unsigned ecu, con
     }
     for (unsigned i = 0; i < policy->count && i < NBT_DIAG_RULES; ++i) {
         if (policy->rules[i].ecu == ecu) {
-            return (policy->rules[i].classes & kind) ? kind : 0;
+            const unsigned classes = policy->rules[i].classes;
+            const unsigned needed =
+                kind == NBT_DIAG_SESSION ? (NBT_DIAG_CLEAR | NBT_DIAG_CONTROL) : kind;
+            return (classes & needed) ? kind | (classes & NBT_DIAG_DRIVE) : 0;
         }
     }
     return 0;

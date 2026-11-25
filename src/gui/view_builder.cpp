@@ -171,9 +171,7 @@ void buildReviewConfirm(const UiController &ui, UiView *v) {
     if (ui.review.developer[0]) {
         addText(v, T_DEVELOPER_KEY, ui.review.developer);
     }
-    if (ui.review.clearsCodes) {
-        addText(v, T_MAY_CLEAR_CODES);
-    }
+    reviewPermissions(ui.review, update, v);
     if (ui.screen == Review) {
         addItem(v, text(T_REJECT));
         addItem(v, text(T_INSTALL));
@@ -315,6 +313,10 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
     }
     v.focus = (v.itemCount && ui.focus < v.itemCount) ? ui.focus : 0;
     return core::Status();
+}
+
+void ViewBuilder::addWrapped(UiView *v, const char *text) {
+    nbt::gui::addWrapped(v, text);
 }
 
 } // namespace gui

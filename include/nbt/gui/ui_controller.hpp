@@ -95,8 +95,8 @@ struct WorkerStatus {
     uint64_t sequence;
     char digest[65];
     char message[128];
-    char developer[33]; // the developer key's name; empty for the apps key
-    bool clearsCodes;   // its diagnostics policy may clear fault codes
+    char developer[33];                   // the developer key's name; empty for the apps key
+    unsigned permissions, newPermissions; // NBT_PERM_*, and those an update adds
 };
 
 struct Request {

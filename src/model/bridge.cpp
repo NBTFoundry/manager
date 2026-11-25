@@ -47,6 +47,19 @@ bool declared(const nbt_bridge_requirement *v, const char *name) {
     return nbt_bridge_cap_has(v->uses, name) || nbt_bridge_cap_has(v->optional, name);
 }
 
+// A `tx` rule for any FBlock or naming a reserved function: bridge 1.9.
+bool sendsBeyond18(const char *most) {
+    for (const char *p = most; (p = strstr(p, "tx:")) != NULL; p += 3) {
+        const char *end = strchr(p, ',');
+        const size_t n = end ? static_cast<size_t>(end - p) : strlen(p);
+        if (p[3] == '*' ||
+            (n >= 6 && !memcmp(p + n - 4, ".00", 3) && p[n - 1] >= '0' && p[n - 1] <= '2')) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool validRequirement(const nbt_bridge_requirement *v) {
     char name[NBT_BRIDGE_NAME_MAX + 1];
     if (!v || !memchr(v->uses, 0, sizeof(v->uses)) ||
@@ -68,7 +81,8 @@ bool validRequirement(const nbt_bridge_requirement *v) {
     }
     if (nbt_bridge_cap_has(v->uses, "most") || nbt_bridge_cap_has(v->optional, "most")) {
         if (!v->most[0] || nbt_most_policy_parse(v->most, NULL) ||
-            (v->major == 1 && v->minor < 2 && strstr(v->most, "sub:"))) {
+            (v->major == 1 && v->minor < 2 && strstr(v->most, "sub:")) ||
+            (v->major == 1 && v->minor < 9 && sendsBeyond18(v->most))) {
             return false;
         }
     } else if (v->most[0]) {
@@ -102,10 +116,20 @@ bool validRequirement(const nbt_bridge_requirement *v) {
     if (declared(v, "service") && ((v->major == 1 && v->minor < 9) || !declared(v, "show"))) {
         return false;
     }
-    // `diag` came with bridge 1.8.
+    // `diag` came with bridge 1.8, its classes control and drive with 1.9.
     if (declared(v, "diag")) {
-        return v->diag[0] && !nbt_diag_policy_parse(v->diag, NULL) &&
-               !(v->major == 1 && v->minor < 8);
+        nbt_diag_policy policy;
+        if (!v->diag[0] || nbt_diag_policy_parse(v->diag, &policy) ||
+            (v->major == 1 && v->minor < 8)) {
+            return false;
+        }
+        for (unsigned i = 0; i < policy.count; ++i) {
+            if ((policy.rules[i].classes & (NBT_DIAG_CONTROL | NBT_DIAG_DRIVE)) && v->major == 1 &&
+                v->minor < 9) {
+                return false;
+            }
+        }
+        return true;
     }
     return !v->diag[0];
 }

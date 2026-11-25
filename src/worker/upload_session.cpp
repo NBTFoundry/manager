@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/worker/worker.hpp"
 
+#include "nbt/permissions.h"
+
 #include "nbt/bridge.h"
 #include "nbt/fs.h"
 #include "nbt/package/package_verifier.hpp"
@@ -85,6 +87,7 @@ core::Status Worker::openSession(const char *app, uint64_t nowMs) {
     }
     memset(&state_.pending, 0, sizeof(state_.pending));
     state_.signer[0] = state_.developer[0] = 0;
+    state_.permissions = state_.newPermissions = 0;
     state_.state = State::Session;
     snprintf(state_.message, sizeof(state_.message), "Ready for upload");
     return core::Status();
@@ -129,6 +132,7 @@ core::Status Worker::reject(const char *reason) {
     state_.state = State::Failed;
     memset(&state_.pending, 0, sizeof(state_.pending));
     state_.signer[0] = state_.developer[0] = 0;
+    state_.permissions = state_.newPermissions = 0;
     return core::Status::error(EINVAL, "package rejected");
 }
 
@@ -252,6 +256,12 @@ void Worker::verified() {
         (void)reject(reason);
         return;
     }
+    // What the driver approves (docs/permissions.md); for an update, what it adds.
+    state_.permissions = nbt_permissions(&state_.pending.bridge);
+    state_.newPermissions = state_.permissions;
+    if (!state_.newApp && !nbt_tx_installed(root_.legacy(), state_.app, &installed)) {
+        state_.newPermissions &= ~nbt_permissions(&installed.bridge);
+    }
     state_.state = State::Verified;
     snprintf(state_.message, sizeof(state_.message), "Package verified; approve in iDrive");
 }
@@ -277,6 +287,7 @@ void Worker::cancel(uint64_t nowMs, Ended ended) {
     state_.managerUpdate = false;
     memset(&state_.pending, 0, sizeof(state_.pending));
     state_.signer[0] = state_.developer[0] = 0;
+    state_.permissions = state_.newPermissions = 0;
     state_.state = State::Idle;
     snprintf(state_.message, sizeof(state_.message), "%s",
              ended == Ended::Expired ? "Session expired" : "Session closed");

@@ -52,13 +52,17 @@ declared, required or optional. It is one line of comma-separated rules:
 - `<FB>` and `<II>` are two upper-case hex digits (FBlock, instance) and
   `<FFF>` is three (the 12-bit function id). `*` stands for any instance or
   function.
-- In `rx` rules only, `*.*.*` stands for every message (a bus monitor). A
-  wildcard FBlock with a fixed instance or function is not allowed.
+- `*.*.*` stands for every message in `rx` (a bus monitor) and, from bridge
+  1.9, every command in `tx`. A wildcard FBlock with a fixed instance or
+  function is not allowed.
 - `ctl` keys are concrete. They do not imply `rx`: declare `rx` for the
   messages the registration brings.
 - `tx` does not imply `rx`, so declare `rx` for the replies too.
 - `sub` values are concrete, exclude functions 0x000-0x002, and must match an
   `rx` rule anywhere in the policy. They do not grant `tx` or `ctl`.
+- A `tx` rule naming one of the reserved functions 0x000-0x002 allows sending
+  to it (bridge 1.9); a wildcard function never covers them. The install
+  review lists `tx` rules as permissions ([permissions.md](permissions.md)).
 - NetBlock (FB 01) `sub` rules are refused: its different notification
   interface has not been traced on this firmware.
 - The limits are 640 bytes, 48 rules, 16 `ctl` rules and 32 `sub` rules. Rules are unique.
@@ -232,8 +236,8 @@ SEND asks the host to send one command:
 
 1. `op` must be 0-8 (Set, Get, SetGet, Increment, Decrement, GetInterface,
    StartResultAck, AbortAck, StartAck). Otherwise BAD_REQUEST.
-2. Functions 0x000-0x002 are reserved and return NOT_ALLOWED. Otherwise
-   FBlock, instance and function must match a `tx` rule. Otherwise NOT_ALLOWED.
+2. FBlock, instance and function must match a `tx` rule; functions
+   0x000-0x002 only a rule naming them. Otherwise NOT_ALLOWED.
 3. The link must be up. Otherwise NOT_UP.
 4. The destination is an addressable MOST node (`0x0100-0x4FFF`, covering
    ring nodes and internal HU service nodes such as `0x203F` while excluding

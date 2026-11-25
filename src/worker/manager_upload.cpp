@@ -106,6 +106,7 @@ core::Status Worker::bindManager() {
     }
     memset(&state_.pending, 0, sizeof(state_.pending));
     state_.signer[0] = state_.developer[0] = 0;
+    state_.permissions = state_.newPermissions = 0;
     snprintf(state_.pending.app, sizeof(state_.pending.app), "manager");
     snprintf(state_.pending.version, sizeof(state_.pending.version), "%s", release.version);
     state_.pending.sequence = release.sequence;

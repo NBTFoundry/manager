@@ -6,7 +6,7 @@ VERSION = re.compile(r"([1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{0,23}\Z")
 CURRENT = ("1.9|show,status,live-settings,most,gamepad,controller,files,hold,car-data,net,runner,diag,service",)  # nbt_bridge_current
 # One rule of a MOST policy (src/model/most_policy.cpp, docs/most-bridge.md).
-MOST_RULE = re.compile(r"(?:rx:\*\.\*\.\*|(?:rx|tx):[0-9A-F]{2}\.(?:\*|[0-9A-F]{2})\.(?:\*|[0-9A-F]{3})"
+MOST_RULE = re.compile(r"(?:(?:rx|tx):\*\.\*\.\*|(?:rx|tx):[0-9A-F]{2}\.(?:\*|[0-9A-F]{2})\.(?:\*|[0-9A-F]{3})"
                        r"|ctl:[0-9A-F]{2}\.[0-9A-F]{2}|sub:[0-9A-F]{2}\.[0-9A-F]{2}\.[0-9A-F]{3})\Z")
 MOST_MAX, MOST_RULES, MOST_CONTROLS = 640, 48, 16
 # A files policy (src/model/files_policy.cpp, docs/files-bridge.md).
@@ -19,7 +19,7 @@ CDS_MAX, CDS_NAMES, CDS_NAME_MAX = 255, 16, 64
 NET_RULE = re.compile(r"tcp:([1-9][0-9]{0,4})@((?:uap0|wfd0)(?:\+(?:uap0|wfd0))?)\Z")
 NET_MAX, NET_RULES = 96, 4
 # A diagnostics policy (src/model/diag_policy.cpp, docs/diag-bridge.md).
-DIAG_RULE = re.compile(r"([0-9a-f]{2}):(read(?:\+codes)?(?:\+clear)?|codes(?:\+clear)?|clear)\Z")
+DIAG_CLASSES = ("read", "codes", "clear", "control", "drive")
 DIAG_MAX, DIAG_RULES = 160, 8
 
 
@@ -45,7 +45,7 @@ def most_policy(text):
             sum(r.startswith("ctl:") for r in rules) > MOST_CONTROLS or
             sum(r.startswith("sub:") for r in rules) > 32 or
             any(r.startswith("sub:01.") for r in rules) or
-            any(r.startswith(("tx:", "sub:")) and r.rsplit(".", 1)[1] in ("000", "001", "002") for r in rules)):
+            any(r.startswith("sub:") and r.rsplit(".", 1)[1] in ("000", "001", "002") for r in rules)):
         raise ValueError("invalid MOST policy (see docs/most-bridge.md)")
     receivers = [r[3:].split(".") for r in rules if r.startswith("rx:")]
     for rule in rules:
@@ -101,12 +101,19 @@ def net_policy(text):
 
 def diag_policy(text):
     """Validates a diagnostics policy as the C parser does; returns it unchanged."""
-    rules = [DIAG_RULE.fullmatch(r) for r in text.split(",")]
-    ecus = [int(m.group(1), 16) for m in rules if m]
-    if (not text or len(text) > DIAG_MAX or len(rules) > DIAG_RULES or not all(rules) or
+    def valid(rule):
+        ecu, _, classes = rule.partition(":")
+        names = classes.split("+")
+        order = [DIAG_CLASSES.index(n) for n in names if n in DIAG_CLASSES]
+        return (re.fullmatch(r"[0-9a-f]{2}", ecu) is not None and len(order) == len(names)
+                and order == sorted(set(order))
+                and ("drive" not in names or "clear" in names or "control" in names))
+    rules = text.split(",") if text else []
+    ecus = [int(r[:2], 16) for r in rules if valid(r)]
+    if (not text or len(text) > DIAG_MAX or len(rules) > DIAG_RULES or len(ecus) != len(rules) or
             ecus != sorted(set(ecus))):
-        raise ValueError("invalid diagnostics policy: <ecu hex>:read[+codes][+clear],... "
-                         "ECUs ascending, at most 8")
+        raise ValueError("invalid diagnostics policy: <ecu hex>:read[+codes][+clear][+control]"
+                         "[+drive],... ECUs ascending, at most 8; drive with clear or control")
     return text
 
 
@@ -118,6 +125,10 @@ def requirement(ver, uses, optional, most="", files="", cds="", net="", diag="")
     major, minor = version(ver)
     if major == 1 and minor < 2 and any(r.startswith("sub:") for r in most.split(",")):
         raise ValueError("MOST subscriptions require bridge 1.2")
+    if major == 1 and minor < 9 and any(
+            r.startswith("tx:") and (r.startswith("tx:*") or r.rsplit(".", 1)[1] in ("000", "001", "002"))
+            for r in most.split(",") if most):
+        raise ValueError("sending to any FBlock or a reserved function requires bridge 1.9")
     required, wanted = caps(uses), caps(optional)
     if required & wanted:
         raise ValueError("required and optional bridge capabilities overlap")
@@ -137,6 +148,8 @@ def requirement(ver, uses, optional, most="", files="", cds="", net="", diag="")
         raise ValueError("a diagnostics policy (--bridge-diag) is required exactly when diag is declared")
     if diag and major == 1 and minor < 8:
         raise ValueError("diag requires bridge 1.8")
+    if re.search(r"[:+](control|drive)\b", diag) and major == 1 and minor < 9:
+        raise ValueError("diag control and drive require bridge 1.9")
     if "service" in required | wanted and ((major == 1 and minor < 9) or "show" not in required | wanted):
         raise ValueError("service requires bridge 1.9 and show (docs/service-bridge.md)")
     # A payload built without the QNX SDP cannot run without the runner.

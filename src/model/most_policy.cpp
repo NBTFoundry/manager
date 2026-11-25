@@ -58,8 +58,10 @@ bool parseRule(const char *p, size_t n, nbt_most_rule *rule) {
     }
     const char *dot1 =
         static_cast<const char *>(memchr(body, '.', static_cast<size_t>(end - body)));
-    if (!dot1 || !parseField(body, static_cast<size_t>(dot1 - body), 2, rule->kind == NBT_MOST_RX,
-                             &rule->fblock)) {
+    // Any FBlock: every message for `rx`, every command for `tx` (bridge 1.9).
+    if (!dot1 ||
+        !parseField(body, static_cast<size_t>(dot1 - body), 2,
+                    rule->kind == NBT_MOST_RX || rule->kind == NBT_MOST_TX, &rule->fblock)) {
         return false;
     }
     const char *dot2 =
@@ -79,8 +81,9 @@ bool parseRule(const char *p, size_t n, nbt_most_rule *rule) {
     if (rule->fblock == NBT_MOST_ANY && (rule->inst != NBT_MOST_ANY || rule->fkt != NBT_MOST_ANY)) {
         return false;
     }
-    if ((rule->kind == NBT_MOST_TX || rule->kind == NBT_MOST_SUB) && rule->fkt != NBT_MOST_ANY &&
-        rule->fkt <= 2) {
+    // The reserved functions 0x000-0x002: never subscribed to; sent to only
+    // when a `tx` rule names one (bridge 1.9).
+    if (rule->kind == NBT_MOST_SUB && rule->fkt != NBT_MOST_ANY && rule->fkt <= 2) {
         return false;
     }
     if (rule->kind == NBT_MOST_SUB && rule->fblock == 1) {
@@ -169,7 +172,19 @@ bool MostPolicy::receives(unsigned fblock, unsigned instance, unsigned function)
 }
 
 bool MostPolicy::sends(unsigned fblock, unsigned instance, unsigned function) const {
-    return function > 2 && matchesKind(value_, NBT_MOST_TX, fblock, instance, function);
+    if (function > 2) {
+        return matchesKind(value_, NBT_MOST_TX, fblock, instance, function);
+    }
+    // A reserved function only when a rule names it: a wildcard never covers it.
+    for (unsigned i = 0; i < value_.count && i < NBT_MOST_POLICY_RULES; ++i) {
+        const nbt_most_rule &r = value_.rules[i];
+        if (r.kind == NBT_MOST_TX && static_cast<unsigned>(r.fkt) == function &&
+            (r.fblock == NBT_MOST_ANY || static_cast<unsigned>(r.fblock) == fblock) &&
+            (r.inst == NBT_MOST_ANY || static_cast<unsigned>(r.inst) == instance)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 size_t MostPolicy::controls(uint16_t keys[NBT_MOST_POLICY_CONTROLS]) const {

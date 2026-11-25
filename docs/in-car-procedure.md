@@ -367,10 +367,11 @@ apps key, and `hello-lvgl-dev-0.1.0.nbt`. Keep App Manager open.
    its LVGL screen follows the controller.
 8. Uninstall Hello and Hello LVGL from the phone; remove the key.
 
-## 7c. Diagnostics
+## 7c. Permissions
 
-1. Phone: import `test-diag-v1.nbt` and install it. The car's review
-   shows "Can clear fault codes (only when parked)". Reject.
+1. Phone: import `test-diag-v1.nbt`. Its details on the phone and the car's
+   review show "Uses: engine data, MOST bus" and "Can: clear fault codes,
+   control the car, send any car command (even while driving)". Reject.
 2. Install `test-v2.nbt` right after: the upload is accepted (a rejected
    new application no longer blocks the next one). Reject or install.
 3. Gauges reads the engine through the manager's diagnostics: its own

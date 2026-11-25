@@ -44,6 +44,8 @@ struct WorkerState {
     // its name, which the car's review shows.
     char signer[65] = {};
     char developer[33] = {};
+    // The pending package's permissions, and those an update adds (nbt/permissions.h).
+    unsigned permissions = 0, newPermissions = 0;
     nbt_package pending;
     char app[NBT_ID_MAX + 1];
     char hostApp[NBT_ID_MAX + 1];

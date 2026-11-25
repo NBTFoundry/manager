@@ -398,7 +398,10 @@ static void diag_policy_and_wire(void) {
                          "12:read,",
                          "12:READ",
                          "1g:read",
-                         "12:read+"};
+                         "12:read+",
+                         "12:read+drive",
+                         "12:drive",
+                         "12:control+clear"};
     unsigned i;
     for (i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
         assert(nbt_diag_policy_parse(bad[i], NULL));
@@ -417,16 +420,35 @@ static void diag_policy_and_wire(void) {
     assert(nbt_diag_request_class(define, sizeof(define)) == NBT_DIAG_READ);
     assert(nbt_diag_request_class(codes, sizeof(codes)) == NBT_DIAG_CODES);
     assert(nbt_diag_request_class(clear, sizeof(clear)) == NBT_DIAG_CLEAR);
-    assert(nbt_diag_request_class(session, sizeof(session)) == NBT_DIAG_CLEAR);
+    assert(nbt_diag_request_class(session, sizeof(session)) == NBT_DIAG_SESSION);
     assert(!nbt_diag_request_class(programming, sizeof(programming)));
-    assert(!nbt_diag_request_class(write, sizeof(write)));
-    assert(!nbt_diag_request_class(routine, sizeof(routine)));
+    assert(nbt_diag_request_class(write, sizeof(write)) == NBT_DIAG_CONTROL);
+    assert(nbt_diag_request_class(routine, sizeof(routine)) == NBT_DIAG_CONTROL);
     assert(!nbt_diag_request_class(security, sizeof(security)));
     assert(!nbt_diag_request_class(reset, sizeof(reset)));
     assert(nbt_diag_policy_allows(&policy, 0x12, clear, sizeof(clear)) == NBT_DIAG_CLEAR);
     assert(!nbt_diag_policy_allows(&policy, 0x40, clear, sizeof(clear)));
     assert(!nbt_diag_policy_allows(&policy, 0x60, read, sizeof(read)));
     assert(!nbt_diag_policy_allows(&policy, 0x13, read, sizeof(read)));
+    // Control and drive (bridge 1.9): writes, routines and input/output control,
+    // parked unless `drive`; a session with clear or control.
+    const uint8_t io[] = {0x2f, 0x60, 0x50, 0x03, 0x01}, ioShort[] = {0x2f, 0x60, 0x50},
+                  routineBad[] = {0x31, 0x04, 0x0f, 0x0b};
+    assert(nbt_diag_request_class(io, sizeof(io)) == NBT_DIAG_CONTROL);
+    assert(!nbt_diag_request_class(ioShort, sizeof(ioShort)));
+    assert(!nbt_diag_request_class(routineBad, sizeof(routineBad)));
+    assert(nbt_diag_policy_allows(&policy, 0x12, session, sizeof(session)) == NBT_DIAG_SESSION);
+    assert(!nbt_diag_policy_allows(&policy, 0x40, session, sizeof(session)));
+    assert(!nbt_diag_policy_allows(&policy, 0x12, io, sizeof(io)));
+    assert(!nbt_diag_policy_parse("12:read+control,29:clear+drive,40:control+drive", &policy));
+    assert(nbt_diag_policy_allows(&policy, 0x12, io, sizeof(io)) == NBT_DIAG_CONTROL);
+    assert(nbt_diag_policy_allows(&policy, 0x12, session, sizeof(session)) == NBT_DIAG_SESSION);
+    assert(nbt_diag_policy_allows(&policy, 0x29, clear, sizeof(clear)) ==
+           (NBT_DIAG_CLEAR | NBT_DIAG_DRIVE));
+    assert(!nbt_diag_policy_allows(&policy, 0x29, io, sizeof(io)));
+    assert(nbt_diag_policy_allows(&policy, 0x40, write, sizeof(write)) ==
+           (NBT_DIAG_CONTROL | NBT_DIAG_DRIVE));
+    assert(!nbt_diag_policy_allows(&policy, 0x40, read, sizeof(read)));
     uint8_t wire[NBT_DIAG_WIRE_MAX];
     nbt_diag_request request;
     nbt_diag_reply reply;
@@ -462,6 +484,12 @@ static void diag_policy_and_wire(void) {
     char missing[] = "bridge=1.8\nbridge-uses=diag\nbridge-optional=\n";
     p = missing;
     assert(nbt_bridge_requirement_parse(&p, "", &need)); /* diag needs its policy */
+    char control18[] = "bridge=1.8\nbridge-uses=diag\nbridge-optional=\nbridge-diag=12:control\n";
+    p = control18;
+    assert(nbt_bridge_requirement_parse(&p, "", &need)); /* control came with 1.9 */
+    char control19[] = "bridge=1.9\nbridge-uses=diag\nbridge-optional=\nbridge-diag=12:control\n";
+    p = control19;
+    assert(!nbt_bridge_requirement_parse(&p, "", &need));
 }
 
 /* The gateway other diagnostic tools on the head unit are set to. */

@@ -10,6 +10,7 @@
 #include "nbt/core/text.hpp"
 #include "nbt/fs.h"
 #include "nbt/log.h"
+#include "nbt/permissions.h"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
 #include "nbt/worker/ipc_dispatcher.hpp"
@@ -122,18 +123,23 @@ core::Status IpcDispatcher::handleStatus() {
         }
     }
     // The pending package's ninth field names the developer whose key signed
-    // it, a tenth what the review must tell (it may clear fault codes).
+    // it, a tenth its permissions and those an update adds (docs/permissions.md).
     const bool reviewed = state.state == State::Verified || state.state == State::Installing;
     const bool developer = reviewed && state.developer[0];
-    const bool clears = reviewed && strstr(state.pending.bridge.diag, "clear");
+    const bool permissions = reviewed && state.permissions;
+    char tenth[24] = "\t";
+    if (!permissions ||
+        nbt_permissions_format(state.permissions, state.newPermissions, tenth + 1, 23) < 0) {
+        tenth[0] = 0;
+    }
     const int length =
         snprintf(output, sizeof(output), "STATUS\t%d\t%s\t%s\t%s\t%llu\t%s\t%s%s%s%s\n",
                  stateNumber, app, version, pending, sequence, hash,
-                 state.message[0] ? state.message : "-", developer || clears ? "\t" : "",
-                 developer ? state.developer
-                 : clears  ? "-"
-                           : "",
-                 clears ? "\tclear-codes" : "");
+                 state.message[0] ? state.message : "-", developer || permissions ? "\t" : "",
+                 developer     ? state.developer
+                 : permissions ? "-"
+                               : "",
+                 tenth);
     return length < 0 || length >= static_cast<int>(sizeof(output))
                ? core::Status::error(ERANGE, "status response too large")
                : control_.respond(output);

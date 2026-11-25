@@ -245,7 +245,9 @@ void DiagService::answer(const uint8_t *data, size_t size, uint64_t now) {
         reply(request.ecu, request.id, NBT_DIAG_REFUSED, NBT_DIAG_VIA_NONE, NULL, 0);
         return;
     }
-    if (kind == NBT_DIAG_CLEAR && !parked()) {
+    // What changes the car waits for it to stand still, unless allowed while moving.
+    const bool changes = (kind & (NBT_DIAG_CLEAR | NBT_DIAG_CONTROL | NBT_DIAG_SESSION)) != 0;
+    if (changes && !(kind & NBT_DIAG_DRIVE) && !parked()) {
         reply(request.ecu, request.id, NBT_DIAG_NOT_PARKED, NBT_DIAG_VIA_NONE, NULL, 0);
         return;
     }
@@ -271,8 +273,9 @@ void DiagService::answer(const uint8_t *data, size_t size, uint64_t now) {
     const diag::HsfzTester::Result result =
         hsfz_.request(request.ecu, request.uds, request.size, answerBytes, sizeof(answerBytes),
                       &answerSize, request.timeout_ms);
-    if (kind == NBT_DIAG_CLEAR) {
-        nbt_logf("host %s: diag clear %02x on %02x: %s", app_, request.uds[0], request.ecu,
+    if (kind & (NBT_DIAG_CLEAR | NBT_DIAG_CONTROL)) {
+        nbt_logf("host %s: diag %s %02x on %02x: %s", app_,
+                 kind & NBT_DIAG_CLEAR ? "clear" : "control", request.uds[0], request.ecu,
                  result == diag::HsfzTester::Ok && answerSize && answerBytes[0] != 0x7F
                      ? "done"
                      : "not done");

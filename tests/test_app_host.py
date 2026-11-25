@@ -1196,6 +1196,44 @@ event("exit")
         self.assertFalse(want.exists())
         self.assertEqual(command("QUIT"), "OK")
 
+    def test_bridge_19_diag_control_waits_for_parked_unless_drive(self):
+        """`control` (bridge 1.9): writes, input/output control and routines reach
+        the ECU only standing still, unless the rule also has `drive`; security
+        access stays refused (docs/diag-bridge.md)."""
+        gateway = FakeHsfzGateway()
+        self.addCleanup(gateway.close)
+        self.enterContext(mock.patch.dict(os.environ,
+                                          {"NBT_DIAG_GATEWAY": f"127.0.0.1:{gateway.port}"}))
+        self.script_app(
+            "import socket, struct\n"
+            "os.write(3, b'R')\n"
+            "link = socket.socket(fileno=10)\n"
+            "def ask(ecu, uds, ident):\n"
+            "    link.send(bytes([1, ecu]) + struct.pack('<HH', ident, 0) + uds)\n"
+            "    reply = link.recv(8192)\n"
+            "    print('reply %d status %d' % (ident, reply[4]), flush=True)\n"
+            "ask(0x12, bytes.fromhex('2f60500301'), 1)\n"
+            "ask(0x29, bytes.fromhex('2f60500301'), 2)\n"
+            "ask(0x29, bytes.fromhex('31010f0b'), 3)\n"
+            "ask(0x12, bytes.fromhex('2701'), 4)\n"
+            "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
+        record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE6\n")
+        (self.root / "state/test/installed").write_text(
+            record + "bridge=1.9\nbridge-uses=\nbridge-optional=diag\n"
+            "bridge-diag=12:control+drive,29:read+control\n")
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "reply 4 status" in self.app_log())
+        log = self.app_log()
+        self.assertIn("reply 1 status 0", log)  # while moving: `drive`
+        self.assertIn("reply 2 status 4", log)  # not known to stand still
+        self.assertIn("reply 3 status 4", log)
+        self.assertIn("reply 4 status 2", log)  # security access: never
+        self.assertEqual([(dst, uds.hex()) for _, dst, uds in gateway.requests],
+                         [(0x12, "2f60500301")])
+        self.assertEqual(command("STOP test"), "OK")
+        self.assertEqual(command("QUIT"), "OK")
+
     def test_diag_uses_the_gateway_other_tools_are_set_to(self):
         """/var/opt/hmi/data/ID5/gateway-ip.txt, which other diagnostic tools on
         the head unit read, names the gateway when it is set (docs/diag-bridge.md)."""

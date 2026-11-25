@@ -15,13 +15,15 @@ hex digits in ascending order, classes in this order.
 | --- | --- | --- |
 | `read` | `22` read data, `2C 01/02/03` dynamic identifiers, `3E 00` tester present | |
 | `codes` | `19` read fault codes | |
-| `clear` | `14` clear fault codes, `10 01/03` session | the car standing still |
+| `clear` | `14` clear fault codes | the car standing still |
+| `control` (1.9) | `2E` write data, `2F` input/output control, `31 01/02/03` routines | the car standing still |
+| `drive` (1.9) | lifts "standing still" from `clear` and `control` of the rule | with one of them |
 
-Every other request is refused on the head unit: writes (`2E`), routines
-(`31`), input/output control (`2F`), security access (`27`), resets (`11`),
-programming and transfers. Example: `12:read+codes+clear` (the engine).
-The install review on the car says when a policy holds `clear` ("Can clear
-fault codes (only when parked)").
+`clear` and `control` allow `10 01/03` (default and extended session), standing
+still too unless `drive`. Every other request is refused on the head unit:
+security access (`27`), resets (`11`), programming and transfers. Example:
+`12:read+codes+clear` (the engine). The install review lists what a policy
+allows as permissions ([permissions.md](permissions.md)).
 
 ## Wire
 

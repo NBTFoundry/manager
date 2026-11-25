@@ -33,6 +33,9 @@ The current provider is **bridge 1.9 with
 | `diag` (requests to the car's control units) | 1.8 | [9](#9-diagnostics-capability-diag-bridge-18), [diag-bridge.md](diag-bridge.md) |
 | `service` (a background service beside the screen) | 1.9 | [10](#10-background-service-capability-service-bridge-19), [service-bridge.md](service-bridge.md) |
 
+What an application declares is shown to the driver as permissions before it
+installs ([permissions.md](permissions.md)).
+
 A favourite entry is designed in [bridge-design.md](bridge-design.md); no bridge
 version provides it yet.
 

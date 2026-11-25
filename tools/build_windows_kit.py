@@ -110,10 +110,11 @@ TEST_FORMS = {"test": ("1.5", "show,status,live-settings", "test-", ""),
               "test-runner": ("1.7", "show,status,live-settings,runner", "test-runner-", ".so")}
 
 
-# "test-diag": test v1 declaring diagnostics that may clear fault codes, for the
-# install review's line about it (it never asks the car anything).
-TEST_DIAG = ("--bridge", "1.8", "--bridge-uses", "show,status,live-settings",
-             "--bridge-optional", "controller,diag", "--bridge-diag", "12:read+codes+clear")
+# "test-diag": test v1 declaring every dangerous permission, for the install
+# review's permission lines (docs/permissions.md; it never asks the car anything).
+TEST_DIAG = ("--bridge", "1.9", "--bridge-uses", "show,status,live-settings",
+             "--bridge-optional", "controller,diag,most",
+             "--bridge-diag", "12:read+codes+clear+control+drive", "--bridge-most", "rx:*.*.*,tx:*.*.*")
 # "test-service": test v1 with its background service (bridge 1.9), which
 # notes in the log every 30 s that it still runs.
 TEST_SERVICE = ("--bridge", "1.9", "--bridge-uses", "show,status,live-settings",
@@ -288,7 +289,7 @@ def main():
            if step else "") +
         f"Test applications (compatibility {TEST_COMPAT}): test, an ordinary QNX program (v1 is inside\n"
         "the installer), test-runner, run by the manager's nbt-runner, test-diag, test v1\n"
-        "declaring diagnostics that may clear fault codes, and test-service, test v1 with its\n"
+        "declaring every dangerous permission, and test-service, test v1 with its\n"
         "background service.\n", newline="\r\n")
     # No line of either private key may appear in any kit file. (The installer
     # contains PEM labels such as "PRIVATE KEY" from its libraries, so search

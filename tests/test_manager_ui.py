@@ -284,15 +284,27 @@ class ManagerUiTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return package.read_bytes()
 
-    def test_review_tells_when_an_app_may_clear_fault_codes(self):
+    def test_review_lists_the_permissions_of_a_new_app(self):
+        """docs/permissions.md: what a new application uses, then what it can do
+        to the car, from its signed declaration."""
         self.pair_phone()
-        diag = lambda policy: ["--bridge", "1.8", "--bridge-optional", "diag", "--bridge-diag", policy]
-        clears = "Can clear fault codes (only when parked)"
+        bridge = lambda *args: ["--bridge", "1.9", *args]
+        cases = (
+            (bridge("--bridge-optional", "diag", "--bridge-diag", "12:read+codes+clear,29:read"),
+             ["Uses: engine data", "Can: clear fault codes (when parked)"]),
+            (bridge("--bridge-optional", "diag", "--bridge-diag", "12:read+codes"), ["Uses: engine data"]),
+            (bridge("--bridge-optional", "diag,most,service", "--bridge-uses", "show",
+                    "--bridge-diag", "12:read+control+drive", "--bridge-most", "rx:*.*.*,tx:*.*.*"),
+             ["Uses: background, engine data, MOST bus",
+              "Can: control the car, send any car command (even while driving)"]),
+        )
         # Rejecting a new application leaves nothing that blocks the next upload.
-        for policy, shown in (("12:read+codes+clear,29:read", True), ("12:read+codes", False)):
-            view = self.upload_review(self.signed(self.key, "diagapp", "v1", 1, policy.encode(),
-                                                  diag(policy)))
-            self.assertEqual(clears in view.lines, shown, view.lines)
+        for i, (args, lines) in enumerate(cases):
+            view = self.upload_review(self.signed(self.key, "permapp", "v1", 1, str(i).encode(), args))
+            text = " ".join(view.lines)  # a long line wraps onto the next
+            for line in lines:
+                self.assertIn(line, text)
+            self.assertEqual(text.count("Can:"), sum(line.startswith("Can:") for line in lines), text)
             self.assertFalse(any(line.startswith("Developer key") for line in view.lines))
             self.assertEqual(self.send("select").screen, APPS)  # Reject
         self.finish()

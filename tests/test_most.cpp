@@ -32,7 +32,6 @@ static void policy(void) {
         "rx:05:00:621",
         "rx:05.00",
         "rx:05.00.621.1",
-        "tx:*.*.*",
         "tx:*.00.621",
         "rx:*.00.*",
         "rx:*.*.621",
@@ -46,9 +45,6 @@ static void policy(void) {
         "rx:05.00.621 ",
         " rx:05.00.621",
         "rx:05.00.*,rx:05.00.*",
-        "tx:05.00.000",
-        "tx:05.*.001",
-        "tx:05.00.002",
         "sub:05.00.621",
         "rx:05.00.*,sub:05.*.621",
         "rx:*.*.*,sub:*.00.621",
@@ -94,8 +90,16 @@ static void policy(void) {
     assert(nbt_most_policy_receives(&p, 0x20, 0x03, 0xc08));
     assert(nbt_most_policy_sends(&p, 0x82, 0x00, 0x400));
     for (unsigned f = 0; f <= 2; ++f) {
-        assert(!nbt_most_policy_sends(&p, 0x82, 0x00, f));
+        assert(!nbt_most_policy_sends(&p, 0x82, 0x00, f)); /* a wildcard never covers them */
     }
+    /* Bridge 1.9: any command, and a reserved function a rule names. */
+    nbt_most_policy any;
+    assert(!nbt_most_policy_parse("tx:*.*.*,tx:05.*.001", &any));
+    assert(nbt_most_policy_sends(&any, 0x31, 0x02, 0x400) &&
+           nbt_most_policy_sends(&any, 0x05, 0x03, 1));
+    assert(!nbt_most_policy_sends(&any, 0x31, 0x02, 0x001) &&
+           !nbt_most_policy_sends(&any, 0x05, 0, 2));
+    assert(nbt_most_policy_parse("tx:*.00.*", NULL) && nbt_most_policy_parse("tx:*.*.400", NULL));
     assert(!nbt_most_policy_sends(&p, 0x82, 0x01, 0x400));
     /* rx does not imply tx, nor tx rx. */
     assert(!nbt_most_policy_sends(&p, 0x05, 0x00, 0x621));

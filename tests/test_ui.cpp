@@ -211,6 +211,17 @@ static int view_contains(const UiController *ui, const char *needle) {
     return v.modal.shown && (strstr(v.modal.title, needle) || strstr(v.modal.text, needle));
 }
 
+/* The view's lines as one text: a long line wraps onto the next. */
+static bool lines_contain(const UiController *ui, const char *needle) {
+    UiView v = view(ui);
+    char all[nbt::gui::kLines * (nbt::gui::kTextMax + 1) + 1] = "";
+    for (size_t i = 0; i < v.lineCount; ++i) {
+        strcat(all, i ? " " : "");
+        strcat(all, v.lines[i]);
+    }
+    return strstr(all, needle) != NULL;
+}
+
 static void press(UiController *ui, Key key, int expected) {
     const int actual = pressUi(ui, key);
     if (actual != expected) {
@@ -833,6 +844,13 @@ static void test_install_flow(void) {
     /* What the driver can act on, and nothing internal (no hash, no sequence). */
     CHECK(view_contains(&ui, "Installed: v1, new: v2") && !view_contains(&ui, "01234567") &&
           !view_contains(&ui, "sequence") && view(&ui).itemCount == 3);
+    /* An update lists only the permissions it adds; driving says how far control goes. */
+    CHECK(!view_contains(&ui, "Uses:") && !view_contains(&ui, "can:"));
+    poll_status(&ui, "STATUS\t2\ttest\tv1\tv2\t2\t" DIGEST_A
+                     "\tPackage verified; approve in iDrive\t-\tperm:60e:602");
+    CHECK(lines_contain(&ui, "Now also uses: car data") &&
+          lines_contain(&ui, "Now also can: control the car (even while driving)") &&
+          !lines_contain(&ui, "engine data"));
     /* Install is the one confirmation: no second screen. */
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
@@ -1339,15 +1357,22 @@ static void test_errors_and_misuse(void) {
                                     status) == 0 &&
           !strcmp(status.developer, "Alice Dev"));
     CHECK(UiController::parseStatus("STATUS\t0\t-\t-\t-\t0\t-\tIdle\t-", status) == 0 &&
-          !status.developer[0] && !status.clearsCodes);
-    // `clear-codes` when its diagnostics policy may clear fault codes.
+          !status.developer[0] && !status.permissions);
+    // Its permissions, and those an update adds (docs/permissions.md).
     CHECK(UiController::parseStatus("STATUS\t2\ttest\tv1\tv2\t2\t" DIGEST_A
-                                    "\tPackage verified; approve in iDrive\t-\tclear-codes",
+                                    "\tPackage verified; approve in iDrive\t-\tperm:304:200",
                                     status) == 0 &&
-          status.clearsCodes && !status.developer[0]);
-    CHECK(UiController::parseStatus("STATUS\t2\ttest\tv1\tv2\t2\t" DIGEST_A
-                                    "\tPackage verified; approve in iDrive\tAlice\tclear-all",
-                                    status) == -1);
+          status.permissions == 0x304 && status.newPermissions == 0x200 && !status.developer[0]);
+    const char *badPermissions[] = {"clear-codes", "perm:304:800", "perm:fff:0",
+                                    "perm:4:4x",   "perm:4",       "perm::"};
+    for (const char *bad : badPermissions) {
+        char reply[256];
+        snprintf(reply, sizeof(reply),
+                 "STATUS\t2\ttest\tv1\tv2\t2\t" DIGEST_A
+                 "\tPackage verified; approve in iDrive\tAlice\t%s",
+                 bad);
+        CHECK(UiController::parseStatus(reply, status) == -1);
+    }
     CHECK(-1 == -1);
 }
 
