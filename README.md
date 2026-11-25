@@ -20,11 +20,14 @@
        alt="An update arrives from a phone; the driver reviews it on the car, installs it, and the health check passes">
 </p>
 
-An application manager for BMW head units: it installs, updates, runs and removes
-signed third-party applications on the car's own screen, launched from the iDrive
-menu and driven with the iDrive controller or a USB gamepad. Applications are
-added from a paired phone or the desktop installer, and every install is
-confirmed by the driver on the car.
+The application runtime for BMW head units. It runs signed third-party
+applications on the car's own screen, launched from the iDrive menu, and gives
+them the iDrive controller, USB gamepads, the car's audio, car data and the
+network through a versioned bridge. It supervises them, starts them with the
+car, and rolls an update back when the new version fails. Applications are
+written with the [SDK](https://github.com/NBTFoundry/sdk) and added from a
+paired phone or the desktop installer; every install is confirmed by the driver
+on the car.
 
 **Supported head units:** BMW NBT Evo (iDrive 6, QNX 6.5 on ARMv7). Support for
 the earlier NBT may come later.
