@@ -23,7 +23,9 @@ application on an SDK with the mixer client uses it without a change.
 
 - 44100 Hz stereo S16, the rate A2I plays. The SDK's `AudioPcm` reports it
   as its rate; the SDK's queues resample to it.
-- Each client: about 90 ms buffered at most; TCP paces it. Clients are added
+- Each client: topped up to 46 ms each time the output takes from it (the
+  output's thread wakes the mixer), plus 4 KiB in its socket; TCP paces it,
+  so its render runs as steadily as the output plays. Clients are added
   sample by sample and clipped; one with nothing ready adds silence.
 - The output opens with the first client and closes 3 s after the last.
   The audio connection (`0xb8`, or the native audio setting's) is wanted
