@@ -22,6 +22,7 @@ then `SELFTEST REPORT` gathers the worker's checks and each app's
 | `src/worker/ipc_selftest.cpp` | `SELFTEST PREPARE`/`REPORT`/`LAST` |
 | `src/gui/selftest_*.cpp` | The flow (`selftest_ui`), reply parsers (`selftest_reply`), screens and labels (`selftest_view`) |
 | `tools/bundled_apps.py` | Signs the three for `build_release.py` and the release workflow |
+| `GET /v1/selftest` (`selfTestPhone`) | The kept report for the phone, worker and door; the phone app's `src/protocol/selfTest.ts`, `src/car/selfTest.ts`, `src/screens/SelfTestPanel.tsx` (labels `selfTest.*` in its seven catalogs) |
 
 ## Adding a check
 
@@ -37,8 +38,9 @@ then `SELFTEST REPORT` gathers the worker's checks and each app's
 3. **In the worker** (the manager's own state): `managerChecks()` in
    `self_test_report.cpp`.
 4. **Label**: `stc_<check>` (or `stg_<group>`) in all seven catalogs
-   (gui-text skill) and in `checkLabel()` (`selftest_view.cpp`); an unknown
-   one shows as its raw key.
+   (gui-text skill) and in `checkLabel()` (`selftest_view.cpp`), and
+   `selfTest.check.<check>` in the phone app's catalogs and `CHECKS`
+   (`src/car/selfTest.ts`); an unknown one shows as its raw name.
 5. A new interactive step: the instruction (`st_next`/`st_turn`) and the
    in-car procedure must say what the driver will see and do.
 6. Docs: the table in `docs/self-test.md`, `docs/in-car-procedure.md` 7f,
@@ -58,7 +60,8 @@ then `SELFTEST REPORT` gathers the worker's checks and each app's
 
 ## Results from the car
 
-- The car's screen (a photo), or the debug log: one `self test: <group>.<check>
+- The phone app: car page › Self test › Share (every check, in the phone's
+  language). The car's screen, or the debug log: one `self test: <group>.<check>
   pass|FAIL|skip <detail>` line per check, after `self test: ... installed`
   lines on the first run of a release.
 - Each app's output: `state/manager-selftest*/output.log` (Collect
