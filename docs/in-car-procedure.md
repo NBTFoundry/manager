@@ -423,6 +423,8 @@ Parked, ignition on. An application running is stopped first.
    with the ignition off). **Take a photo.**
 6. Settings › Self test again: "Last test: N passed, M failed" and Last
    results.
+7. Phone: car page › **Self test**: the same results, every check; **Share**
+   and send the file.
 
 ## 8. Boot listener and opening from the phone
 
