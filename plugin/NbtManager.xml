@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- SPDX-License-Identifier: MPL-2.0 -->
 <pluginApps>
-  <pluginApp applicationType="Custom" applicationWeight="198" entryButtonFocusID="32754" insertAfterFocusID="2270" insertStateID="20" text="App Manager">
+  <pluginApp applicationType="Custom" applicationWeight="198" entryButtonFocusID="32755" insertAfterFocusID="2270" insertStateID="20" text="App Manager">
     <comment/>
     <entryButton action="2" id="1" model="3" imageModel="4" previewModel="13">
       <properties>
@@ -80,7 +80,7 @@
        worker/shortcut_dispatch.hpp). Property 55 is its UUID: iDrive stores only plugin entries with one on a
        favourite button (as NBT-AAD's "Open Android Auto"). Keep the UUIDs: a new one orphans the buttons already
        stored. Their states come after the App Manager's (14 and 15 keep their numbers). -->
-  <pluginApp applicationType="Custom" applicationWeight="197" entryButtonFocusID="32755" insertAfterFocusID="32754" insertStateID="20" text="App shortcut 1">
+  <pluginApp applicationType="Custom" applicationWeight="197" entryButtonFocusID="32756" insertAfterFocusID="32755" insertStateID="20" text="App shortcut 1">
     <comment/>
     <entryButton action="3" id="101" model="103" imageModel="104" previewModel="113">
       <properties>
@@ -110,7 +110,7 @@
       </hmiState>
     </hmiStates>
   </pluginApp>
-  <pluginApp applicationType="Custom" applicationWeight="196" entryButtonFocusID="32756" insertAfterFocusID="32755" insertStateID="20" text="App shortcut 2">
+  <pluginApp applicationType="Custom" applicationWeight="196" entryButtonFocusID="32757" insertAfterFocusID="32756" insertStateID="20" text="App shortcut 2">
     <comment/>
     <entryButton action="4" id="201" model="203" imageModel="204" previewModel="213">
       <properties>
@@ -140,7 +140,7 @@
       </hmiState>
     </hmiStates>
   </pluginApp>
-  <pluginApp applicationType="Custom" applicationWeight="195" entryButtonFocusID="32757" insertAfterFocusID="32756" insertStateID="20" text="App shortcut 3">
+  <pluginApp applicationType="Custom" applicationWeight="195" entryButtonFocusID="32758" insertAfterFocusID="32757" insertStateID="20" text="App shortcut 3">
     <comment/>
     <entryButton action="5" id="301" model="303" imageModel="304" previewModel="313">
       <properties>
