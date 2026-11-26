@@ -295,3 +295,21 @@ Settings > Tools, after Status. Record `mount`, `pidin arg` and `ls -lR
 | Tools, Enable SSH, Enable SSH | "SSH enabled" over "On until the head unit restarts"; the debug log notes `ssh enabled (OPT_DEBUG runs) until the head unit restarts` |
 | SSH and telnet to the head unit as root | `pidin arg` lists `/bin/inetd /etc/inetd.conf`, `sshd -i` and `/bin/qconn`; `mount` still shows `/fs/sda0` read-only; no file under `/var/opt/nbt-manager` changed |
 | Restart the head unit | `pidin arg` has no `sshd`; Tools, Enable SSH enables it again |
+
+## 13. Toyota GR Supra
+
+The Supra (A90, J29) carries the same NBT Evo ID6 unit with Toyota's HMI. Nothing
+here has run on one yet; a Supra owner's first run covers sections 1 to 6 and 11b,
+then these rows. NBT-AAD's notes are the reference for what differs.
+
+| Check | Expected, or what to record |
+| --- | --- |
+| Installer, Connect and Enable SSH | The gateway answers discovery; SSH opens, or activation enables it |
+| Panel size | The debug log's panel size (NBT-AAD's Toyota default is 1280x480, the SDK's desktop size): the menu fills it at scale 2, apps report the same size |
+| iDrive entry | App Manager in the Toyota menu. NBT-AAD reports one firmware (NBTevo_T22181I, Middle East) whose HmiMain3D never loads a plugin: record the firmware |
+| Controller and buttons | Which hard keys reach the manager; MENU closes it, BACK goes back |
+| Phone opens the manager | Only from the home screen context `visibleContext 3` (`phoneContextSafe`): record `hmi.graphicalContext` on the home screen |
+| Camera views | Top View (context 692 in NBT-AAD) and reverse take the screen over an app, and the app comes back after |
+| Self test | Every row passes or skips with a reason; the report shared from the phone |
+| Android Auto | Car make `auto` resolves to Toyota from `carplay.ini`; Cluster `j29` shows turns |
+| Gauges and Diagnostics | The B58's readings and the fault-code units answer through the gateway |
