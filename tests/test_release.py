@@ -169,29 +169,44 @@ class ReleaseTests(unittest.TestCase):
                                MANAGER_SIGNING_KEY=str(self.root / "manager.pem"),
                                MANAGER_PUBLIC_KEY=str(self.root / "manager.pub"))
             command = ["python3", str(ROOT / "tools/build_release.py")]
-            # The release carries the runner: NBTRLS3.
-            expected = Path(temporary) / "expected.nbtr"
-            packed = run("python3", PACK, "--version", "v1", "--sequence", "1", "--compat", "demo-1",
-                         "--key", self.root / "manager.pem", "--output", expected,
-                         "--launcher", self.root / "launcher", "--gui", self.root / "gui",
-                         "--worker", self.root / "worker", "--plugin-dir", self.root / "plugin",
-                         "--component", f"runner={build / 'nbt-runner'}")
-            self.assertEqual(packed.returncode, 0, packed.stderr)
+            # The release carries the runner and the self test's applications
+            # (docs/self-test.md): NBTRLS3 with four named components.
             (build / "nbt-runner").rename(build / "runner-elsewhere")
             result = subprocess.run(command + ["package"], env=environment, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b"make qnx-runner", result.stderr)
             (build / "runner-elsewhere").rename(build / "nbt-runner")
+            result = subprocess.run(command + ["package"], env=environment, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(b"make selftest-apps", result.stderr)
+
+            def payload(mode, elf_type):  # a module or a guest: the SDK's NBT ABI note
+                note = struct.pack("<III", 4, 12, 1) + b"NBT\0" + struct.pack("<III", 1, 1, mode)
+                header = bytearray(52)
+                header[:7] = b"\x7fELF\x01\x01\x01"
+                struct.pack_into("<HHI", header, 16, elf_type, 40, 1)
+                struct.pack_into("<I", header, 28, 52)
+                struct.pack_into("<HHH", header, 40, 52, 32, 1)
+                phdr = struct.pack("<IIIIIIII", 4, 84, 0, 0, len(note), len(note), 4, 4)
+                return bytes(header) + phdr + note + b"code"
+            (build / "selftest").mkdir()
+            shutil.copyfile(self.root / "launcher", build / "selftest/selftest-native")
+            (build / "selftest/selftest-guest.guest").write_bytes(payload(2, 2))
+            (build / "selftest/selftest-module.so").write_bytes(payload(1, 3))
             for _ in range(2):
                 result = subprocess.run(command + ["package"], env=environment, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual((dist / "manager.nbtr").read_bytes(), expected.read_bytes())
                 self.assertEqual(sorted(p.name for p in dist.iterdir()), ["manager.nbtr"])
                 self.assertFalse((build / "manager.nbtr").exists())
+                built = (dist / "manager.nbtr").read_bytes()
+                verified = run(VERIFY, dist / "manager.nbtr", self.root / "manager.pub", "demo-1")
+                self.assertIn(b"format=NBTRLS3\ncomponents=12\n", verified.stdout, verified.stderr)
+                for name in (b"runner", b"selftest_native", b"selftest_guest", b"selftest"):
+                    self.assertIn(b"\n" + name + b"_size=", built[:4096])
             environment["MANAGER_PUBLIC_KEY"] = str(self.root / "other.pub")
             result = subprocess.run(command + ["package"], env=environment, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertEqual((dist / "manager.nbtr").read_bytes(), expected.read_bytes())
+            self.assertEqual((dist / "manager.nbtr").read_bytes(), built)
             self.assertEqual(sorted(p.name for p in dist.iterdir()), ["manager.nbtr"])
             environment["MANAGER_PUBLIC_KEY"] = str(self.root / "manager.pub")
             environment["MANAGER_SEQUENCE"] = "2"

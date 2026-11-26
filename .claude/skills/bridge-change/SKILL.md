@@ -31,6 +31,8 @@ per repository; commit each step. Nothing names one application.
    format the manager defines is a reader copied verbatim into the SDK
    (`READERS`; `make check-readers NBT_MGR_DIR=../manager` there).
 5. `apps/test` and `tools/build_windows_kit.py` declare it when the kit should exercise it.
+   The self test should check it too: a probe in `apps/selftest` (self-test
+   skill), so every car can see it work without a kit.
 6. Tests on each side; a `docs/bench-checklist.md` row for what only the car shows.
 
 ## A phone route

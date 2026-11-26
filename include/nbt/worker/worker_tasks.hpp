@@ -8,6 +8,7 @@
 
 #include "nbt/fs.h"
 #include "nbt/package.h"
+#include "nbt/worker/self_test.hpp"
 
 namespace nbt {
 namespace worker {
@@ -19,8 +20,9 @@ enum class Task {
     InstallNew,
     InstallUpdate,
     Setup,
-    FilesScan,  // an application's files on a USB stick (usb_files.hpp)
-    FilesImport // copied to the car
+    FilesScan,   // an application's files on a USB stick (usb_files.hpp)
+    FilesImport, // copied to the car
+    SelfTest     // the bundled applications installed (self_test.hpp)
 };
 
 class UsbFiles;
@@ -41,6 +43,7 @@ struct TaskContext {
     const char *hmiRoot;
     UsbFiles *usb; // FilesScan, FilesImport
     unsigned changed;
+    SelfTestPrepared selfTest; // SelfTest
     uint64_t elapsedMs;
     int result;
     char error[128];

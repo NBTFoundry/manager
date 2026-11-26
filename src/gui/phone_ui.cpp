@@ -75,7 +75,8 @@ bool phoneRequest(const UiController &ui, int kind, Request &request) {
     default:
         return setupRequest(kind, request) || languageRequest(ui, kind, request) ||
                autostartRequest(ui, kind, request) || shortcutRequest(ui, kind, request) ||
-               toolsRequest(ui, kind, request) || filesRequest(ui, kind, request);
+               toolsRequest(ui, kind, request) || filesRequest(ui, kind, request) ||
+               selfTestRequest(ui, kind, request);
     }
     return true;
 }

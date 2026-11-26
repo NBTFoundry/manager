@@ -142,8 +142,9 @@ void buildSettings(const UiController &ui, UiView *v) {
         addItem(v, label);
         addAction(v, text(T_PAIR_PHONE));
         addAction(v, text(T_PAIRED_PHONES));
-        addAction(v, text(T_STATUS)); // status_page.hpp
-        addAction(v, text(T_TOOLS));  // tools_ui.hpp
+        addAction(v, text(T_STATUS));    // status_page.hpp
+        addAction(v, text(T_SELF_TEST)); // selftest_ui.hpp
+        addAction(v, text(T_TOOLS));     // tools_ui.hpp
     } else {
         if (ui.filesEntry()) { // its files, before Uninstall (filesItem)
             addAction(v, text(T_FILES));
@@ -286,6 +287,12 @@ core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
     case Tools:
     case SshConfirm:
         toolsView(ui, v);
+        break;
+    case SelfTest:
+    case SelfTestRun:
+    case SelfTestAsk:
+    case SelfTestResults:
+        selfTestView(ui, v);
         break;
     case Review:
     case Confirm:

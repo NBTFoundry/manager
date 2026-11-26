@@ -26,7 +26,8 @@ longer takes dev kits as updates.
    ```sh
    QNX_ENV=… QNX_SCREEN_LIBDIR=… RHMI_LIBDIR=… NBT_KIT_DIR=<kit folder> make kit
    ```
-   It runs `qnx-check stack-report`, builds and signs the release and the
+   It runs `qnx-check stack-report`, builds and signs the release (with the
+   self test's three applications inside: self-test skill) and the
    test apps, the APK (its keystore under the keys folder's `android/`) and
    the Windows installer (Rust `x86_64-pc-windows-gnu`, MinGW, cargo-ndk),
    copies to the kit folder without overwriting, and checks every SHA-256 there.

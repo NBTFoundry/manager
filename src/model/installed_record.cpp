@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/model/installed_record.hpp"
 
+#include "nbt/bundled.h"
 #include "nbt/core/text.hpp"
+#include "nbt/signers.h"
 #include "nbt/util.h"
 
 #include <errno.h>
@@ -177,12 +179,20 @@ int InstalledRecord::profileRead(nbt_fs *fs, const char *app, char compat[NBT_ID
     }
     memcpy(compat, value, strlen(value) + 1);
     signer[0] = 0;
-    if (!*p) {
-        return 0;
+    // The manager's own applications have the manager key's signature, and
+    // only they (nbt/bundled.h, nbt/signers.h).
+    const bool bundled = nbt_app_bundled(app) != 0;
+    value = *p ? nbt_field(&p, "signer") : NULL;
+    if (bundled || (value && !strcmp(value, NBT_SIGNER_MANAGER))) {
+        const bool ok = bundled && value && !strcmp(value, NBT_SIGNER_MANAGER) && !*p;
+        memcpy(signer, NBT_SIGNER_MANAGER, ok ? sizeof(NBT_SIGNER_MANAGER) : 1);
+        return ok ? 0 : -1;
     }
-    value = nbt_field(&p, "signer");
     unsigned char id[32];
-    if (!value || strlen(value) != 64 || nbt_hex_decode(value, id, sizeof(id)) || *p) {
+    if (!value) {
+        return *p ? -1 : 0;
+    }
+    if (strlen(value) != 64 || nbt_hex_decode(value, id, sizeof(id)) || *p) {
         return -1;
     }
     for (size_t i = 0; i < 64; ++i) {

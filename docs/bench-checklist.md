@@ -270,6 +270,19 @@ where captures establish them. Add the private capture reference and change
 `car_confirmed` only for individually checked rows. Only these observations
 can settle A1, A3 and B4; a host test or a QNX build cannot.
 
+## 11b. Self test
+
+Settings › Self test ([self-test.md](self-test.md)); the debug log has one
+`self test: <group>.<check> pass|FAIL|skip <detail>` line per check.
+
+| Action | Expected |
+| --- | --- |
+| First run after an update | `self test: manager-selftest... installed` three times; each form's colour bars on the panel; none listed on the menu or the phone |
+| The module's run | Three beeps (with an application's service playing, both heard); TURN, then PUSH; BACK skips both |
+| Results | `native`, `guest` and `module` all `start pass`, `screen` over 20 fps, `diag` and `cardata` pass with the ignition on |
+| Second run | Nothing installed again; the results of this run only |
+| An application running | "Stop the running applications first"; nothing starts |
+
 ## 12. Tools
 
 Settings > Tools, after Status. Record `mount`, `pidin arg` and `ls -lR

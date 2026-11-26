@@ -62,6 +62,9 @@ const KindPath kManagerPaths[] = {
     {NBT_FS_MANAGER_LOG, "manager/debug.log"},
     {NBT_FS_MANAGER_LOG_OLD, "manager/debug.log.1"},
     {NBT_FS_MANAGER_CRASH, "manager/crash.gui"},
+    {NBT_FS_MANAGER_SELFTEST, "state/manager/selftest.txt"},
+    {NBT_FS_MANAGER_SELFTEST_NEXT, "state/manager/selftest.txt.next"},
+    {NBT_FS_MANAGER_BUNDLED, "state/manager/bundled.nbt"},
     {NBT_FS_MANAGER_OPERATION_LOCK, "state/manager/operation.lock"},
     {NBT_FS_MANAGER_STATE, "state/manager/activation"},
     {NBT_FS_MANAGER_STATE_NEXT, "state/manager/activation.next"},
@@ -210,9 +213,12 @@ core::Status PathPolicy::relative(PathKind kind, const char *app, const char *tx
             break;
         case NBT_FS_DATA_DIR:
         case NBT_FS_DATA_SETTINGS:
+        case NBT_FS_DATA_SELFTEST:
             if (!isManager) {
                 count = snprintf(out, cap, "data/%s%s", app,
-                                 kind == NBT_FS_DATA_SETTINGS ? "/settings" : "");
+                                 kind == NBT_FS_DATA_SETTINGS   ? "/settings"
+                                 : kind == NBT_FS_DATA_SELFTEST ? "/selftest.txt"
+                                                                : "");
             }
             break;
         case NBT_FS_PROFILE:

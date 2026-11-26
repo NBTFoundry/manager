@@ -4,6 +4,7 @@
 #include "nbt/permissions.h"
 
 #include "nbt/bridge.h"
+#include "nbt/bundled.h"
 #include "nbt/fs.h"
 #include "nbt/package/package_verifier.hpp"
 #include "nbt/signers.h"
@@ -82,7 +83,8 @@ core::Status Worker::openSession(const char *app, uint64_t nowMs) {
         if (!state_.child.running()) {
             state_.app[0] = 0; // the package names the application; any is welcome
         }
-    } else if (!selectApp(app).ok() || !removeUpload().ok() || !state_.session.start(nowMs).ok()) {
+    } else if (nbt_app_bundled(app) || !selectApp(app).ok() || !removeUpload().ok() ||
+               !state_.session.start(nowMs).ok()) { // the manager's own: never uploaded
         return fail("cannot start session");
     }
     memset(&state_.pending, 0, sizeof(state_.pending));
@@ -152,7 +154,7 @@ core::Status Worker::bindUpload() {
     }
     const char *app = named.value().app;
     const int installed = nbt_fs_exists(root_.legacy(), NBT_FS_PROFILE, app, NULL);
-    if (!strcmp(app, "manager") || installed < 0) {
+    if (!strcmp(app, "manager") || nbt_app_bundled(app) || installed < 0) {
         return reject("not an application package");
     }
     if (!installed) {

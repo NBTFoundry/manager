@@ -168,7 +168,15 @@ typedef enum {
     NBT_FS_DEVELOPERS_LOCK,
     /* state/manager/diag.lock: held (flock) by the application host that is
      * using the car's diagnostic gateway (capability `diag`), one at a time. */
-    NBT_FS_DIAG_LOCK
+    NBT_FS_DIAG_LOCK,
+    /* The self test (docs/self-test.md): state/manager/selftest.txt, the last
+     * report, replaced through its .next; state/manager/bundled.nbt, a bundled
+     * application's package copied out of the release while it installs; and
+     * data/<app>/selftest.txt, what a bundled application found. */
+    NBT_FS_MANAGER_SELFTEST,
+    NBT_FS_MANAGER_SELFTEST_NEXT,
+    NBT_FS_MANAGER_BUNDLED,
+    NBT_FS_DATA_SELFTEST
 } nbt_fs_path_kind;
 
 /* NBT_FS_APPEND opens an existing debug log (NBT_FS_MANAGER_LOG) for
@@ -293,6 +301,8 @@ int nbt_fs_manager_operation_lock(nbt_fs *fs);
  * an unlocked descriptor of the lock file when the lock's holder is this
  * process's parent; otherwise -1 with errno EBUSY. Closing it releases nothing. */
 int nbt_fs_manager_operation_parent(nbt_fs *fs);
+/* The installed applications (their profiles), sorted, without the manager's
+ * own (nbt/bundled.h). */
 int nbt_fs_list_apps(nbt_fs *fs, char names[NBT_APP_LIST_MAX][NBT_APP_NAME_MAX + 1]);
 
 #endif

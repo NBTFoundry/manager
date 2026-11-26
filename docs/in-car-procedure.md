@@ -408,6 +408,22 @@ apps key, and `hello-lvgl-dev-0.1.0.nbt`. Keep App Manager open.
    running. Start it again: the page comes back (Beep On, Pitch 440).
 6. Close App Manager (MENU): the page keeps working (from the boot listener).
 
+## 7f. Self test
+
+Parked, ignition on, no application running.
+
+1. Settings › Self test › Start the self test: "Preparing the test
+   applications..." for a few seconds.
+2. Two test screens, each a few seconds: colour bars (red, green, blue),
+   NATIVE then GUEST at the bottom.
+3. "Next: colour bars and three beeps" › Continue: the bars, three beeps;
+   "TURN THE CONTROLLER": turn it; "PUSH THE CONTROLLER": push it.
+4. Answer the two questions (bars, beeps).
+5. The results: what failed or was skipped (diagnostics and car data skip
+   with the ignition off). **Take a photo.**
+6. Settings › Self test again: "Last test: N passed, M failed" and Last
+   results.
+
 ## 8. Boot listener and opening from the phone
 
 **Opening from the phone is off**: the plugin answers every wake request

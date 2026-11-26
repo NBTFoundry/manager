@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: MPL-2.0
+# NBT Manager's self test applications (docs/self-test.md), for
+# tools/package.py: what the three forms share; <form>.args, read after it,
+# names each one and what it requires. tools/build_release.py signs them with
+# the manager key, with the release's version and sequence.
+--compat
+nbt_6.5_armv7
+--bridge
+1.9
+--bridge-optional
+files,car-data,diag
+--bridge-files
+txt|1|1
+--bridge-cds
+driving.speedActual,sensors.temperatureExterior
+--bridge-diag
+12:read
+--property
+Project|NBTFoundry NBT Manager
+--property
+Licence|MPL-2.0
+--text
+NBT Manager's self test (Settings, Self test), bundled with the manager.

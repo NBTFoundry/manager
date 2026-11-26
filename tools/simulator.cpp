@@ -369,6 +369,21 @@ static void worker(const char *command, char *reply, size_t size, uint64_t now) 
             w.started = 1 + index;
             snprintf(reply, size, "OK");
         }
+    } else if (!strncmp(command, "SELFTEST ", 9)) {
+        /* Settings > Self test (docs/self-test.md): no bundled application
+         * runs here, so no question either; a report to show the screens. */
+        static bool reported = false;
+        static const char kReport[] =
+            "SELFTEST\t18\t1\t2\tmodule.controller|f|no turn in 15 s"
+            "\tmodule.diag|s|no gateway\tmodule.cardata|s|no value in 5 s";
+        if (!strcmp(command + 9, "PREPARE")) {
+            snprintf(reply, size, "SELFTEST\tready\t");
+        } else if (!strncmp(command + 9, "REPORT ", 7)) {
+            reported = true;
+            snprintf(reply, size, "%s", kReport);
+        } else {
+            snprintf(reply, size, "%s", reported ? kReport : "SELFTEST\tnone");
+        }
     } else if (!strncmp(command, "STOP ", 5) && app_index(command + 5) >= 0) {
         w.stopping = app_index(command + 5);
         w.stop_ms = now;

@@ -132,6 +132,7 @@ flowchart TB
 | GUI | `src/gui/` | The manager's screen, local approvals, pairing, the USB gamepad |
 | Application host | `src/process/` | Starts an application with its bridge channels, log and limits |
 | Capture shim | `src/capture/` | Keeps the controller from iDrive while the manager is shown |
+| Self test | `apps/selftest/`, `src/worker/self_test*.cpp`, `src/gui/selftest_*.cpp` | Settings › Self test: bundled test applications in three forms ([docs/self-test.md](docs/self-test.md)) |
 
 ## Build and test
 
@@ -238,7 +239,9 @@ The kits' test application (`apps/test`) is built on `NBTFoundry/sdk` without
 the QNX SDP (`make test-apps`, the SDK at `NBT_SDK_DIR`, default `../sdk`) in two
 forms: `test`, an ordinary QNX program, and `test-runner`, a module run by the
 release's `nbt-runner`. Each shows "Hello world" on its configured background,
-publishes a status label and exits on BACK. An application is uninstalled from its
+publishes a status label and exits on BACK. The self test's applications
+(`apps/selftest`, `make selftest-apps`; `make selftest-host` for the desktop) ship
+inside each release ([docs/self-test.md](docs/self-test.md)). An application is uninstalled from its
 settings in the manager (hold its name), or from a paired phone with confirmation
 on the car; its executable, keys, state and data are removed, never following a
 link.

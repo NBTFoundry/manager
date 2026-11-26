@@ -20,7 +20,7 @@ bool Worker::initializeJobs() {
 }
 
 bool Worker::busy() const {
-    return state_.state == State::Installing || job_.running() || setupReady_;
+    return state_.state == State::Installing || job_.running() || setupReady_ || selfTestReady_;
 }
 
 void Worker::sets(fd_set *readers, int *highest) const {
@@ -73,6 +73,9 @@ bool Worker::finishTask(uint64_t nowMs) {
     case Task::Setup:
         setupReady_ = true; // until takeSetup()
         return true;
+    case Task::SelfTest:
+        selfTestReady_ = true; // until takeSelfTest()
+        return true;
     case Task::FilesScan:
     case Task::FilesImport:
         task_.usb->end(task_.result);
@@ -80,6 +83,28 @@ bool Worker::finishTask(uint64_t nowMs) {
     default:
         break;
     }
+    clearTask(task_);
+    return true;
+}
+
+bool Worker::startSelfTest() {
+    if (busy() || taskPending()) {
+        return false;
+    }
+    clearTask(task_);
+    task_.task = Task::SelfTest;
+    startTask(0);
+    return true;
+}
+
+bool Worker::takeSelfTest(int *result, SelfTestPrepared *prepared) {
+    (void)finishTask(0);
+    if (!selfTestReady_) {
+        return false;
+    }
+    selfTestReady_ = false;
+    *result = task_.result;
+    *prepared = task_.selfTest;
     clearTask(task_);
     return true;
 }

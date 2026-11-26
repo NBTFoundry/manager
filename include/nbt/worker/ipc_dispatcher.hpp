@@ -6,6 +6,7 @@
 #include "nbt/storage/managed_root.hpp"
 #include "nbt/worker/control_protocol.hpp"
 #include "nbt/worker/ipc_files.hpp"
+#include "nbt/worker/self_test.hpp"
 #include "nbt/worker/web.hpp"
 #include "nbt/worker/wifi_direct_job.hpp"
 #include "nbt/worker/worker.hpp"
@@ -24,10 +25,11 @@ public:
 
     core::Status dispatch(char *line, uint64_t nowMs);
     /* SESSION's reply once its Wi-Fi Direct preparation ended (ipc_session.cpp),
-     * SETUP's once the worker's job ran it (ipc_system.cpp). */
+     * SETUP's and SELFTEST PREPARE's once the worker's job ran them
+     * (ipc_system.cpp, ipc_selftest.cpp). */
     core::Status poll(uint64_t nowMs);
     bool replyPending() const {
-        return sessionPending_ || setupPending_;
+        return sessionPending_ || setupPending_ || selfTestPending_;
     }
 
 private:
@@ -45,6 +47,8 @@ private:
     core::Status handleApprove(char *cursor, uint64_t nowMs);
     core::Status handleSystem(bool setup, const char *cursor);
     core::Status handleSsh(const char *cursor);
+    core::Status handleSelfTest(const char *cursor, uint64_t nowMs);
+    core::Status finishSelfTest();
     core::Status finishSession(bool prepared, ReadyWifiCredentials &wifi, uint64_t nowMs);
     core::Status finishSetup();
 
@@ -58,7 +62,10 @@ private:
     char sessionApp_[NBT_ID_MAX + 1] = {};
     char sessionIface_[32] = {};
     unsigned sessionPort_ = 0;
-    bool setupPending_ = false; // SETUP answered once its job ended
+    bool setupPending_ = false;     // SETUP answered once its job ended
+    bool selfTestPending_ = false;  // SELFTEST PREPARE answered once its job ended
+    bool selfTestPrepared_ = false; // prepared_ holds the last preparation, for REPORT
+    SelfTestPrepared prepared_ = SelfTestPrepared();
 };
 
 } // namespace worker

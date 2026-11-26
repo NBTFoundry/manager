@@ -4,6 +4,7 @@
 #include "nbt/app_compat.h"
 #include "nbt/app_faults.h"
 #include "nbt/app_host.h"
+#include "nbt/bundled.h"
 #include "nbt/core/checked.hpp"
 #include "nbt/core/span.hpp"
 #include "nbt/core/system.hpp"
@@ -240,7 +241,8 @@ core::Status IpcDispatcher::handleServices() {
 }
 
 core::Status IpcDispatcher::handleRunning(char *cursor) {
-    char names[NBT_APP_LIST_MAX][NBT_APP_NAME_MAX + 1];
+    // The manager's own applications too, while a self test runs them (nbt/bundled.h).
+    char names[NBT_APP_LIST_MAX + NBT_BUNDLED_COUNT][NBT_APP_NAME_MAX + 1];
     char list[2048];
     const bool withStatus = cursor != NULL;
     const int count = nbt_fs_list_apps(root_.legacy(), names);
@@ -252,6 +254,12 @@ core::Status IpcDispatcher::handleRunning(char *cursor) {
         core::Result<bool> running = worker_.running(names[i]);
         if (running.get() && running.value()) {
             memmove(names[runningCount++], names[i], sizeof(names[i]));
+        }
+    }
+    for (unsigned i = 0; i < NBT_BUNDLED_COUNT; ++i) {
+        core::Result<bool> running = worker_.running(nbt_bundled_apps[i].app);
+        if (running.get() && running.value()) {
+            snprintf(names[runningCount++], sizeof(names[0]), "%s", nbt_bundled_apps[i].app);
         }
     }
     int length = snprintf(list, sizeof(list), "RUNNING\t%d", runningCount);

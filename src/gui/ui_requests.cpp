@@ -50,9 +50,9 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
             break;
         }
         if (appRun) { // the application on the panel: running, then gone (it ended)
-            const size_t i = appIndex(target);
-            appRun = i < appCount && running[i] ? 2 : appRun == 2 ? 3 : appRun;
+            appRun = targetRunning ? 2 : appRun == 2 ? 3 : appRun;
         }
+        selfTestRunning(*this);
         if (screen == Loading) {
             go(Apps);
         }
@@ -111,6 +111,9 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
         }
         return 0;
     case R_START:
+        if (selfTestStarted(*this, replyText)) {
+            return 0;
+        }
         if (!strcmp(replyText, "OK")) {
             // Started without the screen (it runs in the background): the
             // manager stays open, its list showing the application running.
@@ -241,6 +244,9 @@ int UiController::reply(const char *replyText, uint64_t nowMs) {
 }
 
 void UiController::abortApp(TextId why) {
+    if (selfTestAbort(*this)) { // stopped, then the self test goes on
+        return;
+    }
     appRun = 0;
     handover = 0;
     const size_t i = appIndex(target);

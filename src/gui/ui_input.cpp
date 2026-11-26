@@ -62,7 +62,8 @@ int UiController::press(Key key) {
         return 0;
     }
     if (phonePress(*this, key) || statusPress(*this, key) || toolsPress(*this, key) ||
-        languagePress(*this, key) || autostartPress(*this, key) || shortcutPress(*this, key)) {
+        selfTestPress(*this, key) || languagePress(*this, key) || autostartPress(*this, key) ||
+        shortcutPress(*this, key)) {
         return 1;
     }
     switch (screen) {
@@ -239,6 +240,7 @@ int UiController::nextRequest(uint64_t nowMs, Request &request) {
         }
         if (screen == Apps && !holding && !stopping) {
             kind = setupNow(*this, nowMs) ? R_SETUP : R_RUNNING;
+        } else if (selfTestPoll(*this, kind)) {
         } else if (polling(*this)) {
             kind = filesPolling(*this) ? R_FILES_USB : R_STATUS;
         } else {

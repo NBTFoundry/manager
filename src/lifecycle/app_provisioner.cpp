@@ -3,6 +3,7 @@
 
 #include "nbt/app_provision.h"
 #include "nbt/app_settings.h"
+#include "nbt/bundled.h"
 #include "nbt/core/unique_fd.hpp"
 #include "nbt/fs.h"
 #include "nbt/manager_bootstrap.h"
@@ -211,8 +212,8 @@ int provisionApp(const char *root, int input, const char *app, const char *compa
     char text[160];
     int result = -1;
     if (!root || !digest || !nbt_token_valid(app, NBT_ID_MAX, 0) || !strcmp(app, "manager") ||
-        !nbt_token_valid(compat, NBT_ID_MAX, NBT_TOKEN_DOT) || !keySize || keySize > kKeyMax ||
-        !packageSize || packageSize > kPackageMax) {
+        nbt_app_bundled(app) || !nbt_token_valid(compat, NBT_ID_MAX, NBT_TOKEN_DOT) || !keySize ||
+        keySize > kKeyMax || !packageSize || packageSize > kPackageMax) {
         return fail(error, errorSize, "invalid provisioning request");
     }
     if (nbt_fs_init(&fs, root, error, errorSize) || absent(&fs, app, error, errorSize)) {
@@ -273,8 +274,11 @@ int nbt_app_install_new(nbt_fs *fs, const char *app, int package_fd,
                         unsigned error_size) {
     nbt_package package;
     char text[160];
+    // The manager's own applications, and only they, have the manager key's
+    // signature (nbt/bundled.h).
     if (!fs || !approved || !signer || !nbt_token_valid(app, NBT_ID_MAX, 0) ||
-        !strcmp(app, "manager")) {
+        !strcmp(app, "manager") ||
+        (nbt_app_bundled(app) != 0) != (strcmp(signer, NBT_SIGNER_MANAGER) == 0)) {
         return nbt::lifecycle::fail(error, error_size, "invalid installation request");
     }
     nbt::core::Result<nbt_package> named = nbt::package::PackageVerifier::peekApp(package_fd);

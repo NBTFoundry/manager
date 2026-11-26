@@ -44,14 +44,18 @@ enum Screen {
     Phones,
     PhoneForget,
     RestartIdrive,
-    Status,       // Settings > Status (status_page.hpp)
-    GamepadTest,  // its gamepad test
-    LanguagePick, // Settings > Language (language_ui.hpp)
-    Files,        // an application's files (files_ui.hpp)
-    FileDelete,   // Delete <file>?
-    UsbFiles,     // its files on USB sticks
-    Tools,        // Settings > Tools (tools_ui.hpp): restart the head unit, enable SSH
-    SshConfirm,   // Enable SSH?
+    Status,          // Settings > Status (status_page.hpp)
+    GamepadTest,     // its gamepad test
+    LanguagePick,    // Settings > Language (language_ui.hpp)
+    Files,           // an application's files (files_ui.hpp)
+    FileDelete,      // Delete <file>?
+    UsbFiles,        // its files on USB sticks
+    Tools,           // Settings > Tools (tools_ui.hpp): restart the head unit, enable SSH
+    SshConfirm,      // Enable SSH?
+    SelfTest,        // Settings > Self test (selftest_ui.hpp)
+    SelfTestRun,     // preparing, running an application, reporting
+    SelfTestAsk,     // the colour bars, the beeps
+    SelfTestResults, // what did not pass
 };
 enum Key { KeyUp, KeyDown, KeySelect, KeyBack, KeyOption };
 enum ItemStyle { ItemEntry, ItemAction };

@@ -309,6 +309,9 @@ core::Status IpcDispatcher::dispatch(char *line, uint64_t nowMs) {
     if (!strcmp(name, "SSH")) {
         return handleSsh(cursor);
     }
+    if (!strcmp(name, "SELFTEST")) {
+        return handleSelfTest(cursor, nowMs);
+    }
     return control_.respond("ERR invalid-command\n");
 }
 

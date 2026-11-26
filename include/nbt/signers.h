@@ -13,6 +13,9 @@
 #include "nbt/fs.h"
 
 #define NBT_SIGNER_MAX 64u
+/* The manager key, signer of the manager's own applications only
+ * (nbt/bundled.h): never found by nbt_signer_find. */
+#define NBT_SIGNER_MANAGER "manager"
 
 /* A seekable PEM descriptor of the signer's key for nbt_package_verify, or -1
  * with errno ENOENT when the manager bundles no apps key or the developer key

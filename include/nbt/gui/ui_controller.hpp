@@ -6,6 +6,7 @@
 #include "nbt/core/span.hpp"
 #include "nbt/core/status.hpp"
 #include "nbt/gui/files_state.hpp"
+#include "nbt/gui/selftest_ui.hpp"
 #include "nbt/gui/status_page.hpp"
 #include "nbt/gui/text.hpp"
 #include "nbt/gui/ui_view.hpp"
@@ -68,7 +69,10 @@ enum RequestKind {
     R_LANGUAGE,   // SET manager language: languageReply, after setupReply
     R_AUTOSTART,  // AUTOSTART <app> on|off: autostartReply (autostart_ui.hpp), after setupReply
     R_SHORTCUT,   // SET manager shortcut<n>: shortcutReply (shortcut_ui.hpp), after setupReply
-    R_FILES,      // FILES: filesReply (files_ui.hpp), after setupReply
+    R_SELFTEST_PREPARE, // SELFTEST ...: selfTestReply (selftest_ui.hpp), after setupReply
+    R_SELFTEST_REPORT,
+    R_SELFTEST_LAST,
+    R_FILES, // FILES: filesReply (files_ui.hpp), after setupReply
     R_FILES_DELETE,
     R_FILES_SCAN,
     R_FILES_USB,
@@ -81,7 +85,8 @@ enum ManagerEntry {
     EntryPair,
     EntryPhones,
     EntryStatus,
-    EntryTools, // the Tools menu (tools_ui.hpp): restart the head unit, enable SSH
+    EntrySelfTest, // Self test (selftest_ui.hpp)
+    EntryTools,    // the Tools menu (tools_ui.hpp): restart the head unit, enable SSH
     kManagerEntries
 };
 
@@ -258,8 +263,9 @@ public:
     int fatal;
     int exitRequested;
     int handover;
-    int appRun = 0;        // the handed-over application: 1 started, 2 seen running, 3 ended
-    uint64_t healthMs = 0; // when the installed candidate's health check began
+    int appRun = 0;             // the handed-over application: 1 started, 2 seen running, 3 ended
+    bool targetRunning = false; // the last RUNNING listed `target`
+    uint64_t healthMs = 0;      // when the installed candidate's health check began
     uint64_t nextPollMs;
     uint64_t pairingDeadlineMs;
     unsigned pairingLeftS;
@@ -303,6 +309,7 @@ public:
     // An application's files (files_ui.hpp). Not "= {}": GCC 4.8 (QNX) flags that
     // with missing-field-initializers.
     FilesState files = FilesState();
+    SelfTestState selfTest = SelfTestState(); // Settings > Self test (selftest_ui.hpp)
 
 private:
     core::SecureString<63> wifiPass;

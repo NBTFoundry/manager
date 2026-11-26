@@ -16,6 +16,9 @@ core::Status IpcDispatcher::poll(uint64_t nowMs) {
     if (setupPending_) {
         return finishSetup();
     }
+    if (selfTestPending_) {
+        return finishSelfTest();
+    }
     bool prepared = false;
     ReadyWifiCredentials wifi;
     if (!sessionPending_ || !wfd_.finish(&prepared, &wifi)) {

@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# The native program (after common.args).
+--app
+manager-selftest-native
+--bridge-uses
+show,status

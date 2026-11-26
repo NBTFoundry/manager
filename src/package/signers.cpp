@@ -45,6 +45,9 @@ int nbt_signer_key_fd(nbt_fs *fs, const char *signer) {
     if (!signer[0]) {
         return nbt_apps_key_fd();
     }
+    if (!strcmp(signer, NBT_SIGNER_MANAGER)) {
+        return nbt_fs_open(fs, NBT_FS_MANAGER_KEY, "manager", NULL, NBT_FS_READ);
+    }
     nbt::storage::ManagedRoot root(*fs);
     nbt::storage::DeveloperStore developers(root);
     nbt::storage::Developer developer;
@@ -85,7 +88,7 @@ int nbt_signer_name(nbt_fs *fs, const char *signer, char name[33]) {
         errno = EINVAL;
         return -1;
     }
-    if (!signer[0]) {
+    if (!signer[0] || !strcmp(signer, NBT_SIGNER_MANAGER)) {
         name[0] = 0;
         return 0;
     }

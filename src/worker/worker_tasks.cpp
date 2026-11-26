@@ -88,6 +88,8 @@ const char *taskName(Task task) {
         return "USB scan";
     case Task::FilesImport:
         return "USB import";
+    case Task::SelfTest:
+        return "self test";
     default:
         return "task";
     }
@@ -132,6 +134,9 @@ void runTask(void *raw) {
         break;
     case Task::FilesImport:
         c.result = c.usb ? c.usb->import() : -1;
+        break;
+    case Task::SelfTest:
+        c.result = selfTestPrepare(c.fs, c.selfTest);
         break;
     default:
         c.result = -1;

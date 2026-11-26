@@ -74,6 +74,9 @@ int setupReply(UiController &ui, int kind, const char *reply, uint64_t now) {
     if (kind == R_SSH_ENABLE) {
         return toolsReply(ui, kind, reply);
     }
+    if (kind >= R_SELFTEST_PREPARE && kind <= R_SELFTEST_LAST) {
+        return selfTestReply(ui, kind, reply);
+    }
     if (kind == R_LANGUAGE) {
         return languageReply(ui, reply);
     }

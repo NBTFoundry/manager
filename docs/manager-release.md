@@ -32,6 +32,10 @@ the whole release (`release.nbtr`), and the new release's own code reads the
 component from it. Staging copies `runner` next to the GUI and the worker
 (`manager/slots/<n>/runner`, mode 0700), and the slot check covers it.
 `tools/package_release.py --component runner=<path>` writes `NBTRLS3`.
+Releases also carry `selftest_native`, `selftest_guest` and `selftest`: the
+self test's applications, packages signed with the manager key, which the
+worker reads from the slot's `release.nbtr` ([self-test.md](self-test.md);
+`tools/bundled_apps.py` signs them for `build_release.py` and CI).
 
 All three formats share the same manager signing key and strict verification
 rules. `nbt-manager-launcher --capabilities` prints

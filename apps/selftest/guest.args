@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: MPL-2.0
+# The guest, nbt-runner's child process (after common.args).
+--app
+manager-selftest-guest
+--bridge-uses
+show,status,runner

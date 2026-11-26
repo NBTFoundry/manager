@@ -26,7 +26,8 @@ bool PathPolicy::canCreate(PathKind kind) {
            kind == NBT_FS_APP_LOG || kind == NBT_FS_SERVICE_LOG || kind == NBT_FS_HMI_ENV_NEXT ||
            kind == NBT_FS_SHIM_STATE_NEXT || kind == NBT_FS_CAPTURE_SHIM_NEXT ||
            kind == NBT_FS_MANAGER_LANGUAGE_NEXT || kind == NBT_FS_MANAGER_SHORTCUTS_NEXT ||
-           kind == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT || kind == NBT_FS_CRASH_REPORT_NEXT;
+           kind == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT || kind == NBT_FS_CRASH_REPORT_NEXT ||
+           kind == NBT_FS_MANAGER_SELFTEST_NEXT || kind == NBT_FS_MANAGER_BUNDLED;
 }
 
 bool PathPolicy::canLock(PathKind kind) {
@@ -43,7 +44,8 @@ bool PathPolicy::canUnlink(PathKind kind) {
            kind == NBT_FS_APP_LOG_OLD || kind == NBT_FS_SERVICE_LOG_OLD ||
            kind == NBT_FS_CAPTURE_STARTER_ORIG || kind == NBT_FS_CAPTURE_TX ||
            kind == NBT_FS_HMI_ENV || kind == NBT_FS_SHIM_STATE || kind == NBT_FS_CAPTURE_SHIM ||
-           kind == NBT_FS_CRASH_REPORT || (canCreate(kind) && kind != NBT_FS_MANAGER_LOG);
+           kind == NBT_FS_CRASH_REPORT || kind == NBT_FS_DATA_SELFTEST ||
+           (canCreate(kind) && kind != NBT_FS_MANAGER_LOG);
 }
 
 bool PathPolicy::canReplace(PathKind from, PathKind to) {
@@ -74,7 +76,8 @@ bool PathPolicy::canReplace(PathKind from, PathKind to) {
            (from == NBT_FS_MANAGER_LANGUAGE_NEXT && to == NBT_FS_MANAGER_LANGUAGE) ||
            (from == NBT_FS_MANAGER_SHORTCUTS_NEXT && to == NBT_FS_MANAGER_SHORTCUTS) ||
            (from == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT && to == NBT_FS_MANAGER_NATIVE_AUDIO) ||
-           (from == NBT_FS_CRASH_REPORT_NEXT && to == NBT_FS_CRASH_REPORT);
+           (from == NBT_FS_CRASH_REPORT_NEXT && to == NBT_FS_CRASH_REPORT) ||
+           (from == NBT_FS_MANAGER_SELFTEST_NEXT && to == NBT_FS_MANAGER_SELFTEST);
 }
 
 bool PathPolicy::canRename(PathKind from, PathKind to, const char *app) {

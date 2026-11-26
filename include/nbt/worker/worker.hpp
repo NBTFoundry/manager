@@ -107,6 +107,10 @@ public:
      * takeSetup: nbt_manager_refresh_installed's result and changes. */
     bool startSetup(const char *hmiRoot);
     bool takeSetup(int *result, unsigned *changed, char *error, size_t size);
+    /* The self test's preparation on the job's thread (self_test.hpp); false
+     * when busy. Its outcome once, from takeSelfTest. */
+    bool startSelfTest();
+    bool takeSelfTest(int *result, SelfTestPrepared *prepared);
     /* A USB scan or import on the job's thread (usb_files.hpp); false when
      * busy. Its end sets `usb`'s phase. */
     bool startFiles(UsbFiles &usb, bool importing, uint64_t nowMs);
@@ -164,6 +168,7 @@ private:
     TaskContext task_;
     core::UniqueFd taskLease_; // the application's lease while its update copies
     bool setupReady_ = false;
+    bool selfTestReady_ = false;
     Ended cancelAfterTask_ = Ended::None; // a CANCEL during a verification
 };
 

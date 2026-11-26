@@ -144,8 +144,8 @@ size_t UiController::itemCount() const {
         return phoneCount + 1;
     case Review: // "Install, even if older" only for an application update
         return review.installed[0] && strcmp(review.app, "manager") ? 3 : 2;
-    default: // the files screens, else none
-        return filesItemCount(*this);
+    default: // the self test's and the files screens, else none
+        return selfTestScreen(screen) ? selfTestItemCount(*this) : filesItemCount(*this);
     }
 }
 

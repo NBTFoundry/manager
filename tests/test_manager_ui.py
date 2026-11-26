@@ -175,7 +175,7 @@ class ManagerUiTests(unittest.TestCase):
         self.assertEqual(view.screen, SETTINGS, view.text())
         self.assertEqual(view.items[3:], ["Native audio: Interrupting (at least 25)",
                                           "Language: Automatic (English)", "Pair a phone",
-                                          "Paired phones", "Status", "Tools"])
+                                          "Paired phones", "Status", "Self test", "Tools"])
         view = self.send("down", "down", "down", "down", "down", "select", "address", "link")
         self.assertEqual(view.screen, PAIRING, view.text())
         self.assertTrue(self.link.startswith("WIFI:T:WPA;"))
@@ -424,17 +424,17 @@ class ManagerUiTests(unittest.TestCase):
         self.finish()
 
     def test_tools_restart_and_enable_ssh(self):
-        # Settings > Tools, after Status: restarting the head unit (asked first,
+        # Settings > Tools, after Status and Self test: restarting the head unit (asked first,
         # the existing IDRIVE RESTART) and enabling SSH, which the worker turns
         # into the head unit's OPT_DEBUG package (recorded by the host build).
         view = self.send("down", "select")
         self.assertEqual(view.screen, SETTINGS, view.text())
         self.assertEqual(view.items[-1], "Tools")
-        view = self.send(*(["down"] * 8), "select")
+        view = self.send(*(["down"] * 9), "select")
         self.assertEqual((view.screen, view.title, view.items),
                          (TOOLS, "Tools", ["Restart head unit", "Enable SSH"]))
         view = self.send("back")
-        self.assertEqual((view.screen, view.focus), (SETTINGS, 8), view.text())
+        self.assertEqual((view.screen, view.focus), (SETTINGS, 9), view.text())
         # Restart head unit asks first, Later focused; the answer sends IDRIVE RESTART.
         view = self.send("select", "select")
         self.assertEqual((view.screen, view.title, view.focus, view.items),
@@ -450,7 +450,7 @@ class ManagerUiTests(unittest.TestCase):
         view = self.until(APPS)
         self.assertEqual(view.focus, 1)
         self.send("select")
-        view = self.send(*(["down"] * 8), "select")
+        view = self.send(*(["down"] * 9), "select")
         self.assertEqual(view.screen, TOOLS)
         view = self.send("down", "select")
         self.assertEqual((view.screen, view.title, view.focus, view.items),

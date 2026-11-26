@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/storage/managed_root.hpp"
 
+#include "nbt/bundled.h"
 #include "nbt/fs.h"
 #include "nbt/storage/path_open.hpp"
 
@@ -270,7 +271,9 @@ int nbt_fs_list_apps(nbt_fs *fs, char names[NBT_APP_LIST_MAX][NBT_APP_NAME_MAX +
         }
         memcpy(name, entry->d_name, n - 5);
         name[n - 5] = 0;
-        if (!nbt::storage::SafePathOpen::validApp(name) || !strcmp(name, "manager")) {
+        // The manager's own applications are not listed (nbt/bundled.h).
+        if (!nbt::storage::SafePathOpen::validApp(name) || !strcmp(name, "manager") ||
+            nbt_app_bundled(name)) {
             continue;
         }
         const int fd = nbt_fs_open(fs, NBT_FS_PROFILE, name, NULL, NBT_FS_READ);

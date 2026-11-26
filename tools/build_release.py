@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 
+import bundled_apps
 from package_release import TOKEN, VERSION
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -131,9 +132,17 @@ def package():
         runner = Path(os.environ.get("MANAGER_RUNNER", build / "nbt-runner"))
         if not runner.is_file():
             raise ValueError(f"missing {runner}: make qnx-runner")
+        # The self test's applications (make selftest-apps), signed with the
+        # manager key: named components too (docs/self-test.md).
+        programs = Path(os.environ.get("MANAGER_SELFTEST_DIR", build / "selftest"))
+        bundled = bundled_apps.package(programs, version, sequence,
+                                       Path(required("MANAGER_SIGNING_KEY")),
+                                       Path(temporary) / "bundled")
         output = Path(temporary) / "manager.nbtr"
-        subprocess.run(command(output, version, sequence) + ["--component", f"runner={runner}"],
-                       check=True)
+        components = ["--component", f"runner={runner}"]
+        for argument in bundled:
+            components += ["--component", argument]
+        subprocess.run(command(output, version, sequence) + components, check=True)
         verify(output, public, compatibility, build, version, sequence)
         if step:
             stepped = Path(temporary) / "manager-step.nbtr"

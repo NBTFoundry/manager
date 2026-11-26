@@ -49,7 +49,7 @@ export BUILD_DIR DIST_DIR MANAGER_VERSION MANAGER_SEQUENCE MANAGER_COMPAT
 export MANAGER_SIGNING_KEY MANAGER_PUBLIC_KEY APPS_PUBLIC_KEY CARGO NBT_INSTALLER_DIR
 export INSTALLER_TARGET_DIR
 
-.PHONY: all host release installer-release test clean simulator run-simulator qnx qnx-plugin qnx-capture qnx-runner qnx-check test-apps plugin-resources windows-kit kit check-cxx check-static-init stack-report pre-commit format fuzz FORCE tsan
+.PHONY: all host release installer-release test clean simulator run-simulator qnx qnx-plugin qnx-capture qnx-runner qnx-check test-apps selftest-apps selftest-host plugin-resources windows-kit kit check-cxx check-static-init stack-report pre-commit format fuzz FORCE tsan
 all: release
 
 # The whole kit procedure from a clean commit: QNX checks, kit, copy to the
@@ -60,6 +60,7 @@ kit:
 release:
 	python3 tools/build_release.py check
 	$(MAKE) host qnx qnx-plugin qnx-capture qnx-runner
+	$(MAKE) selftest-apps
 	python3 tools/build_release.py package
 
 # The desktop installer with dist/manager.nbtr embedded (NBT_INSTALLER_DIR).
@@ -448,6 +449,15 @@ QNX_ENV ?=
 test-apps: | $(BUILD_DIR)
 	+$(MAKE) -f apps/test/test-app.mk BUILD_DIR=$(BUILD_DIR) NBT_SDK_DIR=$(NBT_SDK_DIR) check
 
+# The self test's applications (docs/self-test.md), bundled with each release:
+# a native program, a guest and a module (apps/selftest/selftest.mk);
+# selftest-host builds the module's code for Linux (desktop runs).
+selftest-apps: | $(BUILD_DIR)
+	+$(MAKE) -f apps/selftest/selftest.mk BUILD_DIR=$(BUILD_DIR) NBT_SDK_DIR=$(NBT_SDK_DIR) check
+
+selftest-host: | $(BUILD_DIR)
+	+$(MAKE) -f apps/selftest/selftest.mk BUILD_DIR=$(BUILD_DIR) NBT_SDK_DIR=$(NBT_SDK_DIR) host
+
 qnx-runner: | $(BUILD_DIR)
 	test -n "$(QNX_ENV)" -a -n "$(QNX_SCREEN_LIBDIR)"
 	$(MAKE) -C "$(NBT_SDK_DIR)" BUILD_DIR=$(BUILD_DIR)/sdk QNX_ENV="$(QNX_ENV)" \
@@ -459,6 +469,7 @@ qnx-runner: | $(BUILD_DIR)
 # (test-apps after qnx-runner: both build in $(BUILD_DIR)/sdk.)
 qnx-check: qnx qnx-plugin qnx-capture qnx-runner
 	+$(MAKE) test-apps
+	+$(MAKE) selftest-apps
 	QNX_READELF="$(QNX_READELF)" QNX_NM="$(QNX_NM)" QNX_SIZE="$(QNX_SIZE)" python3 tools/check_qnx_artifacts.py
 
 plugin-resources: | $(BUILD_DIR)

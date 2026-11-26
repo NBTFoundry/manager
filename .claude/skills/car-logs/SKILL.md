@@ -22,8 +22,12 @@ Manager on a car** › Connect › More tools › **Collect everything** › Sha
 | NBT Manager's debug log (`debug-<n>.log`) | the debug log switched on before the test; the installer's **Save to this computer**, or the phone app | `<seconds> <process>[pid] <event>` lines of GUI, worker, host, launcher, plugin |
 | Cores and watchdog reports | SSH or USB (`docs/car-diagnostics.md`) | where each thread was; hangs |
 | An application's own log | its README (some keep a larger one in `/dev/shmem` or on USB) | |
+| Self test results | the car's screen (Settings › Self test › Last results), the debug log's `self test:` lines | what works on this car: release, runner, files, each form's screen, sound, car data, diagnostics, controller (self-test skill) |
 
 `/dev/shmem` is RAM: logs there are gone after the car sleeps.
+
+A problem that may be the platform's rather than one application's: ask for
+a self test run first.
 
 Reading:
 

@@ -339,10 +339,10 @@ static void test_main_menu_and_banner(void) {
     v = view(&ui);
     CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "Settings") &&
           !strcmp(v.items[0], "Debug log: off"));
-    CHECK(v.itemCount == 8 && !strcmp(v.items[3], "Language: Automatic (English)") &&
+    CHECK(v.itemCount == 9 && !strcmp(v.items[3], "Language: Automatic (English)") &&
           !strcmp(v.items[4], "Pair a phone") && !strcmp(v.items[5], "Paired phones") &&
-          !strcmp(v.items[6], "Status") && !strcmp(v.items[7], "Tools") &&
-          !view_contains(&ui, "Stop"));
+          !strcmp(v.items[6], "Status") && !strcmp(v.items[7], "Self test") &&
+          !strcmp(v.items[8], "Tools") && !view_contains(&ui, "Stop"));
     CHECK(v.itemStyle[3] == nbt::gui::ItemEntry && v.itemStyle[6] == nbt::gui::ItemAction &&
           v.itemStyle[7] == nbt::gui::ItemAction);
     press(&ui, nbt::gui::KeyBack, 1);
@@ -364,9 +364,12 @@ static void test_status_page(void) {
     for (unsigned i = 0; i < 6; ++i) {
         press(&ui, nbt::gui::KeyDown, 1);
     }
-    /* Status is followed by Tools (tools_ui.hpp). */
+    /* Status is followed by Self test and Tools (selftest_ui.hpp, tools_ui.hpp). */
+    press(&ui, nbt::gui::KeyDown, 1);
+    CHECK(ui.focus == ui.managerEntry(nbt::gui::EntrySelfTest));
     press(&ui, nbt::gui::KeyDown, 1);
     CHECK(ui.focus == ui.managerEntry(nbt::gui::EntryTools));
+    press(&ui, nbt::gui::KeyUp, 1);
     press(&ui, nbt::gui::KeyUp, 1);
     nbt::gui::StatusFacts &f = ui.facts;
     strcpy(f.keys, "Keys: kept from iDrive");
@@ -791,7 +794,7 @@ static void test_uninstall(void) {
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
-    CHECK(view(&ui).itemCount == 8 && !view_contains(&ui, "Uninstall"));
+    CHECK(view(&ui).itemCount == 9 && !view_contains(&ui, "Uninstall"));
 }
 
 static void test_stop_failures(void) {
@@ -1069,6 +1072,166 @@ static void test_setup_and_idrive_restart(void) {
     CHECK(!ui.setupDue);
 }
 
+/* One bundled application through a self test run: started as START does,
+ * followed in RUNNING (it is never in LIST), until it ends. */
+static void self_test_app(UiController *ui, const char *app) {
+    char start[64];
+    snprintf(start, sizeof(start), "START %s", app);
+    now += nbt::gui::kPollMs;
+    exchange(ui, start, "OK screen");
+    CHECK(ui->takeHandover() && ui->appRun == 1);
+    now += nbt::gui::kPollMs;
+    char running[80];
+    snprintf(running, sizeof(running), "RUNNING\t1\t%s|Self test", app);
+    exchange(ui, "RUNNING status", running);
+    CHECK(ui->appRun == 2 && ui->targetRunning);
+    now += nbt::gui::kPollMs;
+    exchange(ui, "RUNNING status", "RUNNING\t0");
+    CHECK(ui->appRun == 3 && ui->takeAppEnded() && !ui->appRun);
+}
+
+/* Settings > Self test (selftest_ui.hpp, docs/self-test.md): the worker
+ * prepares the bundled applications, each runs on the panel in turn, the
+ * module after its instruction, two questions, then what did not pass. */
+static void test_self_test(void) {
+    UiController ui;
+    Request request;
+    loaded(&ui, "APPS\t1\tdemo", "RUNNING\t0");
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
+    CHECK(ui.managerEntry(nbt::gui::EntrySelfTest) == 7 && view_contains(&ui, "Self test"));
+    ui.focus = ui.managerEntry(nbt::gui::EntrySelfTest);
+    press(&ui, nbt::gui::KeySelect, 1);
+    exchange(&ui, "SELFTEST LAST", "SELFTEST\tnone");
+    UiView v = view(&ui);
+    CHECK(ui.screen == nbt::gui::SelfTest && !strcmp(v.title, "Self test") && v.itemCount == 1 &&
+          !strcmp(v.items[0], "Start the self test") && !view_contains(&ui, "Last test"));
+    /* A malformed PREPARE reply is a protocol error, nothing runs. */
+    press(&ui, nbt::gui::KeySelect, 1);
+    CHECK(ui.nextRequest(now, request) == 1 && !strcmp(request.command, "SELFTEST PREPARE") &&
+          request.timeoutMs == 60000);
+    CHECK(ui.reply("SELFTEST\tready\tdemo", now) == -1);
+    /* Busy: back on its menu, saying so. */
+    UiController busy;
+    loaded(&busy, "APPS\t1\tdemo", "RUNNING\t0");
+    press(&busy, nbt::gui::KeyDown, 1);
+    press(&busy, nbt::gui::KeySelect, 1);
+    exchange(&busy, "SETTINGS manager live", MANAGER_SETTINGS);
+    busy.focus = busy.managerEntry(nbt::gui::EntrySelfTest);
+    press(&busy, nbt::gui::KeySelect, 1);
+    exchange(&busy, "SELFTEST LAST", "SELFTEST\t20\t1\t0\tmodule.controller|f|no turn in 15 s");
+    CHECK(view(&busy).itemCount == 2 && view_contains(&busy, "Last test: 20 passed, 1 failed"));
+    press(&busy, nbt::gui::KeySelect, 1);
+    exchange(&busy, "SELFTEST PREPARE", "ERR busy");
+    CHECK(busy.screen == nbt::gui::SelfTest &&
+          view_contains(&busy, "NBT Manager is busy; try again in a moment"));
+    /* An application running holds the screen: stop it first. */
+    UiController held;
+    loaded(&held, "APPS\t1\tdemo", "RUNNING\t1\tdemo");
+    press(&held, nbt::gui::KeyDown, 1);
+    press(&held, nbt::gui::KeySelect, 1);
+    exchange(&held, "SETTINGS manager live", MANAGER_SETTINGS);
+    held.focus = held.managerEntry(nbt::gui::EntrySelfTest);
+    press(&held, nbt::gui::KeySelect, 1);
+    exchange(&held, "SELFTEST LAST", "SELFTEST\tnone");
+    press(&held, nbt::gui::KeySelect, 1);
+    CHECK(held.screen == nbt::gui::SelfTest && !held.queued &&
+          view_contains(&held, "Stop the running applications first"));
+    /* The whole run. */
+    UiController run;
+    loaded(&run, "APPS\t1\tdemo", "RUNNING\t0");
+    press(&run, nbt::gui::KeyDown, 1);
+    press(&run, nbt::gui::KeySelect, 1);
+    exchange(&run, "SETTINGS manager live", MANAGER_SETTINGS);
+    run.focus = run.managerEntry(nbt::gui::EntrySelfTest);
+    press(&run, nbt::gui::KeySelect, 1);
+    exchange(&run, "SELFTEST LAST", "SELFTEST\tnone");
+    press(&run, nbt::gui::KeySelect, 1);
+    CHECK(run.screen == nbt::gui::SelfTestRun && view(&run).busy &&
+          view_contains(&run, "Preparing the test applications..."));
+    exchange(&run, "SELFTEST PREPARE",
+             "SELFTEST\tready\tmanager-selftest-native,manager-selftest-guest,manager-selftest");
+    self_test_app(&run, "manager-selftest-native");
+    CHECK(view_contains(&run, "Test 1 of 3"));
+    /* One that never shows: stopped without a fault, then the next. */
+    now += nbt::gui::kPollMs;
+    exchange(&run, "START manager-selftest-guest", "OK screen");
+    CHECK(run.takeHandover());
+    run.abortApp(nbt::gui::T_APP_NOT_SHOWN);
+    CHECK(run.screen == nbt::gui::SelfTestRun && run.takeAppEnded() && !run.appRun);
+    exchange(&run, "STOP manager-selftest-guest", "OK");
+    now += nbt::gui::kPollMs;
+    exchange(&run, "RUNNING status", "RUNNING\t1\tmanager-selftest-guest");
+    now += nbt::gui::kPollMs;
+    exchange(&run, "RUNNING status", "RUNNING\t0");
+    CHECK(!run.stopping);
+    /* The module: its instruction first. */
+    now += nbt::gui::kPollMs;
+    CHECK(run.nextRequest(now, request) == 0);
+    v = view(&run);
+    CHECK(!v.busy && v.itemCount == 1 && !strcmp(v.items[0], "Continue") &&
+          view_contains(&run, "Next: colour bars and three beeps"));
+    press(&run, nbt::gui::KeySelect, 1);
+    self_test_app(&run, "manager-selftest");
+    /* The two questions: Yes to the bars, No to the beeps. */
+    now += nbt::gui::kPollMs;
+    CHECK(run.nextRequest(now, request) == 0 && run.screen == nbt::gui::SelfTestAsk);
+    v = view(&run);
+    CHECK(v.itemCount == 2 && !strcmp(v.items[0], "Yes") && !strcmp(v.items[1], "No") &&
+          view_contains(&run, "red, green and blue bars"));
+    press(&run, nbt::gui::KeySelect, 1);
+    CHECK(view_contains(&run, "Did you hear three beeps?"));
+    press(&run, nbt::gui::KeyDown, 1);
+    press(&run, nbt::gui::KeySelect, 1);
+    exchange(&run, "SELFTEST REPORT y n",
+             "SELFTEST\t20\t2\t1\tyou.sound|f|no\tguest.start|f|no report"
+             "\tmodule.diag|s|no gateway");
+    v = view(&run);
+    CHECK(run.screen == nbt::gui::SelfTestResults && v.itemCount == 4 &&
+          !strcmp(v.items[0], "Failed: your answer, sound (no)") &&
+          !strcmp(v.items[1], "Failed: guest, start (no report)") &&
+          !strcmp(v.items[2], "Skipped: module, diagnostics (no gateway)") &&
+          !strcmp(v.items[3], "OK"));
+    CHECK(view_contains(&run, "20 passed, 2 failed") &&
+          view_contains(&run, "1 skipped: the car or the answer did not allow them"));
+    CHECK(!strcmp(nbt::gui::screenName(run.screen), "self-test-results"));
+    press(&run, nbt::gui::KeyBack, 1);
+    CHECK(run.screen == nbt::gui::SelfTest && view(&run).itemCount == 2);
+    /* One never seen running within 15 s: stopped, the panel taken back. */
+    UiController slow;
+    loaded(&slow, "APPS\t1\tdemo", "RUNNING\t0");
+    press(&slow, nbt::gui::KeyDown, 1);
+    press(&slow, nbt::gui::KeySelect, 1);
+    exchange(&slow, "SETTINGS manager live", MANAGER_SETTINGS);
+    slow.focus = slow.managerEntry(nbt::gui::EntrySelfTest);
+    press(&slow, nbt::gui::KeySelect, 1);
+    exchange(&slow, "SELFTEST LAST", "SELFTEST\tnone");
+    press(&slow, nbt::gui::KeySelect, 1);
+    exchange(&slow, "SELFTEST PREPARE", "SELFTEST\tready\tmanager-selftest-native");
+    now += nbt::gui::kPollMs;
+    exchange(&slow, "START manager-selftest-native", "OK screen");
+    CHECK(slow.takeHandover());
+    now += 16000;
+    CHECK(slow.nextRequest(now, request) == 0 && slow.takeAppEnded());
+    exchange(&slow, "STOP manager-selftest-native", "OK");
+    now += nbt::gui::kPollMs;
+    exchange(&slow, "RUNNING status", "RUNNING\t0");
+    now += nbt::gui::kPollMs;
+    CHECK(slow.nextRequest(now, request) == 0 && slow.screen == nbt::gui::SelfTestAsk);
+    /* Malformed reports are refused whole. */
+    nbt::gui::SelfTestState state = nbt::gui::SelfTestState();
+    CHECK(!nbt::gui::selfTestParseReport(state, "SELFTEST\t1\t2"));
+    CHECK(!nbt::gui::selfTestParseReport(state, "SELFTEST\t1\t2\t3\tnodot|f|x"));
+    CHECK(!nbt::gui::selfTestParseReport(state, "SELFTEST\t1\t2\t3\ta.b|p|x"));
+    CHECK(!nbt::gui::selfTestParseReport(state, "SELFTEST\t1\t2\t3\ta.b|f|\x01"));
+    CHECK(!nbt::gui::selfTestParseReport(state, "SELFTEST\t1000\t2\t3"));
+    CHECK(!nbt::gui::selfTestParseReady(state, "SELFTEST\tready\tdemo"));
+    CHECK(!nbt::gui::selfTestParseReady(
+        state, "SELFTEST\tready\tmanager-a,manager-b,manager-c,manager-d"));
+    CHECK(nbt::gui::selfTestParseReady(state, "SELFTEST\tready\t") && !state.count);
+}
+
 /* Settings > Tools: restart the head unit, which asks first and sends the
  * existing IDRIVE RESTART, and Enable SSH, which asks and sends SSH ENABLE
  * (tools_ui.hpp). Both come back to Tools. */
@@ -1079,7 +1242,7 @@ static void test_tools_menu(void) {
     press(&ui, nbt::gui::KeyDown, 1);
     press(&ui, nbt::gui::KeySelect, 1);
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
-    CHECK(ui.managerEntry(nbt::gui::EntryTools) == 7); // after Status
+    CHECK(ui.managerEntry(nbt::gui::EntryTools) == 8); // after Status and Self test
     ui.focus = ui.managerEntry(nbt::gui::EntryTools);
     press(&ui, nbt::gui::KeySelect, 1);
     UiView v = view(&ui);
@@ -1431,7 +1594,7 @@ static void test_app_settings(void) {
     CHECK(!view_contains(&ui, "Cannot read"));
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
     v = view(&ui);
-    CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "Settings") && v.itemCount == 8);
+    CHECK(ui.screen == nbt::gui::Settings && !strcmp(v.title, "Settings") && v.itemCount == 9);
     CHECK(!strcmp(v.items[0], "Debug log: off") &&
           !strcmp(v.items[2], "Hand back controller: off"));
     CHECK(view_contains(&ui, "Changes apply when the manager next opens"));
@@ -1455,7 +1618,7 @@ static void test_app_settings(void) {
     loaded(&ui, "APPS\t0", "RUNNING\t0");
     press(&ui, nbt::gui::KeySelect, 1); /* Settings comes first */
     exchange(&ui, "SETTINGS manager live", MANAGER_SETTINGS);
-    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 8);
+    CHECK(ui.screen == nbt::gui::Settings && view(&ui).itemCount == 9);
     /* Full declarations exceed the old 1024-byte limit; all twelve settings
      * remain navigable, followed by Stop and Uninstall for a running app. */
     {
@@ -2030,6 +2193,7 @@ int main(void) {
     test_pairing_timeout();
     test_setup_and_idrive_restart();
     test_tools_menu();
+    test_self_test();
     test_manager_update_review();
     test_pairing_wifi();
     test_malformed_replies();

@@ -96,6 +96,11 @@ jobs:
           mkdir -p out/unsigned/NbtManager out/verifier
           cp build/nbt-manager-launcher build/nbt-manager-gui build/nbt-managerd-qnx build/libnbt-capture.so \
             build/nbt-runner out/unsigned/
+          # The self test's applications (qnx-check builds them), signed in the
+          # sign job with the manager key (docs/self-test.md).
+          mkdir -p out/unsigned/selftest
+          cp build/selftest/selftest-native build/selftest/selftest-guest.guest \
+            build/selftest/selftest-module.so out/unsigned/selftest/
           cp build/NbtManager/{libNbtManager.so,NbtManager.manifest,NbtManager.xml,NbtManager_ALL_Texts.zip,NbtManager_ALL_Images.zip} out/unsigned/NbtManager/
           cp build/nbt-verify-release out/verifier/
           (cd out/unsigned && find . -type f | sort | xargs sha256sum)
@@ -125,7 +130,10 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             tools/package_release.py
+            tools/package.py
+            tools/bundled_apps.py
             tools/bridge.py
+            apps/selftest/*.args
             release/manager-public.pem
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -152,10 +160,15 @@ jobs:
             exit 1
           fi
           mkdir -p signed
+          # The bundled applications as packages signed with the same key:
+          # named components of the release (docs/self-test.md).
+          mapfile -t bundled < <(python3 tools/bundled_apps.py --programs unsigned/selftest \
+            --version "$VERSION" --sequence "$SEQUENCE" --key "$key" --output "$RUNNER_TEMP/bundled")
+          (( ${#bundled[@]} == 3 )) || { echo "::error::the bundled applications were not signed"; exit 1; }
           python3 tools/package_release.py --launcher unsigned/nbt-manager-launcher \
             --gui unsigned/nbt-manager-gui --worker unsigned/nbt-managerd-qnx \
             --plugin-dir unsigned/NbtManager --capture-lib unsigned/libnbt-capture.so \
-            --component runner=unsigned/nbt-runner \
+            --component runner=unsigned/nbt-runner "${bundled[@]}" \
             --key "$key" --output "signed/nbt-manager-$VERSION.nbtr" \
             --version "$VERSION" --sequence "$SEQUENCE" --compat "$MANAGER_COMPAT"
           # The step release (docs/manager-release.md): the same programs

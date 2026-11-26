@@ -10,10 +10,13 @@ namespace gui {
 
 const char *screenName(Screen screen) {
     static const char *const names[] = {
-        "loading",       "apps",   "settings",     "pairing",        "review",    "confirm",
-        "progress",      "result", "error",        "choice",         "uninstall", "waiting",
-        "phone-confirm", "phones", "phone-forget", "restart-idrive", "status",    "gamepad-test",
-        "language",      "files",  "file-delete",  "usb-files",      "tools",     "ssh-confirm"};
+        "loading",       "apps",          "settings",      "pairing",
+        "review",        "confirm",       "progress",      "result",
+        "error",         "choice",        "uninstall",     "waiting",
+        "phone-confirm", "phones",        "phone-forget",  "restart-idrive",
+        "status",        "gamepad-test",  "language",      "files",
+        "file-delete",   "usb-files",     "tools",         "ssh-confirm",
+        "self-test",     "self-test-run", "self-test-ask", "self-test-results"};
     return static_cast<unsigned>(screen) < sizeof(names) / sizeof(names[0]) ? names[screen]
                                                                             : "unknown";
 }

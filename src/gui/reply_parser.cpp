@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/gui/reply_parser.hpp"
 
+#include "nbt/bundled.h"
 #include "nbt/manager_settings.h"
 #include "nbt/permissions.h"
 #include "nbt/util.h"
@@ -14,12 +15,7 @@ namespace {
 static const size_t kFieldsMax = kAppsMax + 2;
 
 bool hex64(const char *s) {
-    for (size_t i = 0; i < 64; ++i) {
-        if (!((s[i] >= '0' && s[i] <= '9') || (s[i] >= 'a' && s[i] <= 'f'))) {
-            return false;
-        }
-    }
-    return s[64] == 0;
+    return strlen(s) == 64 && strspn(s, "0123456789abcdef") == 64;
 }
 
 bool digits(const char *s, size_t min, size_t max) {
@@ -226,9 +222,14 @@ static int parseAppSet(UiController &ui, const char *reply, const char *head, un
     if (parseNames(reply, head, copy, f, &count)) {
         return -1;
     }
+    bool target = false; // RUNNING also lists the self test's applications, never listed
     for (size_t i = 0; i < count; ++i) {
         const char *value = entry(f[i + 2], status ? kAppStatusMax : 0);
+        target = target || (value && !strcmp(f[i + 2], ui.target));
         const size_t j = value ? ui.appIndex(f[i + 2]) : ui.appCount;
+        if (j == ui.appCount && value && nbt_app_bundled(f[i + 2])) {
+            continue;
+        }
         if (j == ui.appCount || set[j]) {
             return -1;
         }
@@ -236,8 +237,9 @@ static int parseAppSet(UiController &ui, const char *reply, const char *head, un
         strcpy(text[j], value);
     }
     memcpy(flags, set, sizeof(set));
-    if (status) {
+    if (status) { // RUNNING
         memcpy(status, text, sizeof(text));
+        ui.targetRunning = target;
     }
     return 0;
 }
