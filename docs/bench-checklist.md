@@ -281,7 +281,7 @@ Settings › Self test ([self-test.md](self-test.md)); the debug log has one
 | The module's run | Three beeps (with an application's service playing, both heard); TURN, then PUSH; BACK skips both |
 | Results | `native`, `guest` and `module` all `start pass`, `screen` over 20 fps, `diag` and `cardata` pass with the ignition on |
 | Second run | Nothing installed again; the results of this run only |
-| An application running | "Stop the running applications first"; nothing starts |
+| An application running | The menu says it is stopped first; Start: "Stopping <app>", then the test |
 
 ## 12. Tools
 

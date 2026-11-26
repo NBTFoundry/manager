@@ -231,7 +231,8 @@ int main(int argc, char **argv) {
             phase = kDone;
             phaseAt = now;
             if (!report.has("screen")) {
-                const unsigned fps = framesAt ? static_cast<unsigned>(frames * 1000u / framesAt) : 0;
+                const unsigned fps =
+                    framesAt ? static_cast<unsigned>(frames * 1000u / framesAt) : 0;
                 report.set("screen", fps ? selftest::kPass : selftest::kFail, "%u fps", fps);
             }
             if (!report.write(lifecycle.data_dir())) {

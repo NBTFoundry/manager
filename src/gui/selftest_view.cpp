@@ -110,6 +110,12 @@ void selfTestView(const UiController &ui, UiView &v) {
             textf(out, sizeof(out), T_ST_LAST_SUMMARY, a, b);
             line(v, out);
         }
+        for (size_t i = 0; i < ui.appCount; ++i) {
+            if (ui.running[i]) { // stopped when the test starts
+                line(v, text(T_ST_STOP_APPS));
+                break;
+            }
+        }
         if (ui.message[0]) {
             line(v, ui.message);
         }
@@ -126,7 +132,10 @@ void selfTestView(const UiController &ui, UiView &v) {
             break;
         }
         v.busy = 1;
-        if (t.phase == S::Preparing) {
+        if (t.phase == S::StopOthers) {
+            textf(out, sizeof(out), T_STOPPING_APP, ui.target);
+            line(v, out);
+        } else if (t.phase == S::Preparing) {
             line(v, text(T_ST_PREPARING));
         } else if (t.phase == S::Reporting) {
             line(v, text(T_ST_REPORTING));

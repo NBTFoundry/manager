@@ -23,27 +23,30 @@ void phase(UiController &ui, S::Phase next) {
     ui.selfTest.phaseMs = ui.clockMs;
 }
 
-bool anyRunning(const UiController &ui) {
+/* "SELFTEST\tready\t<app>,<app>": the applications to run, all bundled. */
+/* The next application still running is stopped (it would hold the screen),
+ * as holding its row would; then the preparation. */
+void stopNext(UiController &ui) {
     for (size_t i = 0; i < ui.appCount; ++i) {
         if (ui.running[i]) {
-            return true;
+            snprintf(ui.target, sizeof(ui.target), "%s", ui.apps[i]);
+            nbt_logf("self test: stopping %s first", ui.target);
+            ui.faultStop = 0;
+            phase(ui, S::StopOthers);
+            ui.queued = R_STOP;
+            return;
         }
     }
-    return false;
+    phase(ui, S::Preparing);
+    ui.queued = R_SELFTEST_PREPARE;
 }
 
-/* "SELFTEST\tready\t<app>,<app>": the applications to run, all bundled. */
 void start(UiController &ui) {
-    if (anyRunning(ui)) {
-        textf(ui.message, sizeof(ui.message), T_ST_STOP_APPS);
-        return;
-    }
     ui.message[0] = 0;
     ui.selfTest.saw = ui.selfTest.heard = '-';
     ui.selfTest.instructed = false;
     ui.go(SelfTestRun);
-    phase(ui, S::Preparing);
-    ui.queued = R_SELFTEST_PREPARE;
+    stopNext(ui);
 }
 
 /* The answer to the question shown, then the next question or the report. */
@@ -189,10 +192,17 @@ bool selfTestPoll(UiController &ui, int &kind) {
         ui.stopping = 0;
         phase(ui, S::Next);
     }
+    if (t.phase == S::StopOthers && elapsed >= kStopMs) { // it does not stop: go on anyway
+        nbt_logf("self test: %s did not stop", ui.target);
+        ui.stopping = 0;
+        phase(ui, S::Preparing);
+        kind = R_SELFTEST_PREPARE;
+        return true;
+    }
     if (t.phase == S::Ended && !ui.appRun) { // the panel is the manager's again
         phase(ui, S::Next);
     }
-    if (t.phase == S::Running || t.phase == S::Stopping) {
+    if (t.phase == S::Running || t.phase == S::Stopping || t.phase == S::StopOthers) {
         kind = R_RUNNING;
         return true;
     }
@@ -243,6 +253,9 @@ void selfTestRunning(UiController &ui) {
     } else if (t.phase == S::Stopping && !ui.targetRunning) {
         ui.stopping = 0;
         phase(ui, S::Next);
+    } else if (t.phase == S::StopOthers && !ui.targetRunning) {
+        ui.stopping = 0;
+        stopNext(ui);
     }
 }
 

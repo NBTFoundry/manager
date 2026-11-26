@@ -1126,7 +1126,8 @@ static void test_self_test(void) {
     exchange(&busy, "SELFTEST PREPARE", "ERR busy");
     CHECK(busy.screen == nbt::gui::SelfTest &&
           view_contains(&busy, "NBT Manager is busy; try again in a moment"));
-    /* An application running holds the screen: stop it first. */
+    /* An application running would hold the screen: stopped first (no
+     * fault), then the preparation. */
     UiController held;
     loaded(&held, "APPS\t1\tdemo", "RUNNING\t1\tdemo");
     press(&held, nbt::gui::KeyDown, 1);
@@ -1135,9 +1136,16 @@ static void test_self_test(void) {
     held.focus = held.managerEntry(nbt::gui::EntrySelfTest);
     press(&held, nbt::gui::KeySelect, 1);
     exchange(&held, "SELFTEST LAST", "SELFTEST\tnone");
+    CHECK(view_contains(&held, "Running applications are stopped first"));
     press(&held, nbt::gui::KeySelect, 1);
-    CHECK(held.screen == nbt::gui::SelfTest && !held.queued &&
-          view_contains(&held, "Stop the running applications first"));
+    CHECK(held.screen == nbt::gui::SelfTestRun && view_contains(&held, "Stopping demo"));
+    exchange(&held, "STOP demo", "OK");
+    now += nbt::gui::kPollMs;
+    exchange(&held, "RUNNING status", "RUNNING\t1\tdemo");
+    now += nbt::gui::kPollMs;
+    exchange(&held, "RUNNING status", "RUNNING\t0");
+    CHECK(!held.stopping);
+    exchange(&held, "SELFTEST PREPARE", "SELFTEST\tready\t");
     /* The whole run. */
     UiController run;
     loaded(&run, "APPS\t1\tdemo", "RUNNING\t0");

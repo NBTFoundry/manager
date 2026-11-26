@@ -32,8 +32,9 @@ each an ordinary signed package (`apps/selftest/`), signed with the
 
 ## The run (GUI, `src/gui/selftest_ui.cpp`)
 
-1. Refused while an application runs (its row says so): it would hold the
-   screen.
+1. Each application that runs is stopped first, as holding its row would
+   (`STOP`, no fault counted): it would hold the screen. One that does not
+   stop within 20 s is left, and its screen may fail the test.
 2. `SELFTEST PREPARE` (worker's job): verifies the release, installs or
    keeps each bundled application, clears their fault guards and last
    reports. `SELFTEST\tready\t<app>,<app>,...` or `ERR selftest <reason>`.

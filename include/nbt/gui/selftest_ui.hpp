@@ -23,6 +23,7 @@ struct Request;
 struct SelfTestState {
     enum Phase {
         Idle,
+        StopOthers,  // the applications running stopped first, one at a time
         Preparing,   // SELFTEST PREPARE sent
         Next,        // the next application, or the questions
         Instruction, // before the module: what the driver will see and do

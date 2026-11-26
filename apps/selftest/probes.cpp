@@ -32,8 +32,7 @@ void checkBridge(const nbt::app::Lifecycle &lifecycle, const char *declared, Rep
             ++count;
             if (strcmp(name, "files") && !lifecycle.has_cap(name)) {
                 const size_t used = strlen(missing);
-                snprintf(missing + used, sizeof(missing) - used, "%s%s", absent++ ? "," : "",
-                         name);
+                snprintf(missing + used, sizeof(missing) - used, "%s%s", absent++ ? "," : "", name);
             }
         }
         cap += length + (end ? 1 : 0);

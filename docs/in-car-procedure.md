@@ -410,7 +410,7 @@ apps key, and `hello-lvgl-dev-0.1.0.nbt`. Keep App Manager open.
 
 ## 7f. Self test
 
-Parked, ignition on, no application running.
+Parked, ignition on. An application running is stopped first.
 
 1. Settings › Self test › Start the self test: "Preparing the test
    applications..." for a few seconds.
