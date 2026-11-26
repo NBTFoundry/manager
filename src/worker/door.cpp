@@ -96,7 +96,7 @@ int doorMain(const char *rootPath, int argc, char **argv) {
             return 1;
         }
     }
-    uint64_t nextListen = 0, nextLive = 0;
+    uint64_t nextListen = 0, nextAlso = 0, nextLive = 0;
     while (!doorStopping) {
         core::Result<uint64_t> now = core::monotonicMs();
         if (!now.ok()) {
@@ -105,6 +105,11 @@ int doorMain(const char *rootPath, int argc, char **argv) {
         if (!web.listening() && now.value() >= nextListen) {
             (void)web.listen(iface, port);
             nextListen = now.value() + 1000;
+        }
+        // The CarPlay hotspot too, once up: a phone wireless projection keeps on it.
+        if (strcmp(iface, "lo") && !web.listeningOn("uap0") && now.value() >= nextAlso) {
+            (void)web.listenAlso("uap0", port);
+            nextAlso = now.value() + 1000;
         }
         if (now.value() >= nextLive) {
             char checked[NBT_PATH_MAX];

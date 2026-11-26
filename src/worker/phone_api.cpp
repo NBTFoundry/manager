@@ -18,9 +18,9 @@ PhoneApi::PhoneApi(Worker &worker)
       actions_(worker, phones_, developers_), files_(worker), door_(false), receiving_(false),
       systemLog_(false), wakeMs_(0), bssid_(), host_(), wakePath_() {
 }
-void PhoneApi::address(const char *host, const char *interfaceName) {
+void PhoneApi::address(const char *host, const char *bssid) {
     snprintf(host_, sizeof(host_), "%s", host);
-    phoneBssid(interfaceName, bssid_);
+    snprintf(bssid_, sizeof(bssid_), "%s", bssid);
 }
 bool PhoneApi::initialize(bool door) {
     door_ = door;

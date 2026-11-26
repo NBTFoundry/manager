@@ -593,7 +593,11 @@ Application packages are verified against the apps key bundled with the manager 
 ## Paired-phone HTTP protocol 1
 
 The worker serves port 8080 while its GUI runs; `nbt-managerd --door` serves
-8081 from boot. Both bind to the address on `wfd0`. The host-test build permits
+8081 from boot. Both bind to the address on `wfd0`, and also, independently, to
+the one on `uap0` (the CarPlay hotspot, 172.16.224.1) at the same port, so that
+a phone wireless Android Auto keeps on the hotspot reaches them there. A request
+signs the address it was sent to, and a pairing or status reply names the
+address and BSSID of the interface it came through. The host-test build permits
 loopback. Every response is `text/plain`, `Cache-Control: no-store`, and closes
 the connection. No HTTP route approves an action, starts/stops an application,
 or serves a web page. Previous bearer routes are rejected.
@@ -901,8 +905,8 @@ The launcher verifies the known-good slot (previous while a trial is pending)
 under its operation lock, starts that worker and waits for a private READY
 handshake before releasing the lock. The door itself holds no manager operation
 lock; a separate shared-memory lifetime lock prevents duplicates. It waits for
-wfd0 addressing and refreshes only its `nbt-door` packet-filter rule every ten
-seconds. Three unsuccessful starts exhaust the per-boot shared-memory guard;
+wfd0 addressing and refreshes only its `nbt-door` packet-filter rules (`nbt-door-uap0`
+for the hotspot) every ten seconds. Three unsuccessful starts exhaust the per-boot shared-memory guard;
 60 seconds of healthy liveness re-arms it. No trial is confirmed by this mode.
 
 A signed wake is limited to one new marker per 30 seconds. Repeating it during

@@ -105,7 +105,7 @@ core::Status Daemon::command(char *line, uint64_t nowMs) {
 
 int Daemon::run() {
     int result = 1;
-    uint64_t nextListen = 0, nextHandover = 0;
+    uint64_t nextListen = 0, nextAlso = 0, nextHandover = 0;
     while (!control_.quitting()) {
         core::Result<uint64_t> now = core::monotonicMs();
         if (!now.get()) {
@@ -137,6 +137,11 @@ int Daemon::run() {
         if (!web_.listening() && !dispatcher_.replyPending() && now.value() >= nextListen) {
             (void)web_.listen("wfd0", 8080);
             nextListen = now.value() + 1000;
+        }
+        // The CarPlay hotspot too, once up: a phone wireless projection keeps on it.
+        if (!web_.listeningOn("uap0") && !dispatcher_.replyPending() && now.value() >= nextAlso) {
+            (void)web_.listenAlso("uap0", 8080);
+            nextAlso = now.value() + 1000;
         }
         logChanges();
         fd_set readers;

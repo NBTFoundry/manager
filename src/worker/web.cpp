@@ -3,6 +3,7 @@
 
 #include "nbt/firewall.h"
 #include "nbt/log.h"
+#include "nbt/worker/phone_network.hpp"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -46,16 +47,47 @@ bool allowedInterface(const char *interfaceName) {
 
 } // namespace
 
-WebServer::WebServer(Worker &worker)
-    : api_(worker), listener_(), firewall_(false), interface_(), address_(0), port_(0),
-      firewallMs_(0), host_() {
-    host_[0] = 0;
+WebServer::WebServer(Worker &worker) : api_(worker), listeners_(), firewallMs_(0), via_() {
+    for (unsigned i = 0; i < kWebListeners; ++i) {
+        listeners_[i].firewall = false;
+        listeners_[i].interface[0] = listeners_[i].host[0] = listeners_[i].bssid[0] = 0;
+        listeners_[i].label[0] = 0;
+        listeners_[i].address = 0;
+        listeners_[i].port = 0;
+    }
 }
 
 core::Status WebServer::listen(const char *interfaceName, unsigned port) {
-    if (listener_.valid() || port > 65535 || !allowedInterface(interfaceName)) {
+    return listeners_[0].fd.valid() ? core::Status::error(EINVAL, "invalid web listener")
+                                    : open(0, interfaceName, port);
+}
+
+core::Status WebServer::listenAlso(const char *interfaceName, unsigned port) {
+    if (listeningOn(interfaceName)) {
         return core::Status::error(EINVAL, "invalid web listener");
     }
+    for (unsigned i = 1; i < kWebListeners; ++i) {
+        if (!listeners_[i].fd.valid()) {
+            return open(i, interfaceName, port);
+        }
+    }
+    return core::Status::error(ENOSPC, "no web listener left");
+}
+
+bool WebServer::listeningOn(const char *interfaceName) const {
+    for (unsigned i = 0; i < kWebListeners; ++i) {
+        if (listeners_[i].fd.valid() && !strcmp(listeners_[i].interface, interfaceName)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+core::Status WebServer::open(unsigned index, const char *interfaceName, unsigned port) {
+    if (port > 65535 || !allowedInterface(interfaceName)) {
+        return core::Status::error(EINVAL, "invalid web listener");
+    }
+    Listener &l = listeners_[index];
     core::UniqueFd fd(socket(AF_INET, SOCK_STREAM, 0));
     if (!fd.valid()) {
         return core::Status::fromErrno("cannot create web listener");
@@ -86,27 +118,39 @@ core::Status WebServer::listen(const char *interfaceName, unsigned port) {
         !privateFd(fd.get()).ok() || fd.get() >= FD_SETSIZE) {
         return core::Status::fromErrno("cannot bind web listener");
     }
-    const int hostLength =
-        snprintf(host_, sizeof(host_), "%s:%u", ip, static_cast<unsigned>(ntohs(address.sin_port)));
-    if (hostLength < 0 || hostLength >= static_cast<int>(sizeof(host_))) {
+    const int hostLength = snprintf(l.host, sizeof(l.host), "%s:%u", ip,
+                                    static_cast<unsigned>(ntohs(address.sin_port)));
+    if (hostLength < 0 || hostLength >= static_cast<int>(sizeof(l.host))) {
+        l.host[0] = 0;
         return core::Status::error(ERANGE, "web address too long");
     }
-    listener_ = std::move(fd);
-    api_.address(host_, interfaceName);
-    snprintf(interface_, sizeof(interface_), "%s", interfaceName);
-    address_ = address.sin_addr.s_addr;
-    port_ = ntohs(address.sin_port);
-    firewallMs_ = 0;
-    if (nbt_firewall_open_label(interfaceName, address_, port_,
-                                api_.door() ? "nbt-door" : "nbt-manager")) {
-        nbt_logf("firewall: cannot open TCP %u on %s (errno %d); phones may not reach the API",
-                 static_cast<unsigned>(ntohs(address.sin_port)), interfaceName, errno);
-    } else {
-        firewall_ = true;
-        nbt_logf("firewall: TCP %u open on %s for this session",
-                 static_cast<unsigned>(ntohs(address.sin_port)), interfaceName);
+    l.fd = std::move(fd);
+    phoneBssid(interfaceName, l.bssid);
+    snprintf(l.interface, sizeof(l.interface), "%s", interfaceName);
+    // The first interface keeps the label of earlier versions; closing it removes both.
+    snprintf(l.label, sizeof(l.label), index ? "%s-%s" : "%s",
+             api_.door() ? "nbt-door" : "nbt-manager", interfaceName);
+    l.address = address.sin_addr.s_addr;
+    l.port = ntohs(address.sin_port);
+    if (index) {
+        nbt_logf("web: also listening on %s (%s)", interfaceName, l.host);
     }
+    firewallMs_ = 0;
+    openFirewall(l);
     return core::Status();
+}
+
+void WebServer::openFirewall(Listener &l) {
+    if (nbt_firewall_open_label(l.interface, l.address, l.port, l.label)) {
+        nbt_logf("firewall: cannot open TCP %u on %s (errno %d); phones may not reach the API",
+                 static_cast<unsigned>(l.port), l.interface, errno);
+    } else {
+        if (!l.firewall) {
+            nbt_logf("firewall: TCP %u open on %s for this session", static_cast<unsigned>(l.port),
+                     l.interface);
+        }
+        l.firewall = true;
+    }
 }
 
 void WebServer::dropClients(Worker &worker) {
@@ -119,9 +163,16 @@ void WebServer::dropClients(Worker &worker) {
 }
 
 void WebServer::close(Worker &worker) {
-    listener_.reset();
-    if (firewall_ || port_) {
-        firewall_ = false;
+    bool opened = false;
+    for (unsigned i = 0; i < kWebListeners; ++i) {
+        Listener &l = listeners_[i];
+        opened = opened || l.firewall || l.port;
+        l.fd.reset();
+        l.firewall = false;
+        l.host[0] = l.bssid[0] = l.interface[0] = 0;
+        l.port = 0;
+    }
+    if (opened) {
         if (nbt_firewall_close_label(api_.door() ? "nbt-door" : "nbt-manager") < 0) {
             nbt_logf("firewall: cannot remove the session rule (errno %d)", errno);
         } else {
@@ -129,15 +180,15 @@ void WebServer::close(Worker &worker) {
         }
     }
     dropClients(worker);
-    host_[0] = 0;
-    port_ = 0;
 }
 
 void WebServer::sets(fd_set *readers, fd_set *writers, int *highest) {
-    if (listener_.valid()) {
-        FD_SET(listener_.get(), readers);
-        if (listener_.get() > *highest) {
-            *highest = listener_.get();
+    for (unsigned i = 0; i < kWebListeners; ++i) {
+        if (listeners_[i].fd.valid()) {
+            FD_SET(listeners_[i].fd.get(), readers);
+            if (listeners_[i].fd.get() > *highest) {
+                *highest = listeners_[i].fd.get();
+            }
         }
     }
     for (unsigned i = 0; i < kWebClients; ++i) {
@@ -159,32 +210,49 @@ void WebServer::sets(fd_set *readers, fd_set *writers, int *highest) {
     }
 }
 
+void WebServer::accept(unsigned index, uint64_t nowMs) {
+    core::UniqueFd fd(::accept(listeners_[index].fd.get(), NULL, NULL));
+    if (!fd.valid()) {
+        return;
+    }
+    unsigned i = 0;
+    while (i < kWebClients && clients_[i].valid()) {
+        ++i;
+    }
+    if (i < kWebClients && fd.get() < FD_SETSIZE && privateFd(fd.get()).ok()) {
+        clients_[i].acceptClient(std::move(fd), nowMs);
+        via_[i] = index;
+    }
+}
+
 void WebServer::handle(Worker &worker, const fd_set *readers, const fd_set *writers,
                        uint64_t nowMs) {
     (void)worker;
-    if (listener_.valid() && api_.door() && (nowMs < firewallMs_ || nowMs - firewallMs_ >= 10000)) {
-        if (!nbt_firewall_open_label(interface_, address_, port_, "nbt-door")) {
-            firewall_ = true;
+    // The door's rules again every 10 s: they go when the car reloads its ruleset.
+    const bool refresh = api_.door() && (nowMs < firewallMs_ || nowMs - firewallMs_ >= 10000);
+    for (unsigned i = 0; i < kWebListeners; ++i) {
+        if (!listeners_[i].fd.valid()) {
+            continue;
         }
-        firewallMs_ = nowMs;
+        if (refresh && !nbt_firewall_open_label(listeners_[i].interface, listeners_[i].address,
+                                                listeners_[i].port, listeners_[i].label)) {
+            listeners_[i].firewall = true;
+        }
+        if (FD_ISSET(listeners_[i].fd.get(), readers)) {
+            accept(i, nowMs);
+        }
     }
-    if (listener_.valid() && FD_ISSET(listener_.get(), readers)) {
-        core::UniqueFd fd(accept(listener_.get(), NULL, NULL));
-        if (fd.valid()) {
-            unsigned i = 0;
-            while (i < kWebClients && clients_[i].valid()) {
-                ++i;
-            }
-            if (i < kWebClients && fd.get() < FD_SETSIZE && privateFd(fd.get()).ok()) {
-                clients_[i].acceptClient(std::move(fd), nowMs);
-            }
-        }
+    if (refresh) {
+        firewallMs_ = nowMs;
     }
     for (unsigned i = 0; i < kWebClients; ++i) {
         WebConnection &connection = clients_[i];
         if (!connection.valid()) {
             continue;
         }
+        // Pairing and status replies name the address and access point the phone came through.
+        const Listener &via = listeners_[via_[i] < kWebListeners ? via_[i] : 0];
+        api_.address(via.host, via.bssid);
         if (nowMs < connection.lastMs() || nowMs - connection.lastMs() > kConnectionTimeoutMs) {
             connection.closeClient(api_);
             continue;
@@ -195,7 +263,8 @@ void WebServer::handle(Worker &worker, const fd_set *readers, const fd_set *writ
             }
             continue;
         }
-        if (FD_ISSET(connection.fd(), readers) && !connection.readClient(host_, api_, nowMs).ok()) {
+        if (FD_ISSET(connection.fd(), readers) &&
+            !connection.readClient(via.host, api_, nowMs).ok()) {
             connection.closeClient(api_);
             continue;
         }

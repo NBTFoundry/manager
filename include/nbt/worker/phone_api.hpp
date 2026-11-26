@@ -17,7 +17,8 @@ public:
         return door_;
     }
     bool initialize(bool door = false);
-    void address(const char *host, const char *interfaceName);
+    /* The listener a request came through: its address and access point (BSSID). */
+    void address(const char *host, const char *bssid);
     bool begin(const http::Request &request, uint64_t now);
     bool authorized(const http::Request &request, const unsigned char hash[32], const char *body);
     int execute(const http::Request &request, const char *body, uint64_t now,

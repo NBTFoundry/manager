@@ -16,6 +16,8 @@ namespace nbt {
 namespace worker {
 
 static const unsigned kWebClients = 4;
+/* The car's two Wi-Fi networks: the Wi-Fi Direct group, then the CarPlay hotspot. */
+static const unsigned kWebListeners = 2;
 static const uint64_t kConnectionTimeoutMs = 15000;
 
 class WebConnection {
@@ -85,28 +87,45 @@ public:
     WebServer(const WebServer &) = delete;
     WebServer &operator=(const WebServer &) = delete;
 
+    /* The first listener (the pairing session's, named in SESSION's reply). */
     core::Status listen(const char *interfaceName, unsigned port);
+    /* Another, on `interfaceName`, once that interface has an address, whether or not the
+     * first one is up: a phone another app joined to the CarPlay hotspot reaches the manager
+     * there (docs/android-auto-wifi.md). Closed by close() with the first one. */
+    core::Status listenAlso(const char *interfaceName, unsigned port);
+    bool listeningOn(const char *interfaceName) const;
     void close(Worker &worker);
     void dropClients(Worker &worker);
     void sets(fd_set *readers, fd_set *writers, int *highest);
     void handle(Worker &worker, const fd_set *readers, const fd_set *writers, uint64_t nowMs);
     bool listening() const {
-        return listener_.valid();
+        return listeners_[0].fd.valid();
     }
     const char *host() const {
-        return host_;
+        return listeners_[0].host;
     }
 
 private:
+    struct Listener {
+        core::UniqueFd fd;
+        bool firewall;
+        char interface[16];
+        uint32_t address;
+        uint16_t port;
+        char host[128];
+        char bssid[18];
+        char label[32];
+    };
+    core::Status open(unsigned index, const char *interfaceName, unsigned port);
+    void openFirewall(Listener &listener);
+    void accept(unsigned index, uint64_t nowMs);
+
     PhoneApi api_;
-    core::UniqueFd listener_;
-    bool firewall_;
-    char interface_[16];
-    uint32_t address_;
-    uint16_t port_;
+    Listener listeners_[kWebListeners];
     uint64_t firewallMs_;
-    char host_[128];
     WebConnection clients_[kWebClients];
+    /* The listener each client came through: its address is the one requests sign. */
+    unsigned via_[kWebClients];
 };
 
 } // namespace worker

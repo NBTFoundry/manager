@@ -5,6 +5,17 @@
 #include <stdio.h>
 #include <string.h>
 
+/* "nbt-manager" or "nbt-door", alone (a listener's first interface) or followed by
+ * "-<interface>" (its second one, as "nbt-door-uap0"). */
+static int valid_label(const char *label) {
+    const size_t base = !label                               ? 0
+                        : !strncmp(label, "nbt-manager", 11) ? 11
+                        : !strncmp(label, "nbt-door", 8)     ? 8
+                                                             : 0;
+    return base && (!label[base] ||
+                    (label[base] == '-' && label[base + 1] && strlen(label + base + 1) < 16));
+}
+
 #ifdef __QNX__
 #include <fcntl.h>
 #include <net/if.h>
@@ -108,7 +119,7 @@ int nbt_firewall_close_label(const char *label) {
     if (fd < 0) {
         return -1;
     }
-    result = remove_all(fd, label, 0);
+    result = remove_all(fd, label, 1); /* with its listeners' other interfaces */
     saved = errno;
     close(fd);
     errno = saved;
@@ -122,8 +133,8 @@ int nbt_firewall_open_label(const char *interface_name, uint32_t address, uint16
     struct pf_rule *rule = &pr.rule;
     uint32_t ticket;
     int fd, result = -1, saved;
-    if (!label || (strcmp(label, "nbt-manager") && strcmp(label, "nbt-door")) || !interface_name ||
-        !*interface_name || strlen(interface_name) >= sizeof(rule->ifname) || !address || !port) {
+    if (!valid_label(label) || !interface_name || !*interface_name ||
+        strlen(interface_name) >= sizeof(rule->ifname) || !address || !port) {
         errno = EINVAL;
         return -1;
     }
@@ -266,8 +277,8 @@ int nbt_firewall_open_label(const char *interface_name, uint32_t address, uint16
                             const char *label) {
     char line[64];
     const unsigned char *a = (const unsigned char *)&address;
-    if (!label || (strcmp(label, "nbt-manager") && strcmp(label, "nbt-door")) || !interface_name ||
-        !*interface_name || strlen(interface_name) >= 16 || !address || !port) {
+    if (!valid_label(label) || !interface_name || !*interface_name ||
+        strlen(interface_name) >= 16 || !address || !port) {
         errno = EINVAL;
         return -1;
     }

@@ -20,7 +20,10 @@ int nbt_firewall_open(const char *interface_name, uint32_t address, uint16_t por
 /* Removes every rule of ours (also leftovers after a crash). Returns the
  * number removed, or -1 with errno. */
 int nbt_firewall_close(void);
+/* `label` "nbt-manager" or "nbt-door": also removes the rules labelled "<label>-<interface>". */
 int nbt_firewall_close_label(const char *label);
+/* Replaces the rules labelled exactly `label`: "nbt-manager" or "nbt-door" for a listener's
+ * first interface, "<that>-<interface>" for its second one. */
 int nbt_firewall_open_label(const char *interface_name, uint32_t address, uint16_t port,
                             const char *label);
 /* An application's rules (capability `net`, docs/app-bridge.md): label

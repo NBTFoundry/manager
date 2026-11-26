@@ -11,8 +11,12 @@ on the car and on the phone.
 | CarPlay hotspot | `uap0`, 172.16.224.1 | Connectivity, at boot (CarPlay coded) | NBT-AAD's default |
 | Wi-Fi Direct group | `wfd0`, 172.16.222.1 | Connectivity at boot when Miracast is coded (`autogo`); otherwise the manager, through MOST A0.03 `SelectWLANState3` | "Use WiFi Direct Network" is ticked, or `NBT_ALT_WIFI=DIRECT` |
 
-The manager pairs and serves phones on `wfd0` only. It never switches the
-CarPlay hotspot (MOST A0.01 is outside its MOST policy).
+The manager pairs and serves phones on `wfd0`, and also on `uap0` (same ports,
+the worker's and door's second listener, firewall labels `nbt-manager-uap0`
+and `nbt-door-uap0`) whenever it has an address, with or without `wfd0`. The pairing code always names
+`wfd0`'s group; the phone reaches `uap0` only through a connection another app
+(Android Auto) made. It never switches the CarPlay hotspot (MOST A0.01 is
+outside its MOST policy).
 
 Without Miracast coded, only the CarPlay access point starts at boot; `wfd0`
 starts when the manager asks for it. Android Auto uses `wfd0` whenever the group
@@ -59,18 +63,24 @@ the phone to the same group and cut Android Auto.
 So before each action the app (`modules/car-link`, `CarNetwork.join`):
 
 1. Uses the network it already holds for that car.
-2. Otherwise uses a Wi-Fi network already up on the car's link
-   (`SharedNetwork`): an address on the subnet of the car address it will
-   talk to (both while pairing), and the car answering a TCP connection
-   there (a refusal counts). It does not hold that network and makes no
-   request, so Android Auto is untouched. `setUids` on a specifier network
+2. Otherwise uses a Wi-Fi network already up on either of the car's links
+   (`SharedNetwork`): an address on the subnet of 172.16.222.1 or
+   172.16.224.1, and the manager accepting a TCP connection on that address
+   (worker or door; a refusal is not enough, since a manager older than the
+   `uap0` listeners refuses there). It does not hold that network and makes
+   no request, so Android Auto is untouched. `join` returns the car's
+   address on that link and every request goes there, whatever address the
+   car was paired at (same ports). `setUids` on a specifier network
    only limits which requests it satisfies and its callbacks; any app can
    list it (`getAllNetworks`) and bind sockets to it, since it is not
    restricted (netd `checkUserNetworkAccess`). A binding refused by a
    future Android fails the probe and the app joins with its own request.
 3. Otherwise joins with its own request, held as before.
 
-- **Android Auto on the same group (`wfd0`).** Case 2: shared, no reconnection.
+- **Android Auto on the group (`wfd0`) or the CarPlay hotspot (`uap0`).**
+  Case 2: shared, no reconnection. On the hotspot this needs a manager with
+  the `uap0` listeners; with an older one the app joins the group with its
+  own request and **Android Auto loses its Wi-Fi** while the app holds it.
 - **Android Auto joining after the app.** Android Auto takes the connection
   over; the app sees `lost` and drops its request at once (kept, Android
   would serve it again by taking the connection back, and they would take
@@ -78,19 +88,12 @@ So before each action the app (`modules/car-link`, `CarNetwork.join`):
 - **Android Auto going away while shared.** The next request finds the
   network gone, reports `lost` and fails with `no-network`; the next action
   joins with the app's own request.
-- **Android Auto on the CarPlay hotspot.** Not on the manager's link
-  (172.16.222.1), so the app joins the group with its own request and
-  **Android Auto loses its Wi-Fi** while the app holds it. It comes back
-  after the app releases the group (background, 5 minutes idle, or the car
-  forgotten).
+- **No `wfd0` group up** (Miracast not coded, no pairing session): only the
+  `uap0` listeners exist, so the phone reaches the manager only while
+  Android Auto holds the hotspot connection.
 
 ## Open
 
 - Car test: Android Auto running wirelessly, then Pair a phone and an
   install from the app, once with NBT-AAD on the group and once on the
   hotspot.
-- If Android Auto must stay on the CarPlay hotspot, the manager could serve
-  phones on `uap0` too, with the hotspot's details (`iap2.cfg`) in the pairing
-  code, so the phone shares that connection instead. That needs a decision:
-  it puts the CarPlay hotspot's passphrase on the phone, and a link on `uap0`
-  does not reach a phone on the group.
