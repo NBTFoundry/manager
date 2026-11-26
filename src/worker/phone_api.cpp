@@ -174,6 +174,8 @@ int PhoneApi::execute(const http::Request &request, const char *body, uint64_t n
         return phoneAutostart(worker_, body, out);
     case http::Manager:
         return phoneManager(worker_, out);
+    case http::SelfTest: // the door too: the report is only read
+        return selfTestPhone(root_.legacy(), out.data(), out.size());
     case http::Pair:
         if (!bssid_[0]) {
             return 503;

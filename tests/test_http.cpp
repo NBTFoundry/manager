@@ -89,6 +89,15 @@ static bool run() {
              "Content-Type: text/plain\r\n\r\n",
              auth);
     TEST_CHECK(parse(text, request) == Invalid);
+    // The last self test's report: a GET too (docs/self-test.md).
+    snprintf(text, sizeof(text), "GET /v1/selftest HTTP/1.1\r\nHost: car\r\n%s\r\n", auth);
+    TEST_CHECK(parse(text, request) == Complete && request.route == SelfTest);
+    TEST_CHECK(!strcmp(path(SelfTest), "/v1/selftest"));
+    snprintf(text, sizeof(text),
+             "POST /v1/selftest HTTP/1.1\r\nHost: car\r\n%sContent-Length: 0\r\n"
+             "Content-Type: text/plain\r\n\r\n",
+             auth);
+    TEST_CHECK(parse(text, request) == Invalid);
     snprintf(text, sizeof(text),
              "POST /v1/logs/app HTTP/1.1\r\nHost: car\r\nContent-Length: 5\r\n"
              "Content-Type: text/plain\r\n\r\n");

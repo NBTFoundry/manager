@@ -135,6 +135,11 @@ class SelfTestTests(unittest.TestCase):
         self.start('release-bundled')
         self.assertEqual(self.command('SELFTEST REPORT y y'), 'ERR selftest')
         self.assertEqual(self.command('SELFTEST LAST'), 'SELFTEST\tnone')
+        host = self.command('SESSION lo 0').split('\t')[1]
+        phone = SoftwarePhone(self.tmp.name)
+        phone.pair(self.command, host)
+        self.assertEqual(phone.request(host, 'GET', '/v1/selftest'), (200, b'SELFTEST1\tnone\n'))
+        self.assertEqual(self.command('CANCEL'), 'OK')
         self.assertEqual(self.command('SELFTEST PREPARE'), READY)
         for _, app in BUNDLED:
             profile = (self.root / 'trust/apps' / f'{app}.conf').read_text()
@@ -162,6 +167,13 @@ class SelfTestTests(unittest.TestCase):
         self.assertEqual(int(reply[2]), len(failures))
         # manager.release, files, space; native start, bridge, screen; you.screen.
         self.assertEqual(passed, 7)
+        # The phone reads the kept report as it is (GET /v1/selftest).
+        host = self.command('SESSION lo 0').split('\t')[1]
+        phone = SoftwarePhone(self.tmp.name)
+        phone.pair(self.command, host)
+        status, body = phone.request(host, 'GET', '/v1/selftest')
+        self.assertEqual((status, body), (200, (self.root / 'state/manager/selftest.txt').read_bytes()))
+        self.assertEqual(self.command('CANCEL'), 'OK')
         kept = (self.root / 'state/manager/selftest.txt').read_text().splitlines()
         self.assertTrue(kept[0].startswith('SELFTEST1\t') and kept[0].endswith('\tv2'))
         self.assertIn('native.screen\tp\t58 fps', kept)

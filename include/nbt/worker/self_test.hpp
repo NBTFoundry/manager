@@ -35,6 +35,9 @@ int selfTestReport(nbt_fs *fs, const SelfTestPrepared &prepared, char saw, char 
                    size_t size);
 /* The reply for the kept report; -1 when there is none or it is unreadable. */
 int selfTestLast(nbt_fs *fs, char *reply, size_t size);
+/* GET /v1/selftest (PROTOCOL.md): the kept report as it is, or
+ * "SELFTEST1\tnone\n" without one; an HTTP status. */
+int selfTestPhone(nbt_fs *fs, char *out, size_t size);
 
 } // namespace worker
 } // namespace nbt

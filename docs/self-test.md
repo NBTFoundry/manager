@@ -46,7 +46,9 @@ each an ordinary signed package (`apps/selftest/`), signed with the
 5. `SELFTEST REPORT <saw> <heard>` (`y`/`n`): the worker gathers its own
    checks, each application's report and the answers, keeps them in
    `state/manager/selftest.txt` and answers with the counts and what did
-   not pass. `SELFTEST LAST`: the same for the kept report.
+   not pass. `SELFTEST LAST`: the same for the kept report. A paired phone reads the
+   kept report itself (`GET /v1/selftest`, worker and door), every check
+   with its result and detail, and shares it.
 
 ## The application's report
 

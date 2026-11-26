@@ -687,6 +687,7 @@ connections, a 5-second header deadline, a 15-second inactivity timeout and a
 | `POST /v1/keys/remove` | `key-id\n` | HTTP 202 `STATUS\twaiting\tConfirm on the car\n`; local No/Yes prompt; 404 for an unknown key | No |
 | `POST /v1/companion` | `app\n` | `COMPANION\tready\n` then the application's page, or `COMPANION\toff\n` while its process does not run or has no page; 404 for an application not installed or without `companion` ([docs/companion-bridge.md](docs/companion-bridge.md)) | Yes |
 | `POST /v1/companion/event` | `app\tid\tvalue\n` | `OK\n`; 409 while its process does not run, 400 for a malformed event, 404 as above | Yes |
+| `GET /v1/selftest` | empty | The last self test's report as the car keeps it, under 4 KiB: `SELFTEST1\t<unix time>\t<manager version>\n`, then `<group>.<check>\t<p\|f\|s>\t<detail>\n` for every check; `SELFTEST1\tnone\n` before the first ([docs/self-test.md](docs/self-test.md)) | Yes |
 
 The files routes refuse with `ERR <reason>\n` and an HTTP status that says
 which ([docs/files-bridge.md](docs/files-bridge.md)).

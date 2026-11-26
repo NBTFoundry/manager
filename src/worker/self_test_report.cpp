@@ -133,14 +133,21 @@ int keep(nbt_fs *fs, const SelfTestPrepared &prepared, const Report &r) {
     int used =
         snprintf(text, sizeof(text), "SELFTEST1\t%lld\t%s\n", static_cast<long long>(time(NULL)),
                  prepared.version[0] ? prepared.version : "-");
-    for (size_t i = 0; i < r.count && used > 0 && static_cast<size_t>(used) < sizeof(text); ++i) {
-        const Entry &e = r.entries[i];
-        used += snprintf(text + used, sizeof(text) - static_cast<size_t>(used), "%s\t%c\t%s\n",
-                         e.key, e.result, e.detail);
-    }
     if (used < 0 || static_cast<size_t>(used) >= sizeof(text)) {
         errno = ENOSPC;
         return -1;
+    }
+    // Under 4 KiB, so it fits one phone reply (GET /v1/selftest): lines that
+    // would not fit are left out.
+    for (size_t i = 0; i < r.count; ++i) {
+        const Entry &e = r.entries[i];
+        char line[sizeof(e.key) + sizeof(e.detail) + 8];
+        const int n = snprintf(line, sizeof(line), "%s\t%c\t%s\n", e.key, e.result, e.detail);
+        if (n < 0 || static_cast<size_t>(used + n) >= sizeof(text)) {
+            break;
+        }
+        memcpy(text + used, line, static_cast<size_t>(n));
+        used += n;
     }
     return nbt_fs_replace_text(fs, NBT_FS_MANAGER_SELFTEST_NEXT, NBT_FS_MANAGER_SELFTEST, "manager",
                                text, static_cast<size_t>(used));
@@ -206,6 +213,19 @@ int selfTestReport(nbt_fs *fs, const SelfTestPrepared &prepared, char saw, char 
                  e.detail);
     }
     return reply(r, out, size) ? -1 : kept;
+}
+
+int selfTestPhone(nbt_fs *fs, char *out, size_t size) {
+    core::UniqueFd fd(nbt_fs_open(fs, NBT_FS_MANAGER_SELFTEST, "manager", NULL, NBT_FS_READ));
+    if (!fd.valid()) {
+        return errno == ENOENT ? (snprintf(out, size, "SELFTEST1\tnone\n") > 0 ? 200 : 500) : 503;
+    }
+    const ssize_t n = size ? read(fd.get(), out, size - 1) : -1;
+    if (n <= 0 || static_cast<size_t>(n) == size - 1) {
+        return 503; // unreadable, or larger than any report kept
+    }
+    out[n] = 0;
+    return strncmp(out, "SELFTEST1\t", 10) ? 503 : 200;
 }
 
 int selfTestLast(nbt_fs *fs, char *out, size_t size) {
