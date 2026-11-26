@@ -47,32 +47,42 @@ is up and NBT-AAD is set to use it.
 
 ## Phone side
 
-The app joins with a `WifiNetworkSpecifier` request. Android's Wi-Fi service
-(AOSP `WifiNetworkFactory`, `packages/modules/Wifi`) serves one such request
-at a time, and wireless Android Auto uses the same mechanism: AOSP has a
-special case for "car mode prioritized" apps in it.
+Wireless Android Auto joins the car's Wi-Fi with a `WifiNetworkSpecifier`
+request. Android's Wi-Fi service (AOSP `WifiNetworkFactory`,
+`packages/modules/Wifi`) serves one such request at a time: a request from
+the app on screen replaces Android Auto's (`canNewRequestOverrideExistingRequest`),
+and adds the app to Android Auto's connection only when everything matches
+(same interface, access point and credentials,
+`handleClientModeManagerRetrieval`). In the car the app's request reconnected
+the phone to the same group and cut Android Auto.
 
-- **Android Auto on the same group (`wfd0`), Android 12 and later.** The
-  app's request matches the connected network (SSID, access point and
-  passphrase), so Android adds the app to that connection without
-  reconnecting (`handleClientModeManagerRetrieval`, "Already connected to the
-  same network"). Android Auto is untouched. When the app releases its
-  request, Android ignores it, because the connection still belongs to
-  Android Auto's request (`releaseNetworkFor`).
-- **Android Auto joining after the app.** Android Auto, as a car-mode app,
-  reconnects instead of sharing and becomes the connection's owner. The app
-  sees `lost` and joins again for its next action, then shares.
-- **Android Auto on the CarPlay hotspot.** The app's request is for another
-  network. A request from the app on screen replaces the one connected
-  (`canNewRequestOverrideExistingRequest`), so **Android Auto loses its Wi-Fi**
-  while the app holds the car's group. It comes back after the app releases
-  the group (background, 5 minutes idle, or the car forgotten).
-- **Android 10 and 11.** No sharing: the app's join reconnects even to the
-  same network, which drops Android Auto's connection for a moment.
+So before each action the app (`modules/car-link`, `CarNetwork.join`):
 
-Another app cannot use Android Auto's connection directly: from Android 12
-a specifier network is limited to the apps that requested it
-(`ClientModeImpl`, `setUids`).
+1. Uses the network it already holds for that car.
+2. Otherwise uses a Wi-Fi network already up on the car's link
+   (`SharedNetwork`): an address on the subnet of the car address it will
+   talk to (both while pairing), and the car answering a TCP connection
+   there (a refusal counts). It does not hold that network and makes no
+   request, so Android Auto is untouched. `setUids` on a specifier network
+   only limits which requests it satisfies and its callbacks; any app can
+   list it (`getAllNetworks`) and bind sockets to it, since it is not
+   restricted (netd `checkUserNetworkAccess`). A binding refused by a
+   future Android fails the probe and the app joins with its own request.
+3. Otherwise joins with its own request, held as before.
+
+- **Android Auto on the same group (`wfd0`).** Case 2: shared, no reconnection.
+- **Android Auto joining after the app.** Android Auto takes the connection
+  over; the app sees `lost` and drops its request at once (kept, Android
+  would serve it again by taking the connection back, and they would take
+  turns). The next action shares Android Auto's network.
+- **Android Auto going away while shared.** The next request finds the
+  network gone, reports `lost` and fails with `no-network`; the next action
+  joins with the app's own request.
+- **Android Auto on the CarPlay hotspot.** Not on the manager's link
+  (172.16.222.1), so the app joins the group with its own request and
+  **Android Auto loses its Wi-Fi** while the app holds it. It comes back
+  after the app releases the group (background, 5 minutes idle, or the car
+  forgotten).
 
 ## Open
 
