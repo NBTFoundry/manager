@@ -23,10 +23,19 @@ application on an SDK with the mixer client uses it without a change.
 
 - 44100 Hz stereo S16, the rate A2I plays. The SDK's `AudioPcm` reports it
   as its rate; the SDK's queues resample to it.
-- Each client: topped up to 46 ms each time the output takes from it (the
-  output's thread wakes the mixer), plus 4 KiB in its socket; TCP paces it,
-  so its render runs as steadily as the output plays. Clients are added
-  sample by sample and clipped; one with nothing ready adds silence.
+- Each client (SDK `b962e55` and later: version 2): the mixer asks it for
+  frames as the output takes them, so its render runs just in time; 23 ms
+  queued per client, 35 ms in the output (3 fragments). From an application's
+  render to the output: about 45 ms (the SDK's `test_audio_mix_delay`), 80 ms
+  to the speaker plus what iDrive's audio adds.
+- An older client (version 1) pushes; TCP paces it, 46 ms queued plus 4 KiB
+  in its socket.
+- Clients are added sample by sample and clipped; one with nothing ready
+  adds silence.
+- Its threads and each client's playback thread run at priority 15 (as
+  NBT-AAD's audio) for up to 4 ms of every 20 ms, then at their own
+  (QNX sporadic scheduling): sound keeps up under load, and a render that
+  runs away cannot starve iDrive.
 - The output opens with the first client and closes 3 s after the last.
   The audio connection (`0xb8`, or the native audio setting's) is wanted
   while any client wants it (`AudioPcm::set_route_wanted`).
