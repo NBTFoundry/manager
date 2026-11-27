@@ -18,9 +18,8 @@ Only when the user asks.
 2. **Version** `vX.Y.Z`, each part below 1000; the sequence
    `X*1000000+Y*1000+Z` must be above the last release's
    (`gh release list -R NBTFoundry/manager`). It is a pre-release while X is 0.
-3. **Notes:** `release/notes/X.Y.Z.md` (`release/notes/README.md`), committed
-   and pushed before the tag: what is new, fixed and good to know for a car
-   owner, from the commits since the last release. The build fails without it.
+3. **Notes:** `release/notes/X.Y.Z.md`, committed and pushed before the tag
+   (skill `release-notes`). The build fails without it.
 4. **Tag and push** on `main`: `git tag -a vX.Y.Z -m "<summary>"`,
    `git push origin vX.Y.Z`. Tags are never moved or deleted.
 5. **Approval:** the sign job waits on the `release` environment; the user

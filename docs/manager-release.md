@@ -106,7 +106,8 @@ until its sequence is higher. The worker carries `release/apps-public.pem`.
 
 Each release has notes for car owners, `release/notes/X.Y.Z.md`
 (`release/notes/README.md`): the build refuses a tag without them, and the
-publishing job puts them at the top of the GitHub release.
+publishing job puts them at the top of the GitHub release. An application's
+notes are the same file in its own repository, next to `package.args`.
 
 Four jobs split what each one can reach. The build runs in the private QNX image
 (`ci/qnx/README.md`) with no secret. The sign job runs in the `release` environment,

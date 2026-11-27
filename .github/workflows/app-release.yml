@@ -26,6 +26,9 @@
 # files (game data it embeds) sets lfs: true (not with qnx: true).
 #
 # The caller's release/package.args describes the package (tools/package.py @FILE).
+# Next to it, notes/X.Y.Z.md (release/notes/X.Y.Z.md) says what changed for a car
+# owner: it tops the GitHub release, and a repository's own release fails without
+# it (release/notes/README.md here; with repository set it is used when present).
 # The signing key comes from the caller's "release" environment (secret APPS_SIGNING_KEY,
 # base64 of the PEM). By default it is NBTFoundry's apps key and must be the pair of this
 # repository's release/apps-public.pem, the key every manager trusts. A developer's own
@@ -127,6 +130,7 @@ jobs:
       sequence: ${{ steps.meta.outputs.sequence }}
       payload: ${{ steps.meta.outputs.payload }}
       tag: ${{ steps.meta.outputs.tag }}
+      notes: ${{ steps.meta.outputs.notes }}
     steps:
       - name: Source
         env:
@@ -167,6 +171,8 @@ jobs:
           PAYLOAD: ${{ inputs.payload }}
           VERSION: ${{ inputs.version }}
           EXPECTED_APP: ${{ inputs.app }}
+          NOTES_DIR: ${{ inputs.package-args }}
+          NOTES_NEEDED: ${{ inputs.publish && inputs.repository == '' }}
         run: |
           # vX.Y.Z, each part below 1000: sequence X*1000000 + Y*1000 + Z, so a
           # later tag always updates an earlier package.
@@ -185,7 +191,12 @@ jobs:
             || { echo "::error::$ARGS must give --app and --compat"; exit 1; }
           [[ -z "$EXPECTED_APP" || "$app" == "$EXPECTED_APP" ]] \
             || { echo "::error::the package is $app, not $EXPECTED_APP"; exit 1; }
+          # What changed for a car owner, next to the package description.
+          notes="$(dirname "$NOTES_DIR")/notes/${tag#v}.md"
+          [[ "$NOTES_NEEDED" != true || -s "app/$notes" ]] \
+            || { echo "::error::$notes is missing or empty: the release's notes"; exit 1; }
           {
+            echo "notes=$notes"
             echo "app=$app"
             echo "compat=$compat"
             echo "version=${tag#v}"
@@ -330,6 +341,14 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref }}
+          path: app
+          persist-credentials: false
+          sparse-checkout: ${{ needs.build.outputs.notes }}
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: signed
@@ -349,6 +368,7 @@ jobs:
           TAG: ${{ needs.build.outputs.tag }}
           SOURCE: ${{ inputs.repository && format('{0}@{1}', inputs.repository, inputs.ref) || github.sha }}
           TARGET: ${{ inputs.repository && format('--target={0}', github.sha) || '--verify-tag' }}
+          NOTES: app/${{ needs.build.outputs.notes }}
         run: |
           package="dist/$APP-$VERSION.nbt"
           [[ "$(sha256sum "$package" | cut -d' ' -f1)" == "$VERIFIED" ]] \
@@ -360,12 +380,17 @@ jobs:
           else
             signed="Signed with the apps key that NBT Manager trusts ($MANAGER, \`release/apps-public.pem\`)"
           fi
-          cat >notes.md <<EOF
+          cat >built.md <<EOF
           \`$APP\` $VERSION: package sequence $SEQUENCE, compatibility \`$COMPAT\`.
 
           $signed; built from $SOURCE by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
           Install it from the phone app.
           EOF
+          if [[ -s "$NOTES" && ! -L "$NOTES" ]] && (( $(wc -c <"$NOTES") <= 32768 )); then
+            { cat "$NOTES"; printf '\n---\n\n'; cat built.md; } >notes.md
+          else
+            mv built.md notes.md
+          fi
           prerelease=()
           [[ "$VERSION" == 0.* ]] && prerelease=(--prerelease)
           gh release create "$TAG" "$TARGET" --title "$APP $VERSION" \
