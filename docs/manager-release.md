@@ -104,6 +104,10 @@ release sequence is `X*1000000 + Y*1000 + Z`, so every later tag updates an earl
 release; a local kit (sequence from its keys directory) cannot replace a CI release
 until its sequence is higher. The worker carries `release/apps-public.pem`.
 
+Each release has notes for car owners, `release/notes/X.Y.Z.md`
+(`release/notes/README.md`): the build refuses a tag without them, and the
+publishing job puts them at the top of the GitHub release.
+
 Four jobs split what each one can reach. The build runs in the private QNX image
 (`ci/qnx/README.md`) with no secret. The sign job runs in the `release` environment,
 which hands out `MANAGER_SIGNING_KEY` only to `v*` tags and only after a maintainer

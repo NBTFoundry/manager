@@ -18,16 +18,19 @@ Only when the user asks.
 2. **Version** `vX.Y.Z`, each part below 1000; the sequence
    `X*1000000+Y*1000+Z` must be above the last release's
    (`gh release list -R NBTFoundry/manager`). It is a pre-release while X is 0.
-3. **Tag and push** on `main`: `git tag -a vX.Y.Z -m "<summary>"`,
+3. **Notes:** `release/notes/X.Y.Z.md` (`release/notes/README.md`), committed
+   and pushed before the tag: what is new, fixed and good to know for a car
+   owner, from the commits since the last release. The build fails without it.
+4. **Tag and push** on `main`: `git tag -a vX.Y.Z -m "<summary>"`,
    `git push origin vX.Y.Z`. Tags are never moved or deleted.
-4. **Approval:** the sign job waits on the `release` environment; the user
+5. **Approval:** the sign job waits on the `release` environment; the user
    approves it under the run's "Review deployments". Follow with
    `gh run watch`.
-5. **Check** the published `nbt-manager-X.Y.Z.nbtr`, the public key and
+6. **Check** the published `nbt-manager-X.Y.Z.nbtr`, the public key and
    `SHA256SUMS`: download them and run
    `build/nbt-verify-release <file> release/manager-public.pem nbt-evo-dev`.
-6. **Applications:** each nf-* `release.yml` pins
+7. **Applications:** each nf-* `release.yml` pins
    `app-release.yml@<manager commit>`. When `app-release.yml` or the build
    image changed since that commit, move the pin in every application
    repository (one commit each).
-7. **Report:** the release URL, its sequence, what changed for cars.
+8. **Report:** the release URL, its sequence, what changed for cars.
