@@ -109,11 +109,25 @@ application `manager` with the running and the new version; the GUI reviews it
 as "NBT Manager", without "Install, even if older". `APPROVE` re-verifies it
 under the operation lock, moves it to `state/manager/release.upload`, writes
 `state/manager/stage.request` (`NBTSTAGE1\nsha256=<hex>\n`) and reports state
-`4` "NBT Manager <version> starts when App Manager opens again". The worker
+`4` "NBT Manager <version> starts in a moment". The worker
 does not stage it: the launcher holds the staging locks while the manager runs.
-At the next opening the launcher removes the request, stages the upload as
-`--stage-update` would, and runs it on trial; once confirmed, `SETUP` brings the
-launcher and the plugin to it.
+The GUI shows the result for 3 s, then ends with status 3; the launcher removes
+the request, stages the upload as `--stage-update` would, and runs it on trial
+at once (a GUI that ends otherwise leaves the request for the next opening,
+which does the same); once confirmed, `SETUP` brings the launcher and the
+plugin to it.
+
+iDrive stays held on the manager meanwhile, with the plugin unchanged: it
+counts the manager as running while `gui.lock` is locked and the liveness line
+is fresh (`plugin/launcher_spawn.cpp`). The GUI locks byte 0 of `gui.lock`;
+the launcher locks byte 1 once a GUI not on trial is ready (none with a GUI
+before 0.5.2, which locks the whole file). The ending GUI writes the liveness
+line with the launcher's pid, and the launcher rewrites it every 250 ms until
+it starts the new GUI with `NBT_MANAGER_HANDOVER=1`; that GUI writes its own
+line first thing and, when the plugin's last signal was "show", shows itself
+at once. When the launcher could not keep both (byte 1 not held, a gap over
+1 s in the line), it removes the line and waits 1 s: the plugin releases
+iDrive, and the new GUI shows when the driver opens App Manager.
 
 `GET /v1/manager` (worker and door) answers
 `MANAGER\t<version>\t<sequence>\t<formats>\n`: the active release's version and

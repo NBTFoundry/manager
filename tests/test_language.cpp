@@ -141,8 +141,8 @@ static void test_worker_texts(void) {
     CHECK(!strcmp(out, "Application arrêtée"));
     workerText(out, sizeof(out), "Package rejected: signature invalid");
     CHECK(!strcmp(out, "Paquet refusé : signature invalid"));
-    workerText(out, sizeof(out), "NBT Manager v3 starts when App Manager opens again");
-    CHECK(!strcmp(out, "NBT Manager v3 démarre à la prochaine ouverture d'App Manager"));
+    workerText(out, sizeof(out), "NBT Manager v3 starts in a moment");
+    CHECK(!strcmp(out, "NBT Manager v3 démarre dans un instant"));
     workerText(out, sizeof(out), "cannot stop candidate for recovery"); // not translated
     CHECK(!strcmp(out, "cannot stop candidate for recovery"));
     workerText(out, sizeof(out), "Package rejected: "); // {1} matches some text only

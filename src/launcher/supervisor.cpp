@@ -4,7 +4,9 @@
 #include "nbt/display/layer_manager.hpp"
 #include "nbt/launcher/manager_crash.hpp"
 #include "nbt/launcher/manager_worker.hpp"
+#include "nbt/launcher/slot_select.hpp"
 #include "nbt/launcher/slot_store.hpp"
+#include "nbt/launcher/update_handover.hpp"
 #include "nbt/log.h"
 #include "nbt/manager_stage.h"
 #include "nbt/manager_supervisor.h"
@@ -14,6 +16,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -77,11 +80,16 @@ core::Status failure(const char *message) {
     return core::Status::error(errno ? errno : EIO, message);
 }
 
-/* Watches the GUI and the worker until either ends. `closed` means the user
- * closed the GUI; otherwise `reason` says what failed and the GUI is stopped. */
+enum class Ended { Failed, Closed, Update };
+
+/* Watches the GUI and the worker until either ends. Closed: the user closed
+ * the GUI; Update: it ended for an approved manager update; Failed: `reason`
+ * says what failed and the GUI is stopped. */
 core::Status watch(process::ChildProcess &gui, ManagerWorker &worker, SlotStore &store,
-                   nbt_manager_state &state, bool &trial, bool &closed, char *reason, size_t size) {
+                   nbt_manager_state &state, bool &trial, UpdateHandover &handover, Ended &ended,
+                   char *reason, size_t size) {
     bool readyLogged = false;
+    ended = Ended::Failed;
     const struct timespec pauseTime = {0, 100000000};
     for (;;) {
         uint64_t now;
@@ -98,7 +106,13 @@ core::Status watch(process::ChildProcess &gui, ManagerWorker &worker, SlotStore 
         if (!running.value()) {
             if (!trial && gui.exitStatus() == 0 && !gui.exitSignal()) {
                 nbt_logf("GUI closed");
-                closed = true;
+                ended = Ended::Closed;
+                return core::Status();
+            }
+            if (!trial && gui.exitStatus() == NBT_MANAGER_GUI_EXIT_UPDATE && !gui.exitSignal()) {
+                handover.startBeats(); // first: the plugin's next look must find the manager
+                nbt_logf("GUI closed for the manager update");
+                ended = Ended::Update;
                 return core::Status();
             }
             if (gui.exitSignal()) {
@@ -114,6 +128,13 @@ core::Status watch(process::ChildProcess &gui, ManagerWorker &worker, SlotStore 
         }
         if (!readyLogged && gui.ready()) {
             readyLogged = true;
+            // The GUI holds byte 0 of gui.lock by now; byte 1 lets the launcher
+            // keep iDrive held should this GUI end for a manager update.
+            if (trial) {
+                handover.release();
+            } else {
+                (void)handover.arm();
+            }
             nbt_logf(
                 "GUI ready after %llu ms",
                 static_cast<unsigned long long>(gui.legacy().ready_ms - gui.legacy().started_ms));
@@ -127,6 +148,7 @@ core::Status watch(process::ChildProcess &gui, ManagerWorker &worker, SlotStore 
             if (!store.load(state).ok()) {
                 return failure("manager state reload failed");
             }
+            (void)handover.arm(); // confirmed: as a GUI started off trial
         }
         if (!trial && state.restarts && gui.ready() && now >= gui.legacy().ready_ms &&
             now - gui.legacy().ready_ms >= 60000) {
@@ -139,6 +161,18 @@ core::Status watch(process::ChildProcess &gui, ManagerWorker &worker, SlotStore 
         }
         nanosleep(&pauseTime, NULL);
     }
+}
+
+/* The manager operation lock again on its own descriptor: staging opened and
+ * closed the file, which drops this process's lock (POSIX). */
+core::Status relockOperation(const core::UniqueFd &operation) {
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    return fcntl(operation.get(), F_SETLK, &lock)
+               ? core::Status::fromErrno("manager operation lock lost while staging")
+               : core::Status();
 }
 
 } // namespace
@@ -160,50 +194,18 @@ core::Status Supervisor::run(storage::ManagedRoot &root) {
 
     SlotStore store(root);
     nbt_manager_state state;
-    core::Status status = store.load(state);
+    bool trial = false;
+    core::Status status = selectSlot(root, store, state, trial);
     if (!status.ok()) {
         return status;
-    }
-    bool trial = false;
-    if (state.pending) {
-        if (nbt_manager_verify_slot(root.legacy(), &state.previous)) {
-            return failure("known-good manager slot verification failed");
-        }
-        if (state.pending == 2 || nbt_manager_verify_slot(root.legacy(), &state.active)) {
-            status = store.rollback();
-            if (!status.ok()) {
-                return status;
-            }
-            status = store.load(state);
-            if (!status.ok()) {
-                return status;
-            }
-        } else {
-            status = store.trial();
-            if (!status.ok()) {
-                return status;
-            }
-            trial = true;
-        }
-    }
-    if (!trial && nbt_manager_verify_slot(root.legacy(), &state.active)) {
-        return failure("active manager slot verification failed");
-    }
-    nbt_logf("slot %u verified, release %llu%s", state.active.slot,
-             static_cast<unsigned long long>(state.active.sequence), trial ? " (trial)" : "");
-    // Each selection gets fresh attempts; a trial keeps counting toward rollback.
-    if (!trial && state.restarts) {
-        status = store.clearRestarts();
-        if (!status.ok()) {
-            return status;
-        }
-        state.restarts = 0;
     }
     status = guiGuard.close();
     if (!status.ok()) {
         return status;
     }
 
+    UpdateHandover handover(root);
+    bool handoverStart = false; // the next GUI follows one that ended for an update
     for (;;) {
         uint64_t now;
         if (nbt_monotonic_ms(&now)) {
@@ -211,15 +213,25 @@ core::Status Supervisor::run(storage::ManagedRoot &root) {
         }
         char reason[96];
         reason[0] = 0;
-        bool closed = false;
+        Ended ended = Ended::Failed;
         ManagerWorker worker;
         core::Result<core::UniqueFd> channel = worker.start(root, state.active.slot);
         if (!channel.ok()) {
             snprintf(reason, sizeof(reason), "manager worker start failed (%s)",
                      strerror(channel.status().code()));
+            if (handoverStart) { // no GUI follows now: let iDrive go
+                handover.abandon();
+                handoverStart = false;
+            }
         } else {
+            if (handoverStart) {
+                handover.stopBeats(); // the new GUI writes its own line first thing
+                (void)setenv(NBT_MANAGER_HANDOVER_ENV, "1", 1);
+            }
             core::Result<process::ChildProcess> started = process::ChildProcess::startManager(
                 root, state.active.slot, channel.value().get(), now);
+            (void)unsetenv(NBT_MANAGER_HANDOVER_ENV);
+            handoverStart = false;
             channel.value().reset();
             if (!started.ok()) {
                 snprintf(reason, sizeof(reason), "manager GUI start failed (%s)",
@@ -227,7 +239,8 @@ core::Status Supervisor::run(storage::ManagedRoot &root) {
             } else {
                 process::ChildProcess gui = std::move(started.value());
                 nbt_logf("GUI started, pid %d", static_cast<int>(gui.pid()));
-                status = watch(gui, worker, store, state, trial, closed, reason, sizeof(reason));
+                status = watch(gui, worker, store, state, trial, handover, ended, reason,
+                               sizeof(reason));
                 // However the GUI ended, iDrive gets the panel back, from an app too.
                 if (display::restore()) {
                     nbt_logf("GUI left a surface on the panel; iDrive restored");
@@ -238,7 +251,29 @@ core::Status Supervisor::run(storage::ManagedRoot &root) {
             }
         }
         worker.stop(); // the GUI is gone: the worker sees its channel close
-        if (closed) {
+        if (ended == Ended::Update) {
+            // The approved release now, as the next opening would; iDrive stays
+            // held meanwhile, and the new GUI shows itself at once.
+            (void)nbt_manager_stage_requested(root.legacy());
+            status = relockOperation(operation);
+            if (!status.ok()) {
+                return status;
+            }
+            (void)handover.rearm();
+            status = selectSlot(root, store, state, trial);
+            if (!status.ok()) {
+                return status;
+            }
+            handoverStart = handover.continuous();
+            if (!handoverStart) {
+                nbt_logf("update handover: iDrive released (%s); the driver opens the new release",
+                         handover.broken());
+                handover.abandon();
+            }
+            continue;
+        }
+        handover.release();
+        if (ended == Ended::Closed) {
             nbt_logf("manager closed");
             return state.restarts ? store.clearRestarts() : core::Status();
         }

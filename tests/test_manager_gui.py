@@ -440,6 +440,59 @@ open(root + "/stopped", "w").close()
                 if fd >= 0:
                     os.close(fd)
 
+    def handover_gui(self, last_signal):
+        """A supervised GUI started right after one that ended for a manager
+        update (NBT_MANAGER_HANDOVER), the plugin's last signal already there."""
+        self.hold.stop()  # this test is the plugin
+        debug = self.root / "manager" / "debug.log"
+        debug.write_text("")
+        debug.chmod(0o600)
+        self.hold.signal.write_text(f"5 {last_signal}\n")
+        lease = os.open(self.root / "lease", os.O_CREAT | os.O_RDWR, 0o600)
+        reader, writer = os.pipe()
+        self.addCleanup(os.close, lease)
+        self.addCleanup(os.close, reader)
+        process = subprocess.Popen([GUI, "--test-root", self.root, "--test-worker", self.worker,
+                                    "--ready-fd", str(writer), "--lease-fd", str(lease)],
+                                   pass_fds=(writer, lease), env=dict(self.env, NBT_MANAGER_HANDOVER="1"))
+        self.processes.append(process)
+        os.close(writer)
+        self.assertTrue(select.select([reader], [], [], 8)[0])
+        self.wait_for(lambda: (self.root / "started").exists() and "post\n" in self.log.read_text())
+        time.sleep(0.3)
+        return process, debug.read_text()
+
+    def test_gui_after_an_update_shows_at_once_while_idrive_is_held(self):
+        try:
+            left, right = socket.socketpair()
+        except PermissionError:
+            self.skipTest("sandbox blocks local socket traffic")
+        left.close()
+        right.close()
+        process, log = self.handover_gui("show")
+        self.assertIn("started after the manager update; shown at once", log)
+        self.assertEqual(int(self.hold.liveness.read_text().split()[0]), process.pid)
+        # The GUI holds byte 0 of gui.lock only: the launcher's byte 1 is free.
+        lock = os.open(self.root / "manager" / "gui.lock", os.O_RDWR)
+        try:
+            fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, 1)
+            with self.assertRaises(OSError):
+                fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, 0)
+        finally:
+            os.close(lock)
+
+    def test_gui_after_an_update_stays_hidden_when_idrive_stepped_aside(self):
+        try:
+            left, right = socket.socketpair()
+        except PermissionError:
+            self.skipTest("sandbox blocks local socket traffic")
+        left.close()
+        right.close()
+        process, log = self.handover_gui("aside")
+        self.assertIsNone(process.poll())
+        self.assertNotIn("shown at once", log)
+        self.assertIn("shown once iDrive holds its focus", log)
+
     def test_supervised_gui_rejects_invalid_descriptors(self):
         result = subprocess.run([GUI, "--ready-fd", "3", "--lease-fd", "3"], env=self.env)
         self.assertEqual(result.returncode, 2)

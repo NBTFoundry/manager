@@ -9,6 +9,7 @@
 #include "nbt/gui/gui_session.hpp"
 #include "nbt/gui/hmi_hold.hpp"
 #include "nbt/log.h"
+#include "nbt/manager_supervisor.h"
 #include "nbt/most_input.h"
 
 #include <errno.h>
@@ -159,7 +160,8 @@ int main(int argc, char **argv) {
                                          NBT_CAPTURE_DIAG_PATH,
                                          recovered,
                                          nbt::gui::kCarLanguagePath,
-                                         nbt::model::kCarMakePath};
+                                         nbt::model::kCarMakePath,
+                                         false};
     const char *inputLibrary = NULL;
 #ifdef NBT_TESTING
     char testLivenessPath[PATH_MAX];
@@ -196,6 +198,16 @@ int main(int argc, char **argv) {
     }
     inputLibrary = getenv("NBT_TEST_INPUT_LIBRARY");
 #endif
+    /* Started right after a GUI that ended for a manager update: the launcher
+     * holds iDrive's liveness line until this one writes its own, at once. */
+    config.handover = readyFd >= 0 && getenv(NBT_MANAGER_HANDOVER_ENV);
+    (void)unsetenv(NBT_MANAGER_HANDOVER_ENV);
+    if (config.handover) {
+        const nbt::core::Result<uint64_t> startMs = nbt::core::monotonicMs();
+        if (startMs.get()) {
+            (void)nbt::gui::holdLivenessWrite(config.livenessPath, getpid(), startMs.value());
+        }
+    }
 
     nbt::gui::GuiSession session;
     if (!nbt::core::childReapingInit().ok() || install_signals()) {
@@ -237,6 +249,7 @@ int main(int argc, char **argv) {
     memset(&lock, 0, sizeof(lock));
     lock.l_type = F_WRLCK;
     lock.l_whence = SEEK_SET;
+    lock.l_len = 1; // byte 0: the launcher may hold byte 1 (src/launcher/update_handover.cpp)
     if (fcntl(lockfd, F_SETLK, &lock)) {
         if (errno == EACCES || errno == EAGAIN) {
             result = 0;
@@ -267,6 +280,9 @@ int main(int argc, char **argv) {
     }
     nbt_logf(inputFd >= 0 ? "controller input started" : "controller input unavailable; preview");
     result = session.run(inputFd, stopping);
+    if (!result && session.updating()) {
+        result = NBT_MANAGER_GUI_EXIT_UPDATE;
+    }
 
 done:
     switch (nbt_most_input_stop(300)) {
@@ -283,7 +299,11 @@ done:
     nbt_logf("exit (%s), status %d", overrideReason ? overrideReason : session.exitReason(),
              result);
     nbt_log_close();
-    (void)unlink(config.livenessPath);
+    if (session.updating()) {
+        session.handLivenessToLauncher(); // fresh again after the slow steps above
+    } else {
+        (void)unlink(config.livenessPath);
+    }
     if (config.capturePath) {
         (void)unlink(config.capturePath);
     }

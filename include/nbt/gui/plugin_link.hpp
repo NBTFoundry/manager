@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 namespace nbt {
 namespace gui {
@@ -16,7 +17,9 @@ namespace gui {
  * not newer. */
 class PluginLink {
 public:
-    PluginLink() : signalPath_(NULL), livenessPath_(NULL), sequence_(0), beatMs_(0), have_(false) {
+    PluginLink()
+        : signalPath_(NULL), livenessPath_(NULL), sequence_(0), beatMs_(0), have_(false),
+          shownAtStart_(false), handed_(false) {
     }
     /* Takes the signal baseline, then says the GUI runs: the plugin's first
      * "show" can follow at once. False when the liveness line was not written. */
@@ -24,6 +27,14 @@ public:
     /* Rewrites the liveness line every 500 ms; false when it could not. */
     bool beat(uint64_t nowMs);
     bool next(HoldSignal &signal);
+    /* The plugin's last signal at start() was "show": iDrive was held for the
+     * GUI that ended for a manager update (NBT_MANAGER_HANDOVER_ENV). */
+    bool shownAtStart() const {
+        return shownAtStart_;
+    }
+    /* The liveness line now names `pid` (the launcher, which keeps it from
+     * here); this GUI writes no more. */
+    bool handTo(pid_t pid, uint64_t nowMs);
 
 private:
     const char *signalPath_;
@@ -31,6 +42,8 @@ private:
     uint64_t sequence_;
     uint64_t beatMs_;
     bool have_;
+    bool shownAtStart_;
+    bool handed_;
 };
 
 } // namespace gui

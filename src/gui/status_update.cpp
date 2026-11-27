@@ -93,8 +93,12 @@ void updateUiStatus(UiController &ui) {
             return;
         }
         if (s.state == W_INSTALLED && ours) {
-            ui.showResult(text(strcmp(s.app, "manager") ? T_UPDATE_INSTALLED : T_UPDATE_READY),
-                          s.installed);
+            if (strcmp(s.app, "manager")) {
+                ui.showResult(text(T_UPDATE_INSTALLED), s.installed);
+            } else { // "NBT Manager <version> starts in a moment": the GUI ends then
+                result(ui, T_UPDATE_READY, s.message);
+                ui.managerRestartMs = (ui.clockMs ? ui.clockMs : 1) + kManagerRestartMs;
+            }
         } else {
             result(ui, s.state == W_FAILED ? T_UPDATE_FAILED : T_UPDATE_NOT_INSTALLED, s.message);
         }

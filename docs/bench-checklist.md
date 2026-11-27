@@ -285,6 +285,16 @@ Settings › Self test ([self-test.md](self-test.md)); the debug log has one
 | Second run | Nothing installed again; the results of this run only |
 | An application running | The menu says it is stopped first; Start: "Stopping <app>", then the test |
 
+## 11c. Manager update from the phone
+
+A kit newer than the installed one, its `.nbtr` sent from the phone's Library.
+
+| Action | Expected |
+| --- | --- |
+| Install on Review update | "Update ready", "NBT Manager <version> starts in a moment"; 3 s later iDrive's blank screen for a moment, then App Manager in the new version without choosing it again; the launcher log has `GUI closed for the manager update`, `phone update staged`, `slot <n> verified, release <seq> (trial)`; the GUI log `started after the manager update; shown at once` |
+| A camera or warning during those seconds | The camera or warning shows; App Manager stays hidden until it is chosen again |
+| BACK out before the 3 s | App Manager closes; the new version starts at the next opening |
+
 ## 12. Tools
 
 Settings > Tools, after Status. Record `mount`, `pidin arg` and `ls -lR

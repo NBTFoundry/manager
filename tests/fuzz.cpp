@@ -553,7 +553,7 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
     case LanguageTarget:
         addSeed(&out, "{\"language\":13}");
         addSeed(&out, "Package rejected: signature \xe4\xb8\xad\xe6\x96\x87");
-        addSeed(&out, "NBT Manager v3 starts when App Manager opens again");
+        addSeed(&out, "NBT Manager v3 starts in a moment");
         break;
     }
     return out;

@@ -185,7 +185,8 @@ installed launcher for the trial. Once a release is confirmed, the running
 manager replaces the stable launcher and the iDrive plugin with the release's
 own and asks the driver to restart iDrive when the plugin changed (`SETUP`,
 PROTOCOL.md "The manager's own installation"). A paired phone can send a
-release; the launcher stages it at the next opening (PROTOCOL.md "Manager
+release; once the driver approves it, the GUI ends and the launcher stages it
+and starts it at once, keeping iDrive held on the manager (PROTOCOL.md "Manager
 updates from a phone").
 
 The provisioned launcher accepts `--stage-update SIZE SHA256` with the signed

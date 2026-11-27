@@ -879,7 +879,7 @@ static void test_install_flow(void) {
     press(&ui, nbt::gui::KeyBack, 0);
     poll_status(&ui, "STATUS\t4\ttest\tv2\t-\t0\t-\tUpdate installed");
     CHECK(ui.screen == nbt::gui::Result && view_contains(&ui, "Update installed") &&
-          view_contains(&ui, "v2"));
+          view_contains(&ui, "v2") && !ui.managerRestartMs);
     press(&ui, nbt::gui::KeySelect, 1);
     CHECK(ui.screen == nbt::gui::Apps && ui.focus == 1 && !installing(&ui) && !ui.app[0] &&
           !ui.updating());
@@ -1330,6 +1330,33 @@ static void test_manager_update_review(void) {
           view_contains(&ui, "Installed: v2, new: v3"));
     CHECK(v.itemCount == 2 && ui.itemCount() == 2 && !strcmp(v.items[0], "Reject") &&
           !strcmp(v.items[1], "Install") && v.focus == 0);
+}
+
+/* An approved manager update shows 3 s, then the GUI ends for the launcher to
+ * start it (NBT_MANAGER_GUI_EXIT_UPDATE). */
+static void test_manager_update_restarts(void) {
+    UiController ui;
+    char reply[256], approve[128];
+    loaded(&ui, "APPS\t1\ttest", "RUNNING\t0");
+    open_session(&ui, "SESSION lo 0", "SESSION\t127.0.0.1:4567");
+    exchange(&ui, "STATUS", "STATUS\t1\t-\t-\t-\t0\t-\tReady for upload");
+    idle(&ui);
+    snprintf(reply, sizeof(reply),
+             "STATUS\t2\tmanager\tv2\tv3\t3\t%s\tPackage verified; approve in iDrive", DIGEST_A);
+    poll_status(&ui, reply);
+    CHECK(ui.screen == nbt::gui::Review && !strcmp(ui.app, "manager"));
+    press(&ui, nbt::gui::KeyDown, 1);
+    press(&ui, nbt::gui::KeySelect, 1);
+    CHECK(ui.screen == nbt::gui::Progress);
+    snprintf(approve, sizeof(approve), "APPROVE %s normal", DIGEST_A);
+    exchange(&ui, approve, "OK installing");
+    CHECK(!ui.managerRestartMs);
+    poll_status(&ui, "STATUS\t4\tmanager\tv3\t-\t0\t-\tNBT Manager v3 starts in a moment");
+    CHECK(ui.screen == nbt::gui::Result && view_contains(&ui, "Update ready") &&
+          view_contains(&ui, "NBT Manager v3 starts in a moment"));
+    CHECK(ui.managerRestartMs == now + nbt::gui::kManagerRestartMs);
+    CHECK(!ui.managerRestartDue(now + nbt::gui::kManagerRestartMs - 1) &&
+          ui.managerRestartDue(now + nbt::gui::kManagerRestartMs));
 }
 
 static void test_pairing_timeout(void) {
@@ -2205,6 +2232,7 @@ int main(void) {
     test_tools_menu();
     test_self_test();
     test_manager_update_review();
+    test_manager_update_restarts();
     test_pairing_wifi();
     test_malformed_replies();
     test_errors_and_misuse();

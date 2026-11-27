@@ -6,8 +6,9 @@
  * under it without a trial. So the worker verifies the release against the
  * manager key installed here, the driver reviews it on the car, and on
  * approval it becomes state/manager/release.upload with a stage request beside
- * it. The launcher stages it at the next opening (stage_request.cpp) and runs
- * it on trial; once confirmed, SETUP brings the launcher and plugin to it. */
+ * it. The GUI then ends (NBT_MANAGER_GUI_EXIT_UPDATE) and the launcher stages
+ * it at once, as an opening would (stage_request.cpp), and runs it on trial;
+ * once confirmed, SETUP brings the launcher and plugin to it. */
 #include "nbt/worker/worker.hpp"
 
 #include "nbt/core/system.hpp"
@@ -164,12 +165,12 @@ core::Status Worker::approveManager(const unsigned char digest[32], uint64_t now
         (void)nbt_fs_unlink(fs, NBT_FS_MANAGER_STAGE_REQUEST, "manager", NULL);
         return fail("cannot record the update");
     }
-    nbt_logf("manager %s approved; staged at the next opening", release.version);
+    nbt_logf("manager %s approved; the launcher stages it when the GUI ends", release.version);
     sessionEnd(nowMs, Ended::None);
     state_.managerUpdate = false;
     state_.state = State::Installed;
-    snprintf(state_.message, sizeof(state_.message),
-             "NBT Manager %s starts when App Manager opens again", release.version);
+    snprintf(state_.message, sizeof(state_.message), "NBT Manager %s starts in a moment",
+             release.version);
     return core::Status();
 }
 

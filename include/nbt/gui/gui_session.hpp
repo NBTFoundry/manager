@@ -24,6 +24,8 @@
 namespace nbt {
 namespace gui {
 
+static const uint64_t kIdleMs = 120000u; // the shown manager closes after this without input
+
 struct GuiSessionConfig {
     const char *root;
     const char *version;
@@ -40,6 +42,7 @@ struct GuiSessionConfig {
     bool recovered;
     const char *languagePath; // iDrive's language from the plugin (car_language.hpp); NULL: none
     const char *makePath;     // the car's CarPlay configuration (model/theme.hpp); NULL: none
+    bool handover;            // started right after a GUI that ended for a manager update
 };
 
 class GuiSession {
@@ -61,6 +64,13 @@ public:
     const char *exitReason() const {
         return exitReason_;
     }
+    /* The GUI ended for an approved manager update (NBT_MANAGER_GUI_EXIT_UPDATE). */
+    bool updating() const {
+        return updating_;
+    }
+    /* Gives the liveness line to the launcher, which keeps iDrive held until
+     * the new release's GUI runs (src/launcher/update_handover.cpp). */
+    void handLivenessToLauncher();
 
 private:
     GuiSession(const GuiSession &);
@@ -72,6 +82,8 @@ private:
     core::Status startWorker();
     int pollHoldSignal(bool &shouldExit);
     int showManager();
+    int showHandedOver();
+    bool endForUpdate();
     void handOver();
     /* iDrive took the screen from the application shown: its host pauses it
      * (nbt/process/app_pause.hpp). */
@@ -105,6 +117,7 @@ private:
     FramePacer pacer_; // 30 fps
     int inputFd_;
     bool hidden_; // the manager's own screen is not wanted on the panel
+    bool updating_;
     const char *exitReason_;
 };
 

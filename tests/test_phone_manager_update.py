@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 """A manager release sent by a paired phone (src/worker/manager_upload.cpp):
-reviewed and approved on the car, staged by the launcher at the next opening
-(src/launcher/stage_request.cpp)."""
+reviewed and approved on the car, staged by the launcher when the GUI ends
+for it, or at the next opening (src/launcher/stage_request.cpp)."""
 import hashlib
 import os
 from pathlib import Path
@@ -114,7 +114,7 @@ class PhoneManagerUpdateTests(unittest.TestCase):
         self.assertEqual(self.command(f'APPROVE {digest} normal'), 'OK installing')
         status = self.command('STATUS').split('\t')
         self.assertEqual(status[1:3], ['4', 'manager'])
-        self.assertEqual(status[-1], 'NBT Manager v3 starts when App Manager opens again')
+        self.assertEqual(status[-1], 'NBT Manager v3 starts in a moment')
         state = self.root / 'state/manager'
         self.assertEqual((state / 'release.upload').read_bytes(), (self.path / 'release-3').read_bytes())
         self.assertEqual((state / 'stage.request').read_text(), f'NBTSTAGE1\nsha256={digest}\n')

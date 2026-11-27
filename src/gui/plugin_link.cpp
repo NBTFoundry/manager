@@ -15,16 +15,22 @@ bool PluginLink::start(const char *signalPath, const char *livenessPath, uint64_
     if (result != HoldReadOk) {
         sequence_ = 0;
     }
+    shownAtStart_ = result == HoldReadOk && signal == SignalShow;
     beatMs_ = nowMs;
     return holdLivenessWrite(livenessPath_, getpid(), nowMs) == 0;
 }
 
 bool PluginLink::beat(uint64_t nowMs) {
-    if (nowMs < beatMs_ + 500u) {
+    if (handed_ || nowMs < beatMs_ + 500u) {
         return true;
     }
     beatMs_ = nowMs;
     return holdLivenessWrite(livenessPath_, getpid(), nowMs) == 0;
+}
+
+bool PluginLink::handTo(pid_t pid, uint64_t nowMs) {
+    handed_ = true;
+    return holdLivenessWrite(livenessPath_, pid, nowMs) == 0;
 }
 
 bool PluginLink::next(HoldSignal &signal) {

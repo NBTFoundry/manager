@@ -1047,6 +1047,105 @@ time.sleep(0.3)
             process.wait(timeout=10)
             self.wait_for(lambda: (self.root / "worker-stopped").exists())
 
+    def updating_gui(self):
+        """A GUI that ends once for an approved manager update (status 3), the
+        liveness line handed to the launcher; each records how it was started."""
+        gui = Path(self.tmp.name) / "gui-updates"
+        gui.write_text('''#!/usr/bin/python3
+import fcntl, os, sys, time
+root = sys.argv[sys.argv.index("--test-root") + 1]
+slot = sys.argv[sys.argv.index("--slot") + 1]
+handover = os.environ.get("NBT_MANAGER_HANDOVER", "-")
+fcntl.lockf(4, fcntl.LOCK_SH | fcntl.LOCK_NB)
+lock = os.open(root + "/manager/gui.lock", os.O_RDWR)
+fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, 0)
+def beat(pid):  # private, as the GUI's /dev/shmem line
+    fd = os.open(root + "/gui-live", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.write(fd, b"%d %d\\n" % (pid, int(time.monotonic() * 1000)))
+    os.close(fd)
+beat(os.getpid())
+for _ in range(5):
+    os.write(3, b"R")
+    beat(os.getpid())
+    time.sleep(0.2)
+try:  # the launcher holds byte 1 once this GUI is ready
+    fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, 1)
+    byte1 = "free"
+except OSError:
+    byte1 = "held"
+with open(root + "/gui-runs", "a") as output:
+    output.write("slot=%s handover=%s byte1=%s\\n" % (slot, handover, byte1))
+if not os.path.exists(root + "/gui-updated"):
+    # Ends once the driver approved: the worker's request, or the test's word.
+    while not (os.path.exists(root + "/state/manager/stage.request") or os.path.exists(root + "/gui-go")):
+        os.write(3, b"R")
+        beat(os.getpid())
+        time.sleep(0.1)
+    open(root + "/gui-updated", "w").close()
+    beat(os.getppid())
+    sys.exit(3)
+while True:
+    os.write(3, b"R")
+    beat(os.getpid())
+    time.sleep(0.2)
+''')
+        gui.chmod(0o700)
+        return gui
+
+    def gui_runs(self):
+        runs = self.root / "gui-runs"
+        return runs.read_text().splitlines() if runs.exists() else []
+
+    def test_approved_phone_update_starts_at_once_with_idrive_kept(self):
+        self.baseline()
+        debug = self.root / "manager/debug.log"
+        debug.write_text("")
+        debug.chmod(0o600)
+        self.upload(2)
+        process = self.launch(self.worker(True), self.updating_gui())
+        try:
+            # What the worker leaves once the driver approved a release from a phone.
+            self.wait_for(lambda: len(self.gui_runs()) == 1)
+            digest = hashlib.sha256((self.path / "release-2").read_bytes()).hexdigest()
+            request = self.root / "state/manager/stage.request"
+            request.write_text(f"NBTSTAGE1\nsha256={digest}\n")
+            request.chmod(0o600)
+            self.wait_for(lambda: len(self.gui_runs()) == 2, timeout=15)
+            # The new release on trial: the launcher let byte 1 go once it was ready.
+            self.assertEqual(self.gui_runs(), ["slot=0 handover=- byte1=held",
+                                               "slot=1 handover=1 byte1=free"])
+            self.assertFalse(request.exists())
+            state = self.state()
+            self.assertEqual((state["phase"], state["slot"], int(state["sequence"])), ("trial", "1", 2))
+            self.assertFalse((self.root / "state/manager/crash.0").exists())  # not a crash
+            log = debug.read_text()
+            self.assertIn("GUI closed for the manager update", log)
+            self.assertIn("phone update staged", log)
+            self.assertNotIn("update handover: iDrive released", log)
+            self.assertNotIn("restart in", log)
+        finally:
+            process.send_signal(signal.SIGTERM)
+            process.wait(timeout=10)
+
+    def test_update_without_the_handover_releases_idrive(self):
+        # A liveness line not handed to the launcher: the plugin took the
+        # manager as gone, so the launcher lets iDrive go before the new GUI.
+        self.baseline()
+        debug = self.root / "manager/debug.log"
+        debug.write_text("")
+        debug.chmod(0o600)
+        gui = self.updating_gui()
+        gui.write_text(gui.read_text().replace("    beat(os.getppid())\n", ""))
+        (self.root / "gui-go").write_text("")
+        process = self.launch(self.worker(True), gui)
+        try:
+            self.wait_for(lambda: len(self.gui_runs()) == 2, timeout=15)
+            self.assertEqual(self.gui_runs()[1], "slot=0 handover=- byte1=held")
+            self.assertIn("update handover: iDrive released", debug.read_text())
+        finally:
+            process.send_signal(signal.SIGTERM)
+            process.wait(timeout=10)
+
     def receive(self, data, size=None, digest=None, error=None):
         env = dict(os.environ, NBT_TEST_MANAGER_ROOT=str(self.root))
         if error:

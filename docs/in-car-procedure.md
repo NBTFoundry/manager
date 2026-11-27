@@ -465,9 +465,11 @@ the phone and add it in NBT Manager's **Library**. Open App Manager on the car,
 then in the app: **Applications** → **NBT Manager** (tagged Update) → **Send to
 the car**. The car shows **Review update**, "NBT Manager" with both versions,
 **Reject** focused: choose **Install**. The car says
-**Update ready**; the app says it starts the next time App Manager opens. Close
-App Manager and open it again: the new version runs on trial, then asks
-**Restart head unit?** if its iDrive entry changed. A manager too old for
+**Update ready**, "NBT Manager <version> starts in a moment"; 3 s later App
+Manager closes and opens again by itself in the new version (iDrive's screen
+stays blank meanwhile). It runs on trial, then asks **Restart head unit?** if
+its iDrive entry changed. If iDrive's menu shows instead, open App Manager:
+the new version is already running. A manager too old for
 this path makes the app report "update NBT Manager once with the installer
 first".
 

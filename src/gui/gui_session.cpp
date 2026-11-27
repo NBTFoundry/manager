@@ -18,13 +18,14 @@
 
 namespace nbt {
 namespace gui {
-static const uint64_t kPreviewMs = 15000u, kHealthCheckMs = 45000u, kIdleMs = 120000u,
+static const uint64_t kPreviewMs = 15000u, kHealthCheckMs = 45000u,
                       kEscapeHoldMs = NBT_CAPTURE_ESCAPE_HOLD_MS;
 
 GuiSession::GuiSession()
     : config_(), client_(), channel_(client_), ui_(), view_(), shown_(), screen_(), volumeOsd_(),
       panel_(), plugin_(), capture_(), gamepad_(), language_(), theme_(), nowMs_(0), deadlineMs_(0),
-      heartbeatMs_(0), backHoldMs_(0), pacer_(), inputFd_(-1), hidden_(true), exitReason_("error") {
+      heartbeatMs_(0), backHoldMs_(0), pacer_(), inputFd_(-1), hidden_(true), updating_(false),
+      exitReason_("error") {
 }
 
 GuiSession::~GuiSession() {
@@ -128,50 +129,6 @@ int GuiSession::start(bool &workerStarted) {
     }
     return workerStarted ? 0 : -1;
 }
-int GuiSession::pollHoldSignal(bool &shouldExit) {
-    shouldExit = false;
-    HoldSignal signal = SignalShow;
-    if (!plugin_.next(signal)) {
-        return 0;
-    }
-    const bool show = signal == SignalShow;
-    nbt_logf("iDrive signal %s%s", show ? "show" : "aside",
-             !show && !ui_.installing() ? "; closing" : "");
-    if (!show) {
-        capture_.setOff();
-        nbt_most_input_log_recent("iDrive took the screen");
-        pauseShownApp();
-    }
-    if (!show && !ui_.installing()) {
-        exitReason_ = "iDrive left the manager";
-        shouldExit = true;
-        return 0;
-    }
-    if (!show) {
-        panel_.clear();
-        hidden_ = true;
-        return screen_.setVisible(false).ok() ? 0 : -1;
-    }
-    return hidden_ && !panel_.active(display::kAppSurface) ? showManager() : 0;
-}
-int GuiSession::showManager() {
-    if (drawUi(shown_) || !screen_.setVisible(true).ok()) {
-        return -1;
-    }
-    hidden_ = false;
-    panel_.place(display::kManagerSurface, nowMs_);
-    if (deadlineMs_ < nowMs_ + kIdleMs) {
-        deadlineMs_ = nowMs_ + kIdleMs;
-    }
-    return 0;
-}
-void GuiSession::handOver() {
-    nbt_logf("handing the panel to %s", ui_.target);
-    panel_.place(display::kAppSurface, nowMs_);
-    (void)screen_.setVisible(false);
-    hidden_ = true;
-}
-
 int GuiSession::servicePanel(bool &shouldExit) {
     const display::Placement::State state = panel_.service(nowMs_);
     volumeOsd_.service(nowMs_, panel_);
@@ -280,6 +237,9 @@ int GuiSession::run(int inputFd, const volatile sig_atomic_t &stopping) {
     display::setWaitHook(&GuiSession::beatWhileWaiting, this);
     deadlineMs_ =
         nowMs_ + (inputFd_ >= 0 ? kIdleMs : (config_.readyFd >= 0 ? kHealthCheckMs : kPreviewMs));
+    if (showHandedOver()) {
+        return 1;
+    }
     while (!stopping && !ui_.wantsExit()) {
         const core::Result<uint64_t> now = core::monotonicMs();
         if (!now.get() || !plugin_.beat(now.value())) {
@@ -292,6 +252,9 @@ int GuiSession::run(int inputFd, const volatile sig_atomic_t &stopping) {
             return 1;
         }
         if (shouldExit) {
+            break;
+        }
+        if (endForUpdate()) {
             break;
         }
         if ((ui_.updating() || panel_.active(display::kAppSurface)) &&

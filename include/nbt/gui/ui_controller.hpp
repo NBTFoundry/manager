@@ -27,6 +27,9 @@ static const unsigned kPollMs = 1000;
 static const unsigned kPairingMs = 60000;
 static const unsigned kHoldMs = 1500;
 static const unsigned kHoldShowMs = 500;
+// An approved manager update shows for this long, then the GUI ends and the
+// launcher starts the new release (NBT_MANAGER_GUI_EXIT_UPDATE).
+static const unsigned kManagerRestartMs = 3000;
 static const size_t kVersionMax = 23;
 /* An installed candidate counts as healthy after NBT_HEALTHY_MS ready. */
 static const unsigned kAppHealthMs = NBT_HEALTHY_MS;
@@ -130,6 +133,10 @@ public:
     core::Status pairingLink(core::Span<char> output) const;
     bool wantsExit() const {
         return exitRequested != 0;
+    }
+    /* A manager update was approved and its moment to start has come. */
+    bool managerRestartDue(uint64_t nowMs) const {
+        return managerRestartMs && nowMs >= managerRestartMs;
     }
     /* True once after START answered "OK screen": `target` is to have the panel. */
     bool takeHandover() {
@@ -266,6 +273,7 @@ public:
     int appRun = 0;             // the handed-over application: 1 started, 2 seen running, 3 ended
     bool targetRunning = false; // the last RUNNING listed `target`
     uint64_t healthMs = 0;      // when the installed candidate's health check began
+    uint64_t managerRestartMs = 0; // an approved manager update starts then (kManagerRestartMs)
     uint64_t nextPollMs;
     uint64_t pairingDeadlineMs;
     unsigned pairingLeftS;
