@@ -444,6 +444,29 @@ apps.
   MOST interoperability this project relies on. Recorded so nobody adopts it
   by accident.
 
+## The car's make and iDrive's look
+
+- **Make.** `/var/opt/conn/carplay/carplay.ini`, `[General]`: `Manufacturer=`,
+  `OEMIcon=` (a logo under `/opt/conn/data/carplay/`: `OEM_BMW.png`,
+  `OEM_BMWi.png`, `OEM_MINI.png`, `OEM_RR.png`, `OEM_TOYOTA.png`) and
+  `OEMIconLabel=`. The user's G31 has `BMW` in all three (NBTevo_Y21432J).
+  NBT-AAD reads the make there too, the logo before the manufacturer, since a
+  MINI keeps `Manufacturer=BMW`; the Supra has `Manufacturer=Toyota`. The
+  file exists only on a car coded for CarPlay. The manager's Automatic theme
+  uses it (`src/model/theme.cpp`); MINI and Supra are not car-verified.
+- **iDrive's own choice.** `HmiMain3D` takes `-brand=bmw|mini|bmwi|rr`
+  (default `bmw`) and loads that skin from `/opt/hmi/ID5/data/ro/<brand>/`;
+  `pidin` shows no `-brand` on the G31. This firmware holds `bmw`, `bmwm` and
+  `rr` only: no MINI or Toyota skin here to measure.
+- **BMW's iDrive 6 look** (`bmw/id6l/widgetasset`, measured, not copied): a
+  near-black page (#090909 to #171818), square shapes with a slanted leading
+  edge on buttons, a dark orange fill under the cursor (#5a1600) with a
+  bright orange edge and underline (about #ef5600), hairlines under
+  headlines and between list rows. Tile colours (`colorregistry.pbc`):
+  entertainment #e1b900, communication #056bd0, navigation #6aad00,
+  ConnectedDrive #0074e7. The manager's BMW theme follows these; its MINI and
+  Supra themes are our own.
+
 ## At run time
 
 **Network services on Wi-Fi Direct (from the `/opt` dump, `pidin` and a

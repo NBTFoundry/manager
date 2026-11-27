@@ -37,10 +37,12 @@ setting_debug_log = Registro de depuración
 setting_invert = Invertir la rueda
 setting_release = Devolver el controlador
 setting_native_audio = Audio nativo
+setting_theme = Tema
 value_audio_interrupt = Interrupción (mínimo 25)
 value_audio_media = Fuente multimedia
 value_on = activado
 value_off = desactivado
+value_automatic = Automático
 
 # Files (files_ui.cpp)
 files = Archivos

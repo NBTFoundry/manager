@@ -40,7 +40,11 @@
  *                 source that follows the car's volume to 0) and
  *                 NBT_AUDIO_A2I=input_stereo_0, the io-amp input that source
  *                 plays (the SDK writes it through A2I). Both connections are
- *                 in the car's `audioconn -l`. */
+ *                 in the car's `audioconn -l`.
+ *
+ *   theme  auto|bmw|mini|supra  the colours of the manager's screen, in
+ *          manager/theme ("mini\n"; absent or anything else is auto, the
+ *          car's make: nbt/model/theme.hpp). */
 
 /* What a user launch gets with native_audio media: the connection, and the
  * io-amp input its source plays (the media player's), which the SDK's audio

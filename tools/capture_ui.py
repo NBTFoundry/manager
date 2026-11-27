@@ -125,7 +125,7 @@ def capture_languages(out):
             s.key("Return", after=0.8)                                 # Reject
             s.key("Down"); s.key("Down"); s.key("Return", after=0.8)   # Settings
             s.still(out / f"{code}-settings.png")
-            for _ in range(3):
+            for _ in range(5):
                 s.key("Down")
             s.key("Return", after=0.8)                                 # Language
             s.still(out / f"{code}-language.png")
@@ -136,7 +136,7 @@ def capture_languages(out):
             s.key("Return", after=0.8)                                 # No
             s.key("Return", after=0.8)                                 # OK: the main menu
             s.key("Down"); s.key("Down"); s.key("Return", after=0.8)   # Settings
-            for _ in range(6):
+            for _ in range(8):
                 s.key("Down")
             s.key("Return", after=0.8)                                 # Status
             s.still(out / f"{code}-status.png")
@@ -181,7 +181,7 @@ def main():
             s.still(tmp / "menu.png")
             s.key("Down"); s.key("Down"); s.key("Return", after=0.8)   # Settings
             s.still(tmp / "settings.png")
-            for _ in range(4):
+            for _ in range(6):
                 s.key("Down")
             s.key("Return", after=1.5)                                 # Pair a phone
             s.still(tmp / "pair-qr.png")

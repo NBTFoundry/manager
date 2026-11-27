@@ -4,6 +4,7 @@
 #include "nbt/gui/gamepad_input.hpp"
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/setup_ui.hpp"
+#include "nbt/gui/theme.hpp"
 #include "nbt/gui/ui_controller.hpp"
 #include "nbt/gui/ui_renderer.hpp"
 
@@ -1711,10 +1712,10 @@ static int scrollbar(const Frame *f, size_t *top, size_t *bottom) {
     *top = *bottom = 0;
     for (y = 0; y < f->height; ++y) {
         uint32_t c = pixel(f, x, y) & 0xffffffu;
-        if (c == 0x26303du) {
+        if (c == nbt::gui::palette(0).track) {
             track = 1;
         }
-        if (c == 0xa8b3c2u) {
+        if (c == nbt::gui::palette(0).muted) {
             if (!*bottom) {
                 *top = y;
             }

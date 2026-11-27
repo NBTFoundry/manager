@@ -37,10 +37,12 @@ setting_debug_log = Log di debug
 setting_invert = Inverti la manopola
 setting_release = Restituisci il controller
 setting_native_audio = Audio nativo
+setting_theme = Tema
 value_audio_interrupt = Interruzione (almeno 25)
 value_audio_media = Sorgente multimediale
 value_on = attivo
 value_off = disattivo
+value_automatic = Automatico
 
 # Files (files_ui.cpp)
 files = File

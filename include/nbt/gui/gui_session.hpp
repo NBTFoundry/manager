@@ -12,6 +12,7 @@
 #include "nbt/gui/language_watch.hpp"
 #include "nbt/gui/plugin_link.hpp"
 #include "nbt/gui/screen_window.hpp"
+#include "nbt/gui/theme.hpp"
 #include "nbt/gui/ui_controller.hpp"
 #include "nbt/gui/volume_osd.hpp"
 #include "nbt/gui/worker_channel.hpp"
@@ -38,6 +39,7 @@ struct GuiSessionConfig {
     const char *diagPath; // the capture shim's ring (CaptureWatch); NULL: not watched
     bool recovered;
     const char *languagePath; // iDrive's language from the plugin (car_language.hpp); NULL: none
+    const char *makePath;     // the car's CarPlay configuration (model/theme.hpp); NULL: none
 };
 
 class GuiSession {
@@ -95,6 +97,7 @@ private:
     CaptureWatch captureWatch_;
     GamepadInput gamepad_;
     LanguageWatch language_;
+    ThemeWatch theme_;
     uint64_t nowMs_;
     uint64_t deadlineMs_;
     uint64_t heartbeatMs_;

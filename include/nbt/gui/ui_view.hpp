@@ -87,6 +87,7 @@ struct UiView {
     size_t focus;
     int busy;
     int progress;
+    int theme; // a model::Theme: the palette (theme.hpp)
     Modal modal;
 
     bool valid() const;

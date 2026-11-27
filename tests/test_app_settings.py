@@ -171,7 +171,7 @@ class AppSettingsTests(unittest.TestCase):
         self.assertIn("key0000000000011=fghijklmnopq\n", values)
         self.assertEqual(values, (self.state / "settings").read_text())
         self.assertTrue(command("SETTINGS plain live").startswith("SETTINGS\t0\trestart"))
-        self.assertTrue(command("SETTINGS manager live").startswith("SETTINGS\t4\trestart"))
+        self.assertTrue(command("SETTINGS manager live").startswith("SETTINGS\t5\trestart"))
         for line in ("SETTINGS test unknown", "SETTINGS test live x"):
             self.assertEqual(command(line), "ERR invalid-command")
         # Exercise the largest environment: 12 values plus both paths,
@@ -287,9 +287,20 @@ class AppSettingsTests(unittest.TestCase):
         manager = self.root / "manager"
         log, old, conf = manager / "debug.log", manager / "debug.log.1", manager / "controller.conf"
         self.assertEqual(command("SETTINGS manager"),
-                         "SETTINGS\t4\tdebug_log|Debug log|off|off,on\tinvert|Invert knob|off|off,on"
+                         "SETTINGS\t5\tdebug_log|Debug log|off|off,on\tinvert|Invert knob|off|off,on"
                          "\trelease|Hand back controller|off|off,on"
-                         "\tnative_audio|Native audio|interrupt|interrupt,media")
+                         "\tnative_audio|Native audio|interrupt|interrupt,media"
+                         "\ttheme|Theme|auto|auto,bmw,mini,supra")
+        # The theme: one line in manager/theme; anything else there is Automatic.
+        self.assertEqual(command("SET manager theme supra"), "OK")
+        self.assertEqual((manager / "theme").read_text(), "supra\n")
+        self.assertEqual((manager / "theme").stat().st_mode & 0o777, 0o600)
+        self.assertIn("\ttheme|Theme|supra|auto,bmw,mini,supra", command("SETTINGS manager"))
+        self.assertEqual(command("SET manager theme toyota"), "ERR settings")
+        (manager / "theme").write_text("red\n")
+        self.assertIn("\ttheme|Theme|auto|", command("SETTINGS manager"))
+        self.assertEqual(command("SET manager theme auto"), "OK")
+        self.assertEqual((manager / "theme").read_text(), "auto\n")
         # Debug log on: created private, and the worker logs from then on.
         self.assertEqual(command("SET manager debug_log on"), "OK")
         self.assertEqual(log.stat().st_mode & 0o777, 0o600)
@@ -364,7 +375,7 @@ class AppSettingsTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(command("SET manager language " + value), "ERR settings")
         self.assertEqual(language.read_text(), "auto\n")
-        self.assertEqual(command("SETTINGS manager").count("\t"), 5)
+        self.assertEqual(command("SETTINGS manager").count("\t"), 6)
         self.assertNotIn("language", command("SETTINGS manager"))
         self.assertEqual(command("QUIT"), "OK")
 

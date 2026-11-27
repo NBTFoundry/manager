@@ -158,7 +158,8 @@ int main(int argc, char **argv) {
                                          NBT_CAPTURE_CONTROL_PATH,
                                          NBT_CAPTURE_DIAG_PATH,
                                          recovered,
-                                         nbt::gui::kCarLanguagePath};
+                                         nbt::gui::kCarLanguagePath,
+                                         nbt::model::kCarMakePath};
     const char *inputLibrary = NULL;
 #ifdef NBT_TESTING
     char testLivenessPath[PATH_MAX];
@@ -191,6 +192,7 @@ int main(int argc, char **argv) {
     config.diagPath = getenv("NBT_TEST_CAPTURE_DIAG"); // unset: not watched
     if (testWorker || getenv("NBT_TEST_CAR_LANGUAGE")) {
         config.languagePath = getenv("NBT_TEST_CAR_LANGUAGE"); // unset: none
+        config.makePath = getenv("NBT_TEST_CAR_MAKE");
     }
     inputLibrary = getenv("NBT_TEST_INPUT_LIBRARY");
 #endif

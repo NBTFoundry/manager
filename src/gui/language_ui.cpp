@@ -4,6 +4,7 @@
 #include "nbt/gui/reply_parser.hpp"
 #include "nbt/gui/view_builder.hpp"
 #include "nbt/log.h"
+#include "nbt/model/theme.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -115,6 +116,9 @@ const char *settingLabel(const UiController &ui, const nbt_setting &setting) {
         if (!strcmp(setting.key, "native_audio")) {
             return text(T_SETTING_NATIVE_AUDIO);
         }
+        if (!strcmp(setting.key, "theme")) {
+            return text(T_SETTING_THEME);
+        }
     }
     return setting.label;
 }
@@ -126,11 +130,17 @@ const char *settingChoice(const UiController &ui, const char *choice) {
     } kChoices[] = {{"on", T_VALUE_ON},
                     {"off", T_VALUE_OFF},
                     {"interrupt", T_VALUE_AUDIO_INTERRUPT},
-                    {"media", T_VALUE_AUDIO_MEDIA}};
+                    {"media", T_VALUE_AUDIO_MEDIA},
+                    {"auto", T_VALUE_AUTOMATIC}};
     for (size_t i = 0; ui.managerSettings() && i < sizeof(kChoices) / sizeof(kChoices[0]); ++i) {
         if (!strcmp(choice, kChoices[i].choice)) {
             return text(kChoices[i].text);
         }
+    }
+    int theme = model::kThemeAuto; // a make: its name, the same in every language
+    if (ui.managerSettings() && model::themeSettingParse(choice, theme) &&
+        model::themeName(theme)) {
+        return model::themeName(theme);
     }
     return choice;
 }

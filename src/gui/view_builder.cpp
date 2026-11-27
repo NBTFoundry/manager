@@ -238,8 +238,8 @@ void ViewBuilder::formatText(char *out, size_t size, const char *format, ...) {
 core::Status ViewBuilder::build(const UiController &ui, UiView &v) {
     memset(&v, 0, sizeof(v));
     v.screen = ui.screen;
-    v.progress = -1;
-    v.modal.progress = -1;
+    v.theme = currentTheme();
+    v.progress = v.modal.progress = -1;
     // A background poll (every kPollMs on the waiting, pairing and review screens) does
     // not light the indicator; requests the driver started do.
     const bool poll =

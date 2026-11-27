@@ -98,6 +98,10 @@ static bool run() {
              "Content-Type: text/plain\r\n\r\n",
              auth);
     TEST_CHECK(parse(text, request) == Invalid);
+    // The theme the car shows: a GET too.
+    snprintf(text, sizeof(text), "GET /v1/theme HTTP/1.1\r\nHost: car\r\n%s\r\n", auth);
+    TEST_CHECK(parse(text, request) == Complete && request.route == Theme);
+    TEST_CHECK(!strcmp(path(Theme), "/v1/theme"));
     snprintf(text, sizeof(text),
              "POST /v1/logs/app HTTP/1.1\r\nHost: car\r\nContent-Length: 5\r\n"
              "Content-Type: text/plain\r\n\r\n");

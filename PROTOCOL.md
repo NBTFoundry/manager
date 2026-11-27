@@ -499,8 +499,9 @@ malformed), `START <app>` replies `ERR quarantined` and the Settings page offers
 | `native_audio` | Native audio | `interrupt`, `media` | The head unit's audio connection applications' sound uses, one line in `manager/native-audio` (replaced through its `.next`); absent or invalid is `interrupt`. `interrupt` leaves applications on their own default, the browser's interrupting source 0xb8 (`eSRC_BROWSER`), which the car never turns below volume 25. `media` gives user launches `NBT_AUDIO_CONN=0x1d0` (`eSRC_BON_BROWSER_ENT`, the media player's online stream source, an entertainment source the car turns down to 0) and `NBT_AUDIO_A2I=input_stereo_0` (the io-amp input that source plays); the SDK's audio route builds that connection instead, and its audio output writes that input through A2I instead of the browser's libasound input (an application already running keeps its own until it starts again). |
 | `phone_open` | Open from phone | `off`, `on` | Enable stationary, home-screen wake requests; defaults off. |
 | `release` | Hand back controller | `off`, `on` | `release=` in `manager/controller.conf` |
+| `theme` | Theme | `auto`, `bmw`, `mini`, `supra` | The colours and shapes of the manager's screen, one line in `manager/theme` (mode 0600, replaced through `manager/theme.next`); absent or invalid is `auto`. `auto` follows the car's make, read from `[General]` in `/var/opt/conn/carplay/carplay.ini` (`OEMIconLabel`, then `OEMIcon`, then `Manufacturer`: Toyota is `supra`, MINI `mini`); a car without that file, or of another make, shows `bmw`. The GUI checks the file once a second, so a change shows at once. |
 
-`SETTINGS manager` lists `debug_log`, `invert`, `release` and `native_audio` only. `SET` also
+`SETTINGS manager` lists `debug_log`, `invert`, `release`, `native_audio` and `theme` only. `SET` also
 takes `phone_open` and `language`: `language` has more choices than a
 declaration allows (six), so listing it would make phone apps that check that
 limit reject the whole reply. The GUI has its own Language screen for it.
@@ -691,6 +692,7 @@ connections, a 5-second header deadline, a 15-second inactivity timeout and a
 | `POST /v1/keys/remove` | `key-id\n` | HTTP 202 `STATUS\twaiting\tConfirm on the car\n`; local No/Yes prompt; 404 for an unknown key | No |
 | `POST /v1/companion` | `app\n` | `COMPANION\tready\n` then the application's page, or `COMPANION\toff\n` while its process does not run or has no page; 404 for an application not installed or without `companion` ([docs/companion-bridge.md](docs/companion-bridge.md)) | Yes |
 | `POST /v1/companion/event` | `app\tid\tvalue\n` | `OK\n`; 409 while its process does not run, 400 for a malformed event, 404 as above | Yes |
+| `GET /v1/theme` | empty | `THEME\t<bmw\|mini\|supra>\n`: the theme the car's screen shows, the `theme` setting or with `auto` the car's make ("Manager settings"). A manager without the route answers 400 or 404: the phone app then shows its BMW theme | Yes |
 | `GET /v1/selftest` | empty | The last self test's report as the car keeps it, under 4 KiB: `SELFTEST1\t<unix time>\t<manager version>\n`, then `<group>.<check>\t<p\|f\|s>\t<detail>\n` for every check; `SELFTEST1\tnone\n` before the first ([docs/self-test.md](docs/self-test.md)) | Yes |
 
 The files routes refuse with `ERR <reason>\n` and an HTTP status that says

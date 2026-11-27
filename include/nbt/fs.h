@@ -154,6 +154,10 @@ typedef enum {
      * sound uses (nbt/manager_settings.h), replaced through its .next. */
     NBT_FS_MANAGER_NATIVE_AUDIO,
     NBT_FS_MANAGER_NATIVE_AUDIO_NEXT,
+    /* manager/theme: the manager screen's colour theme setting, replaced
+     * through its .next (nbt/model/theme.hpp). */
+    NBT_FS_MANAGER_THEME,
+    NBT_FS_MANAGER_THEME_NEXT,
     /* state/<app>/crash.<n>: crash reports (nbt/log/crash_report.hpp), `tx`
      * the slot "0" to "4"; for the manager too (state/manager). Written as
      * crash.next, then renamed over the slot. */

@@ -37,7 +37,8 @@ enum Route {
     KeysRemove,
     Companion,
     CompanionEvent,
-    SelfTest // GET /v1/selftest: the last self test's report (docs/self-test.md)
+    SelfTest, // GET /v1/selftest: the last self test's report (docs/self-test.md)
+    Theme     // GET /v1/theme: the theme the car shows (nbt/model/theme.hpp)
 };
 /* Routes whose body is streamed to a file rather than read into memory. */
 inline bool streamed(Route route) {

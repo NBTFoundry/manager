@@ -37,10 +37,12 @@ setting_debug_log = Debug-Protokoll
 setting_invert = Drehknopf umkehren
 setting_release = Controller zurückgeben
 setting_native_audio = Natives Audio
+setting_theme = Design
 value_audio_interrupt = Unterbrechend (mind. 25)
 value_audio_media = Medienquelle
 value_on = an
 value_off = aus
+value_automatic = Automatisch
 
 # Files (files_ui.cpp)
 files = Dateien

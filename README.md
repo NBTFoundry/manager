@@ -68,6 +68,10 @@ NBT are trademarks of BMW AG; QNX is a trademark of BlackBerry Limited.
 - **Tools.** Settings → Tools restarts the head unit, and enables SSH, telnet
   and qconn as root until the next restart — the same access an SSH unlock
   gives, without writing anything ([docs/system-tools.md](docs/system-tools.md)).
+- **Themes.** BMW (iDrive 6's near-black page, square shapes and orange
+  cursor), MINI and Supra. Automatic follows the car's make; Settings →
+  Theme chooses one. The palettes are in `src/gui/theme.cpp`; a paired phone
+  reads the theme shown (`GET /v1/theme`) and follows it.
 - **Languages.** English, French, German, Italian, Spanish, Chinese
   (Simplified) and Japanese. Automatic follows iDrive's language, English
   for any other; Settings → Language chooses one. Texts are in
@@ -168,7 +172,8 @@ U to simulate a phone's pairing request or upload, Q to quit. It installs nothin
 and opens no network session. `NBT_LANGUAGE=fr` (or `auto`, `en`, `de`, `it`,
 `es`, `zh`, `ja`) sets the language and `NBT_SIM_CAR_LANGUAGE=13` iDrive's;
 `python3 tools/capture_ui.py --languages --out <dir>` renders the main screens
-in every language.
+in every language. `NBT_THEME=mini` (or `auto`, `bmw`, `supra`) sets the theme
+and `NBT_SIM_CAR_MAKE=supra` the car's make.
 
 **Texts and fonts.** The GUI's texts are `src/gui/text/<code>.txt`, English
 defining the keys; `python3 tools/gui_text.py` turns them into

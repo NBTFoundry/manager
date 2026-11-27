@@ -15,10 +15,14 @@
  * default auto); NBT_SIM_CAR_LANGUAGE is iDrive's vehicle.language number
  * (nbt/model/language.hpp; 1 German, 6 French, 11 Chinese, 13 Japanese...),
  * unset as when the plugin reported none. Settings > Language changes it.
+ * Themes: NBT_THEME is the Theme setting (auto|bmw|mini|supra, default auto);
+ * NBT_SIM_CAR_MAKE is the car's make (bmw|mini|supra), unset as on a car that
+ * reports none. Settings > Theme changes it.
  * Usage: nbt-simulator [scale] */
 #include "nbt/core/system.hpp"
 #include "nbt/gui/frame.hpp"
 #include "nbt/gui/qr_code.hpp"
+#include "nbt/gui/theme.hpp"
 #include "nbt/gui/ui_controller.hpp"
 #include "nbt/gui/ui_renderer.hpp"
 #include "nbt/model/language.hpp"
@@ -71,7 +75,7 @@ static nbt_settings settings[APPS];
 static const char *const manager_declared[] = {
     "debug_log|Debug log|off|off,on", "invert|Invert knob|off|off,on",
     "release|Hand back controller|off|off,on",
-    "native_audio|Native audio|interrupt|interrupt,media"};
+    "native_audio|Native audio|interrupt|interrupt,media", "theme|Theme|auto|auto,bmw,mini,supra"};
 static nbt_settings manager_settings;
 static bool pairing = false, phonePending = false;
 
@@ -117,6 +121,24 @@ static void sim_language(nbt::gui::UiController &ui) {
                          ? language
                          : -1;
     ui.applyLanguage();
+}
+
+/* The Theme setting `value` (NULL: NBT_THEME) and the car's make, shown at once. */
+static void sim_theme(const char *value) {
+    const char *setting = value ? value : getenv("NBT_THEME");
+    int choice = nbt::model::kThemeAuto, car = -1;
+    if (setting && !nbt::model::themeSettingParse(setting, choice)) {
+        fprintf(stderr, "NBT_THEME is one of auto, bmw, mini, supra\n");
+    }
+    if (getenv("NBT_SIM_CAR_MAKE") &&
+        !nbt::model::themeSettingParse(getenv("NBT_SIM_CAR_MAKE"), car)) {
+        car = -1;
+    }
+    const int index = nbt_settings_find(&manager_settings, "theme");
+    if (index >= 0) {
+        strcpy(manager_settings.items[index].value, nbt::model::themeSettingCode(choice));
+    }
+    nbt::gui::setCurrentTheme(nbt::model::themeEffective(choice, car));
 }
 
 /* The banner's version: NBT_SIM_VERSION, or "sim". */
@@ -353,6 +375,9 @@ static void worker(const char *command, char *reply, size_t size, uint64_t now) 
         }
         if (setting >= 0 && nbt_setting_allows(&list->items[setting], value)) {
             strcpy(list->items[setting].value, value);
+            if (list == &manager_settings && !strcmp(key, "theme")) {
+                sim_theme(value);
+            }
             snprintf(reply, size, "OK");
         } else {
             snprintf(reply, size, "ERR settings");
@@ -489,6 +514,7 @@ int main(int argc, char **argv) {
     declare();
     ui.setVersion(sim_version());
     sim_language(ui);
+    sim_theme(NULL);
     puts("Up/Down or wheel: move   Enter/click: select (hold: settings)   Backspace/Esc: back   M: "
          "MENU\n"
          "U: phone requests pairing, or uploads a package   Q/Ctrl+C: quit");

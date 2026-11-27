@@ -145,7 +145,8 @@ ParseResult parseRequest(core::Span<const uint8_t> data, Request *request) {
     }
     const bool get = request->route == Nonce || request->route == Apps ||
                      request->route == Status || request->route == Manager ||
-                     request->route == Keys || request->route == SelfTest;
+                     request->route == Keys || request->route == SelfTest ||
+                     request->route == Theme;
     if ((request->method == Get) != get || (get && request->contentLength) ||
         (!get && !request->hasLength)) {
         return Invalid;

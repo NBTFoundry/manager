@@ -23,7 +23,7 @@ static const uint64_t kPreviewMs = 15000u, kHealthCheckMs = 45000u, kIdleMs = 12
 
 GuiSession::GuiSession()
     : config_(), client_(), channel_(client_), ui_(), view_(), shown_(), screen_(), volumeOsd_(),
-      panel_(), plugin_(), capture_(), gamepad_(), language_(), nowMs_(0), deadlineMs_(0),
+      panel_(), plugin_(), capture_(), gamepad_(), language_(), theme_(), nowMs_(0), deadlineMs_(0),
       heartbeatMs_(0), backHoldMs_(0), pacer_(), inputFd_(-1), hidden_(true), exitReason_("error") {
 }
 
@@ -93,6 +93,7 @@ core::Status GuiSession::startWorker() {
 int GuiSession::start(bool &workerStarted) {
     const core::Result<uint64_t> startMs = core::monotonicMs();
     language_.start(config_.root, config_.languagePath, ui_); // before any text is shown
+    theme_.start(config_.root, config_.makePath);
     if (config_.recovered) {
         ui_.setNotice(text(T_RECOVERED));
     }
@@ -248,6 +249,7 @@ int GuiSession::stepWorkerAndUi() {
     shortcutStartPoll(ui_, nowMs_);
     gatherStatus(ui_, captureWatch_, gamepad_, inputFd_ >= 0);
     language_.poll(ui_, nowMs_);
+    theme_.poll(nowMs_);
     ui_.pump(channel_);
     if (gamepad_.takeHandover()) {
         handOver();

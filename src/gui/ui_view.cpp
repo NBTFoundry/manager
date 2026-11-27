@@ -47,7 +47,7 @@ bool UiView::valid() const {
 
 bool UiView::operator==(const UiView &other) const {
     return screen == other.screen && focus == other.focus && busy == other.busy &&
-           progress == other.progress && lineCount == other.lineCount &&
+           theme == other.theme && progress == other.progress && lineCount == other.lineCount &&
            itemCount == other.itemCount && !memcmp(title, other.title, sizeof(title)) &&
            !memcmp(code, other.code, sizeof(code)) && !memcmp(lines, other.lines, sizeof(lines)) &&
            !memcmp(items, other.items, sizeof(items)) &&

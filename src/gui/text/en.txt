@@ -40,10 +40,12 @@ setting_debug_log = Debug log
 setting_invert = Invert knob
 setting_release = Hand back controller
 setting_native_audio = Native audio
+setting_theme = Theme
 value_audio_interrupt = Interrupting (at least 25)
 value_audio_media = Media source
 value_on = on
 value_off = off
+value_automatic = Automatic
 
 # Files (files_ui.cpp)
 files = Files

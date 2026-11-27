@@ -14,7 +14,7 @@ const char *const paths[] = {"/v1/nonce",         "/v1/apps",         "/v1/setti
                              "/v1/manager",       "/v1/crashes",      "/v1/crashes/read",
                              "/v1/crashes/clear", "/v1/keys",         "/v1/keys/add",
                              "/v1/keys/remove",   "/v1/companion",    "/v1/companion/event",
-                             "/v1/selftest"};
+                             "/v1/selftest",      "/v1/theme"};
 }
 const char *path(Route route) {
     const unsigned i = static_cast<unsigned>(route);

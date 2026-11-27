@@ -157,7 +157,7 @@ $(BUILD_DIR)/liblvgl.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl/%.o,$(L
 	$(AR) rcs $@ $^
 
 HOST_BINS = phone-test most-monitor core-test bridge-test most-test target-test nbt-verify nbt-verify-release release-copy-probe manager-state-test manager-store-probe manager-stage-probe manager-setup-probe manager-plugin-probe manager-plugin-swap-probe manager-refresh-probe fs-probe transaction-probe frame-test ui-test hold-test controller-config-test log-test test-app-host session-test http-test process-probe manager-probe managerd-test client-probe ui-probe qr-probe most-input-probe manager-gui-host launcher-host
-HOST_BINS += app-log-test crash-report-test controller-feed-test gamepad-test usb-gamepad-test focus-test app-pause-test input-trace-test capture-test capture-shim-test capture-install-probe hmi-restart-test language-test
+HOST_BINS += app-log-test crash-report-test controller-feed-test gamepad-test usb-gamepad-test focus-test app-pause-test input-trace-test capture-test capture-shim-test capture-install-probe hmi-restart-test language-test theme-test
 host: $(addprefix $(BUILD_DIR)/,$(HOST_BINS)) $(BUILD_DIR)/libfake_dsi.so $(BUILD_DIR)/libfake_dsi_base.so $(BUILD_DIR)/libnbt-capture-observer.so $(BUILD_DIR)/libnbt-capture-active.so
 
 define HOST_LINK
@@ -225,6 +225,8 @@ $(BUILD_DIR)/nbt-simulator: $(OBJ_DIR)/host/tools/simulator.o $(HOST_LIB) $(BUIL
 $(BUILD_DIR)/ui-test: $(OBJ_DIR)/host/tests/test_ui.o $(HOST_LIB) $(BUILD_DIR)/liblvgl.a
 	$(HOST_LINK) -lm
 $(BUILD_DIR)/language-test: $(OBJ_DIR)/host/tests/test_language.o $(HOST_LIB) $(BUILD_DIR)/liblvgl.a
+	$(HOST_LINK) -lm
+$(BUILD_DIR)/theme-test: $(OBJ_DIR)/testing/tests/test_theme.o $(TESTING_LIB) $(BUILD_DIR)/liblvgl.a
 	$(HOST_LINK) -lm
 
 $(BUILD_DIR)/manager-store-probe: $(OBJ_DIR)/testing/tests/manager_store_probe.o $(TESTING_LIB)
@@ -301,6 +303,7 @@ test: host check-cxx
 	$(BUILD_DIR)/frame-test
 	$(BUILD_DIR)/ui-test
 	$(BUILD_DIR)/language-test
+	$(BUILD_DIR)/theme-test
 	$(BUILD_DIR)/hold-test
 	$(BUILD_DIR)/focus-test
 	$(BUILD_DIR)/app-pause-test

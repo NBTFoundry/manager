@@ -38,10 +38,12 @@ setting_debug_log = 调试日志
 setting_invert = 反转旋钮
 setting_release = 交还控制器
 setting_native_audio = 原生音频
+setting_theme = 主题
 value_audio_interrupt = 插播（至少 25）
 value_audio_media = 媒体音源
 value_on = 开
 value_off = 关
+value_automatic = 自动
 
 # Files (files_ui.cpp)
 files = 文件

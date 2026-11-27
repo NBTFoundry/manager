@@ -59,6 +59,8 @@ const KindPath kManagerPaths[] = {
     {NBT_FS_MANAGER_SHORTCUTS_NEXT, "manager/shortcuts.next"},
     {NBT_FS_MANAGER_NATIVE_AUDIO, "manager/native-audio"},
     {NBT_FS_MANAGER_NATIVE_AUDIO_NEXT, "manager/native-audio.next"},
+    {NBT_FS_MANAGER_THEME, "manager/theme"},
+    {NBT_FS_MANAGER_THEME_NEXT, "manager/theme.next"},
     {NBT_FS_MANAGER_LOG, "manager/debug.log"},
     {NBT_FS_MANAGER_LOG_OLD, "manager/debug.log.1"},
     {NBT_FS_MANAGER_CRASH, "manager/crash.gui"},

@@ -27,7 +27,8 @@ bool PathPolicy::canCreate(PathKind kind) {
            kind == NBT_FS_SHIM_STATE_NEXT || kind == NBT_FS_CAPTURE_SHIM_NEXT ||
            kind == NBT_FS_MANAGER_LANGUAGE_NEXT || kind == NBT_FS_MANAGER_SHORTCUTS_NEXT ||
            kind == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT || kind == NBT_FS_CRASH_REPORT_NEXT ||
-           kind == NBT_FS_MANAGER_SELFTEST_NEXT || kind == NBT_FS_MANAGER_BUNDLED;
+           kind == NBT_FS_MANAGER_SELFTEST_NEXT || kind == NBT_FS_MANAGER_BUNDLED ||
+           kind == NBT_FS_MANAGER_THEME_NEXT;
 }
 
 bool PathPolicy::canLock(PathKind kind) {
@@ -77,7 +78,8 @@ bool PathPolicy::canReplace(PathKind from, PathKind to) {
            (from == NBT_FS_MANAGER_SHORTCUTS_NEXT && to == NBT_FS_MANAGER_SHORTCUTS) ||
            (from == NBT_FS_MANAGER_NATIVE_AUDIO_NEXT && to == NBT_FS_MANAGER_NATIVE_AUDIO) ||
            (from == NBT_FS_CRASH_REPORT_NEXT && to == NBT_FS_CRASH_REPORT) ||
-           (from == NBT_FS_MANAGER_SELFTEST_NEXT && to == NBT_FS_MANAGER_SELFTEST);
+           (from == NBT_FS_MANAGER_SELFTEST_NEXT && to == NBT_FS_MANAGER_SELFTEST) ||
+           (from == NBT_FS_MANAGER_THEME_NEXT && to == NBT_FS_MANAGER_THEME);
 }
 
 bool PathPolicy::canRename(PathKind from, PathKind to, const char *app) {

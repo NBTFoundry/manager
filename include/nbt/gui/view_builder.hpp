@@ -2,6 +2,7 @@
 #ifndef NBT_GUI_VIEW_BUILDER_HPP
 #define NBT_GUI_VIEW_BUILDER_HPP
 
+#include "nbt/gui/theme.hpp"
 #include "nbt/gui/ui_controller.hpp"
 
 namespace nbt {

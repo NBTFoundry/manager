@@ -38,10 +38,12 @@ setting_debug_log = デバッグログ
 setting_invert = ノブの回転を反転
 setting_release = コントローラーを戻す
 setting_native_audio = ネイティブオーディオ
+setting_theme = テーマ
 value_audio_interrupt = 割り込み（最低 25）
 value_audio_media = メディアソース
 value_on = オン
 value_off = オフ
+value_automatic = 自動
 
 # Files (files_ui.cpp)
 files = ファイル

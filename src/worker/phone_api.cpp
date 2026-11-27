@@ -176,6 +176,8 @@ int PhoneApi::execute(const http::Request &request, const char *body, uint64_t n
         return phoneManager(worker_, out);
     case http::SelfTest: // the door too: the report is only read
         return selfTestPhone(root_.legacy(), out.data(), out.size());
+    case http::Theme: // the door too
+        return phoneTheme(worker_, out);
     case http::Pair:
         if (!bssid_[0]) {
             return 503;

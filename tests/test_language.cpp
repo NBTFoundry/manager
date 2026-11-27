@@ -6,6 +6,7 @@
 #include "nbt/gui/frame.hpp"
 #include "nbt/gui/language_ui.hpp"
 #include "nbt/gui/text.hpp"
+#include "nbt/gui/theme.hpp"
 #include "nbt/gui/ui_controller.hpp"
 #include "nbt/gui/ui_renderer.hpp"
 #include "nbt/gui/view_builder.hpp"
@@ -325,7 +326,7 @@ static size_t titleInk(const nbt::gui::Frame &frame) {
         for (size_t x = 16; x < 300; ++x) {
             uint32_t pixel;
             memcpy(&pixel, frame.pixels + y * frame.stride + x * 4, 4);
-            lit += (pixel & 0xffffffu) != 0x0a0f17u;
+            lit += (pixel & 0xffffffu) != nbt::gui::palette(0).background;
         }
     }
     return lit;

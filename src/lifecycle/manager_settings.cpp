@@ -4,6 +4,7 @@
 #include "nbt/controller_config.h"
 #include "nbt/manager_settings.h"
 #include "nbt/model/language.hpp"
+#include "nbt/model/theme.hpp"
 #include "nbt/storage/phone_store.hpp"
 #include "nbt/util.h"
 
@@ -25,6 +26,7 @@ const char *const kDeclarations[] = {
     "invert|Invert knob|off|off,on",
     "release|Hand back controller|off|off,on",
     "native_audio|Native audio|interrupt|interrupt,media",
+    "theme|Theme|auto|auto,bmw,mini,supra",
 };
 
 int barrier(nbt_fs *fs) {
@@ -222,6 +224,11 @@ int loadLegacy(nbt_fs *fs, nbt_settings *settings) {
     if (audio >= 0 && nbt_manager_native_audio(fs)) {
         strcpy(settings->items[audio].value, "media");
     }
+    const int theme = nbt_settings_find(settings, "theme");
+    int choice = model::kThemeAuto;
+    if (theme >= 0 && !model::themeSettingLoad(fs, choice)) {
+        strcpy(settings->items[theme].value, model::themeSettingCode(choice));
+    }
     return 0;
 }
 
@@ -257,6 +264,13 @@ int setLegacy(nbt_fs *fs, const char *key, const char *value) {
         text[n] = '\n';
         return replace(fs, NBT_FS_MANAGER_NATIVE_AUDIO_NEXT, NBT_FS_MANAGER_NATIVE_AUDIO, text,
                        n + 1);
+    }
+    if (!strcmp(key, "theme")) {
+        const size_t n = strlen(value);
+        char text[model::kThemeFileMax + 1];
+        memcpy(text, value, n); // a declared choice: at most "supra"
+        text[n] = '\n';
+        return replace(fs, NBT_FS_MANAGER_THEME_NEXT, NBT_FS_MANAGER_THEME, text, n + 1);
     }
     const int on = !strcmp(value, "on");
     if (!strcmp(key, "debug_log")) {

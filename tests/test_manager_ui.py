@@ -117,6 +117,9 @@ class ManagerUiTests(unittest.TestCase):
         (conn / "var/opt/conn/WFDPass.conf").write_text(bytes(c ^ mask[i % len(mask)] for i,c in enumerate(secret)).hex())
         (conn / "var/opt/conn/carplay/iap2_Wifi.cfg").write_text("SSID=BMW Test CarPlay\n")
         self.enterContext(mock.patch.dict(os.environ, {"NBT_TEST_CONN_ROOT": str(conn)}))
+        # The car's CarPlay configuration, where its make is read (absent: none reported).
+        self.car_make = conn / "var/opt/conn/carplay/carplay.ini"
+        self.enterContext(mock.patch.dict(os.environ, {"NBT_TEST_CAR_MAKE": str(self.car_make)}))
         # The worker's system tools (restart the head unit, enable SSH) only
         # record their call; the tools path never touches the car.
         self.system_log = Path(self.tmp.name) / "system.log"
@@ -169,14 +172,14 @@ class ManagerUiTests(unittest.TestCase):
         self.fail(f"Expected screen {screen}: {view.text()}")
 
     def pair_phone(self):
-        # Settings is the main menu's last item; Pair a phone follows its four
+        # Settings is the main menu's last item; Pair a phone follows its five
         # settings and Language.
         view = self.send("down", "down", "down", "select")
         self.assertEqual(view.screen, SETTINGS, view.text())
-        self.assertEqual(view.items[3:], ["Native audio: Interrupting (at least 25)",
+        self.assertEqual(view.items[3:], ["Native audio: Interrupting (at least 25)", "Theme: Automatic",
                                           "Language: Automatic (English)", "Pair a phone",
                                           "Paired phones", "Status", "Self test", "Tools"])
-        view = self.send("down", "down", "down", "down", "down", "select", "address", "link")
+        view = self.send("down", "down", "down", "down", "down", "down", "select", "address", "link")
         self.assertEqual(view.screen, PAIRING, view.text())
         self.assertTrue(self.link.startswith("WIFI:T:WPA;"))
         self.assertNotIn("http", self.link)
@@ -309,6 +312,37 @@ class ManagerUiTests(unittest.TestCase):
             self.assertEqual(self.send("select").screen, APPS)  # Reject
         self.finish()
 
+    def test_theme_is_the_setting_or_the_cars_make(self):
+        self.pair_phone()
+        theme = lambda: self.phone.request(self.host, "GET", "/v1/theme")
+        # Automatic, and a car that reports no make: BMW.
+        self.assertEqual(theme(), (200, b"THEME\tbmw\n"))
+        # A MINI keeps BMW as its manufacturer; its logo says MINI.
+        self.car_make.write_text("[General]\nManufacturer=BMW\nOEMIconLabel=MINI\n")
+        self.assertEqual(theme(), (200, b"THEME\tmini\n"))
+        self.car_make.write_text("[General]\r\nManufacturer=Toyota\r\n[Screen]\r\nWidth=1280\r\n")
+        self.assertEqual(theme(), (200, b"THEME\tsupra\n"))
+        # A theme chosen on the car wins over the make; Automatic gives it back.
+        self.private(self.root / "manager/theme", b"bmw\n")
+        self.assertEqual(theme(), (200, b"THEME\tbmw\n"))
+        self.private(self.root / "manager/theme", b"auto\n")
+        self.assertEqual(theme(), (200, b"THEME\tsupra\n"))
+        # The phone reads it; the manager's settings are changed on the car only.
+        self.assertEqual(self.phone.request(self.host, "POST", "/v1/settings/set",
+                                            b"manager\ttheme\tmini\n")[0], 400)
+        self.assertEqual(self.phone.request(self.host, "POST", "/v1/theme", b"")[0], 400)
+        self.finish()
+
+    def test_theme_chosen_in_settings(self):
+        view = self.send("down", "down", "down", "select", "down", "down", "down", "down", "select")
+        self.assertEqual((view.screen, view.title), (CHOICE, "Theme"), view.text())
+        self.assertEqual(view.items, ["Automatic  (current)", "BMW", "MINI", "Supra"])
+        view = self.send("down", "down", "select")
+        self.assertEqual(view.screen, SETTINGS, view.text())
+        self.assertEqual(view.items[4], "Theme: MINI")
+        self.assertEqual((self.root / "manager/theme").read_text(), "mini\n")
+        self.finish()
+
     def key_request(self, path, body):
         return self.phone.request(self.host, "POST", path, body)
 
@@ -408,7 +442,7 @@ class ManagerUiTests(unittest.TestCase):
         # Settings > Status (its last item), then the gamepad test, each frame
         # drawn by the renderer; BACK returns to Status, then to Settings.
         view = self.send("down", "down", "down", "select")
-        view = self.send("down", "down", "down", "down", "down", "down", "down", "select")
+        view = self.send(*(["down"] * 8), "select")
         self.assertEqual((view.screen, view.title), (STATUS, "Status"), view.text())
         self.assertEqual(view.items, ["Test the gamepad"])
         self.assertIn("Last error: none since the manager opened", view.lines)
@@ -419,7 +453,7 @@ class ManagerUiTests(unittest.TestCase):
         view = self.send("back")
         self.assertEqual(view.screen, STATUS, view.text())
         view = self.send("back")
-        self.assertEqual((view.screen, view.focus), (SETTINGS, 7), view.text())
+        self.assertEqual((view.screen, view.focus), (SETTINGS, 8), view.text())
         self.send("back")
         self.finish()
 
@@ -430,11 +464,11 @@ class ManagerUiTests(unittest.TestCase):
         view = self.send("down", "select")
         self.assertEqual(view.screen, SETTINGS, view.text())
         self.assertEqual(view.items[-1], "Tools")
-        view = self.send(*(["down"] * 9), "select")
+        view = self.send(*(["down"] * 10), "select")
         self.assertEqual((view.screen, view.title, view.items),
                          (TOOLS, "Tools", ["Restart head unit", "Enable SSH"]))
         view = self.send("back")
-        self.assertEqual((view.screen, view.focus), (SETTINGS, 9), view.text())
+        self.assertEqual((view.screen, view.focus), (SETTINGS, 10), view.text())
         # Restart head unit asks first, Later focused; the answer sends IDRIVE RESTART.
         view = self.send("select", "select")
         self.assertEqual((view.screen, view.title, view.focus, view.items),
@@ -450,7 +484,7 @@ class ManagerUiTests(unittest.TestCase):
         view = self.until(APPS)
         self.assertEqual(view.focus, 1)
         self.send("select")
-        view = self.send(*(["down"] * 9), "select")
+        view = self.send(*(["down"] * 10), "select")
         self.assertEqual(view.screen, TOOLS)
         view = self.send("down", "select")
         self.assertEqual((view.screen, view.title, view.focus, view.items),
