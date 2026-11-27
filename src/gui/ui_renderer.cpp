@@ -98,15 +98,16 @@ int renderList(lv_obj_t *screen, const UiView *v, const lv_font_t *itemFont, int
         return 0;
     }
     const bool overflow = rows < v->itemCount;
-    const int32_t listWidth = textRight - kMargin / 2;
-    const int32_t rowWidth = listWidth - (overflow ? kScrollbarWidth + kScrollbarGap : 0);
+    const int32_t gutter = draw::gutter(*colors); // left of the rows: the focused one's mark
+    const int32_t listWidth = textRight;
+    const int32_t rowWidth = listWidth - gutter - (overflow ? kScrollbarWidth + kScrollbarGap : 0);
     const int32_t listHeight = static_cast<int32_t>(rows) * rowHeight;
     lv_obj_t *focused = NULL;
     if (overflow && !box(screen, textRight - kScrollbarWidth, y, kScrollbarWidth, listHeight,
                          colors->track, LV_OPA_COVER, draw::corner(*colors, kScrollbarWidth))) {
         return -1;
     }
-    lv_obj_t *list = box(screen, kMargin / 2, y, listWidth, listHeight, 0, LV_OPA_TRANSP, 0);
+    lv_obj_t *list = box(screen, 0, y, listWidth, listHeight, 0, LV_OPA_TRANSP, 0);
     if (!list) {
         return -1;
     }
@@ -121,13 +122,15 @@ int renderList(lv_obj_t *screen, const UiView *v, const lv_font_t *itemFont, int
     for (size_t i = 0; i < v->itemCount; ++i) {
         const bool isAction = v->itemStyle[i] == ItemAction;
         const bool isFocus = i == v->focus;
-        lv_obj_t *row = box(list, 0, static_cast<int32_t>(i) * rowHeight, rowWidth, rowHeight, 0,
-                            LV_OPA_TRANSP, 0);
+        lv_obj_t *row = box(list, 0, static_cast<int32_t>(i) * rowHeight, gutter + rowWidth,
+                            rowHeight, 0, LV_OPA_TRANSP, 0);
         lv_obj_t *body =
-            row ? draw::row(*colors, row, 0, 0, rowWidth, rowHeight - 2, isFocus, isAction) : NULL;
-        if (!body ||
-            (!isFocus && i + 1 != v->focus &&
-             draw::rule(*colors, row, kMargin / 2, rowHeight - 1, rowWidth - kMargin, true))) {
+            row ? draw::row(*colors, row, gutter, 0, rowWidth, rowHeight - 2, isFocus, isAction)
+                : NULL;
+        if (!body || (isFocus ? draw::mark(*colors, row, body, rowWidth, rowHeight - 2)
+                              : (i + 1 != v->focus &&
+                                 draw::rule(*colors, row, gutter + kMargin / 2, rowHeight - 1,
+                                            rowWidth - kMargin, true)))) {
             return -1;
         }
         lv_obj_set_scrollable(row, false);
@@ -182,16 +185,17 @@ core::Status UiRenderer::render(const UiView &viewRef, const QrCode *qr, Frame &
     lv_obj_t *screen = lv_display_get_screen_active(display);
     lv_obj_clean(screen);
     lv_obj_set_scrollable(screen, false);
-    lv_obj_set_style_bg_color(screen, lv_color_hex(colors->background), 0);
-    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
-    label(screen, v->title, titleFont, colors->foreground, kMargin, 10,
-          textRight - kMargin - (v->busy ? 40 : 0));
+    int32_t y = 10 + lv_font_get_line_height(titleFont) + 6;
+    const int32_t titleX = kMargin + draw::titleInset(*colors);
+    if (draw::backdrop(*colors, screen, static_cast<int32_t>(frame->width),
+                       static_cast<int32_t>(frame->height), y - 4) ||
+        draw::rule(*colors, screen, kMargin, y - 4, textRight - kMargin, false)) {
+        return core::Status::error(EINVAL, "cannot render UI");
+    }
+    label(screen, v->title, titleFont, colors->foreground, titleX, 10,
+          textRight - titleX - (v->busy ? 40 : 0));
     if (v->busy) {
         label(screen, "...", titleFont, colors->muted, textRight - 32, 10, 32);
-    }
-    int32_t y = 10 + lv_font_get_line_height(titleFont) + 6;
-    if (draw::rule(*colors, screen, kMargin, y - 4, textRight - kMargin, false)) {
-        return core::Status::error(EINVAL, "cannot render UI");
     }
     const int32_t lineHeight = lv_font_get_line_height(lineFont) + 2;
     for (size_t i = 0; i < v->lineCount; ++i, y += lineHeight) {

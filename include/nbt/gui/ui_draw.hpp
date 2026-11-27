@@ -32,6 +32,17 @@ lv_obj_t *row(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t 
 /* The thin line under a title, or with `rows` between rows; nothing in a
  * theme without (Palette::ruled). */
 int rule(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t width, bool rows);
+/* The page behind everything: its colours, the header strip `header` pixels
+ * tall with the theme's emblem, rings or rail. */
+int backdrop(const Palette &c, lv_obj_t *screen, int32_t w, int32_t h, int32_t header);
+/* Where a title starts, past the emblem of a theme that has one. */
+int32_t titleInset(const Palette &c);
+/* Room at the left of a list's rows for the mark of the focused one. */
+int32_t gutter(const Palette &c);
+/* The focused list row's mark: a chevron at its right, a dot or the
+ * controller's knob at its left. `line` is the row's full line (the gutter,
+ * then `body`, w x h). */
+int mark(const Palette &c, lv_obj_t *line, lv_obj_t *body, int32_t w, int32_t h);
 int dialog(const Palette &c, lv_obj_t *screen, const Modal *m, const lv_font_t *titleFont,
            const lv_font_t *lineFont, const lv_font_t *itemFont, int32_t width, int32_t height);
 

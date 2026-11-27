@@ -62,16 +62,24 @@ int bar(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t width,
 
 lv_obj_t *row(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t w, int32_t h,
               bool focus, bool action) {
-    lv_obj_t *body = box(parent, x, y, w, h, action ? c.actionHighlight : c.highlight,
-                         focus ? LV_OPA_COVER : LV_OPA_TRANSP, corner(c, h));
-    if (!body || !focus) {
-        return body;
+    const bool tiles = c.look == LookTiles;
+    lv_obj_t *body = box(parent, x, y, w, h,
+                         !focus   ? c.panel
+                         : action ? c.actionHighlight
+                                  : c.highlight,
+                         focus || tiles ? LV_OPA_COVER : LV_OPA_TRANSP, corner(c, h));
+    if (!body) {
+        return NULL;
     }
     lv_obj_set_scrollable(body, false);
+    if (!focus) {
+        return body;
+    }
     lv_obj_set_style_clip_corner(body, true, 0);
-    lv_obj_set_style_bg_grad_color(body, lv_color_hex(c.highlightFade), 0);
-    lv_obj_set_style_bg_grad_dir(body, LV_GRAD_DIR_HOR, 0);
-    if ((c.edge && !box(body, 0, 0, c.edge, h, c.accent, LV_OPA_COVER, 0)) ||
+    lv_obj_set_style_bg_grad_color(body, lv_color_hex(c.highlightFade), 0); // a tile: downwards
+    lv_obj_set_style_bg_grad_dir(body, tiles ? LV_GRAD_DIR_VER : LV_GRAD_DIR_HOR, 0);
+    if ((tiles && !box(body, 0, 0, w, 1, 0xffffff, LV_OPA_30, 0)) || // light on its top edge
+        (c.edge && !box(body, 0, 0, c.edge, h, c.accent, LV_OPA_COVER, 0)) ||
         (c.underline &&
          !box(body, 0, h - c.underline, w, c.underline, c.accent, LV_OPA_COVER, 0))) {
         return NULL;
@@ -117,6 +125,9 @@ int dialog(const Palette &c, lv_obj_t *screen, const Modal *m, const lv_font_t *
     lv_obj_set_style_border_color(panel, lv_color_hex(c.rule), 0);
     lv_obj_set_style_border_width(panel, 1, 0);
     lv_obj_set_scrollable(panel, false);
+    if (c.look != LookGlow && !box(panel, 0, 0, boxWidth, 3, c.accent, LV_OPA_COVER, 0)) {
+        return -1;
+    }
     int32_t y = kMargin;
     label(panel, m->title, titleFont, c.foreground, kMargin, y, boxWidth - 2 * kMargin);
     y += lv_font_get_line_height(titleFont) + 6;

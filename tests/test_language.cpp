@@ -319,14 +319,14 @@ static void test_language_screen(void) {
     setCurrentLanguage(LangEn);
 }
 
-/* Pixels in the title's rows that are not the background. */
+/* Pixels in the title's rows drawn in the text's own colour. */
 static size_t titleInk(const nbt::gui::Frame &frame) {
     size_t lit = 0;
     for (size_t y = 10; y < 40; ++y) {
         for (size_t x = 16; x < 300; ++x) {
             uint32_t pixel;
             memcpy(&pixel, frame.pixels + y * frame.stride + x * 4, 4);
-            lit += (pixel & 0xffffffu) != nbt::gui::palette(0).background;
+            lit += (pixel & 0xffffffu) == nbt::gui::palette(0).foreground;
         }
     }
     return lit;

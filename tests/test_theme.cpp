@@ -145,7 +145,7 @@ static void test_rendering(void) {
         size_t accent = 0, cursor = 0;
         v.theme = theme;
         CHECK(renderer.render(v, NULL, frame).ok());
-        CHECK(pixel(frame, 630, 230) == c.background);
+        CHECK(pixel(frame, 630, 238) == c.deep || c.look == LookBars); // below the list
         for (size_t y = 0; y < frame.height; ++y) {
             for (size_t x = 0; x < frame.width; ++x) {
                 const uint32_t p = pixel(frame, x, y);
@@ -154,7 +154,7 @@ static void test_rendering(void) {
                           p != c.accent && (p >> 16) < 0xa0; // the fill, not the white text
             }
         }
-        CHECK(accent > 100); // the progress bar, and the cursor's edge where a theme has one
+        CHECK(accent > 100); // the progress bar, and a theme's edge, rail or dot
         CHECK(cursor > 2000);
     }
 }

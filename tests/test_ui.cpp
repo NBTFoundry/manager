@@ -1704,13 +1704,14 @@ static uint32_t pixel(const Frame *f, size_t x, size_t y) {
     return value;
 }
 
-/* The scroll bar column of a frame (16 px margin, 6 px bar): the topmost and
- * bottom-most rows of the thumb, and whether its track is there at all. */
+/* The scroll bar column of a frame (16 px margin, 6 px bar), below the
+ * header: the topmost and bottom-most rows of the thumb, and whether its
+ * track is there at all. */
 static int scrollbar(const Frame *f, size_t *top, size_t *bottom) {
     size_t x = f->width - 16 - 3, y;
     int track = 0;
     *top = *bottom = 0;
-    for (y = 0; y < f->height; ++y) {
+    for (y = 48; y < f->height; ++y) {
         uint32_t c = pixel(f, x, y) & 0xffffffu;
         if (c == nbt::gui::palette(0).track) {
             track = 1;

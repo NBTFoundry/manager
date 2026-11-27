@@ -10,17 +10,19 @@ namespace gui {
 namespace {
 
 /* Each follows photographs of that make's own screen (docs/head-unit-interfaces.md,
- * "The car's make and iDrive's look"). BMW: a black page, dark tiles, the
- * selected one filled deep red, hairlines between rows. MINI: a solid blue
- * bar, no lines. Supra: an orange-red glow under the selected row, fading to
- * the right, with a bright edge and underline, and a line under the title. */
+ * "The car's make and iDrive's look"). BMW: a black page of dark tiles under
+ * a header strip, the selected one filled deep red. MINI: a solid blue bar
+ * with a dot at its left, over a page that turns deep blue, behind it the
+ * rings of the round display. Supra: an orange-red glow under the selected
+ * row, fading to the right, with a bright edge and underline, a line under
+ * the title and a rail down the left with the controller's knob on it. */
 const Palette kPalettes[model::kThemeCount] = {
-    {0x080808, 0xffffff, 0xa9abae, 0x980c0c, 0x5c0808, 0x202020, 0xff8a80, 0xb81616, 0x161616,
-     0xf01212, 0x3a3a3a, 0, 0, 0, 2},
+    {0x080808, 0xffffff, 0xa9abae, 0xb01414, 0x6a0a0a, 0x2a2a2a, 0xff8a80, 0xc82020, 0x161616,
+     0xf01212, 0x3a3a3a, 0, 0, 0, 0, LookTiles, 0x181818, 0x080808},
     {0x05080c, 0xffffff, 0xa8b4c0, 0x0a7cc4, 0x0a7cc4, 0x1a2430, 0x7fd0ff, 0x1296e6, 0x0e1620,
-     0x38d8f0, 0x24384c, 0, 0, 0, 0},
+     0x38d8f0, 0x24384c, 0, 0, 0, 0, LookBars, 0x0b1622, 0x06233b},
     {0x060606, 0xffffff, 0xb0aeac, 0x7a2606, 0x200a02, 0x242220, 0xffa07a, 0x9c3a0c, 0x151312,
-     0xf85828, 0x7a3a22, 0, 4, 2, 1},
+     0xf85828, 0x7a3a22, 0, 4, 2, 1, LookGlow, 0x0c0c0c, 0x060606},
 };
 
 int current; // a model::Theme

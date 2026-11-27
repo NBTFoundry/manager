@@ -15,6 +15,10 @@
 namespace nbt {
 namespace gui {
 
+/* How a theme draws its page: dark tiles under a header strip (BMW), solid
+ * bars over a gradient with rings (MINI), a glow line along a rail (Supra). */
+enum Look { LookTiles, LookBars, LookGlow };
+
 /* A theme's colours (0xRRGGBB each) and shapes. */
 struct Palette {
     uint32_t background, foreground, muted;
@@ -30,6 +34,9 @@ struct Palette {
     int32_t edge;      // the bright edge at the cursor's left, in pixels; 0: none
     int32_t underline; // the bright line under the cursor, in pixels; 0: none
     int ruled;         // 1: a line under titles; 2: lines between rows too; 0: none
+    int look;          // a Look
+    uint32_t panel;    // the header strip, and a tile that is not selected
+    uint32_t deep;     // the page's colour at its bottom (background: at its top)
 };
 
 /* The palette of a model::Theme; BMW's for a value out of range. */
