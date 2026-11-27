@@ -42,7 +42,9 @@ application on an SDK with the mixer client uses it without a change.
   (the SDK's `AudioPace`), the mixer opens it again at the next level, a
   moment's silence, and keeps that level in `/dev/shmem/nbt-mixer-level`
   until the head unit starts again. Its log says so (`mixer: the output
-  played gaps, level N from now on`).
+  played gaps, level N from now on`). That file's one line is `<level>
+  <gaps> <queues made longer>`, counted since the head unit started; the
+  self test reads it (`manager.audio`, `self-test.md`).
 - A guest keeps two fragments in its own ring (11.6 ms) and more once the
   ring ran empty; a guest built on an SDK before `6634602` keeps 23 ms.
 - From a guest's render to the audio input at level 0: about 41 ms (52 ms

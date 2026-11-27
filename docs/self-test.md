@@ -6,7 +6,7 @@ what it gives applications work on this car: the manager's files, then a
 small test application in each form (native program, module and guest, both
 run by nbt-runner), started as any application is. Nearly everything is
 automatic; the driver turns and pushes the controller once and answers two
-questions (the test screen, the beeps).
+questions (the test screen, the tone).
 
 ## The bundled applications
 
@@ -40,9 +40,11 @@ each an ordinary signed package (`apps/selftest/`), signed with the
    reports. `SELFTEST\tready\t<app>,<app>,...` or `ERR selftest <reason>`.
 3. Each application in turn, as `START` does (`OK screen`, the panel handed
    over, back when it ends or after 10 s without a frame). Before the
-   module: "Watch and listen: colour bars, three beeps; then turn the
+   module: "Watch and listen: colour bars, a rising tone; then turn the
    controller and push it."
-4. Two questions: the colour bars, the beeps (Yes / No).
+4. Two questions: the colour bars, the tone (Yes / No). The tone rises from
+   400 to 1600 Hz in 3 s: a break or a skip in the sound is a click or a jump
+   in it.
 5. `SELFTEST REPORT <saw> <heard>` (`y`/`n`): the worker gathers its own
    checks, each application's report and the answers, keeps them in
    `state/manager/selftest.txt` and answers with the counts and what did
@@ -76,8 +78,15 @@ SELFTEST1	<form>
 
 A missing report is `start fail` ("no report"). The worker adds
 `manager.release` (verified, version), `manager.runner`, `manager.files`
-(the hard disk's files root), `manager.space` (free space) and the answers
-`you.screen`, `you.sound`.
+(the hard disk's files root), `manager.space` (free space), `manager.audio`
+and the answers `you.screen`, `you.sound`.
+
+`manager.audio` is how the sound went while the three played, from the
+audio mixer's state file (`audio-mixer.md`): `level L, G gaps, Q queues
+grown`, the output's level now and what was counted since `SELFTEST
+PREPARE`. It fails when the output played a gap or a queue had to be made
+longer (a queue was too short for this car; the mixer has made it longer),
+and is skipped when no mixer has run (`no mixer`).
 
 ## Reply
 

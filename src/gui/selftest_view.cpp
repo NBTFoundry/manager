@@ -38,11 +38,11 @@ TextId checkLabel(const char *check) {
         const char *name;
         TextId id;
     } kChecks[] = {
-        {"release", T_STC_RELEASE},      {"runner", T_STC_RUNNER}, {"files", T_STC_FILES},
-        {"space", T_STC_SPACE},          {"start", T_STC_START},   {"bridge", T_STC_BRIDGE},
-        {"screen", T_STC_SCREEN},        {"sound", T_STC_SOUND},   {"status", T_STC_STATUS},
-        {"cardata", T_STC_CARDATA},      {"diag", T_STC_DIAG},     {"phone", T_STC_PHONE},
-        {"controller", T_STC_CONTROLLER}};
+        {"release", T_STC_RELEASE}, {"runner", T_STC_RUNNER},        {"files", T_STC_FILES},
+        {"space", T_STC_SPACE},     {"audio", T_STC_AUDIO},          {"start", T_STC_START},
+        {"bridge", T_STC_BRIDGE},   {"screen", T_STC_SCREEN},        {"sound", T_STC_SOUND},
+        {"status", T_STC_STATUS},   {"cardata", T_STC_CARDATA},      {"diag", T_STC_DIAG},
+        {"phone", T_STC_PHONE},     {"controller", T_STC_CONTROLLER}};
     for (size_t i = 0; i < sizeof(kChecks) / sizeof(kChecks[0]); ++i) {
         if (!strcmp(check, kChecks[i].name)) {
             return kChecks[i].id;

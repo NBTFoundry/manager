@@ -2,8 +2,8 @@
 // NBT Manager's self test application (docs/self-test.md), bundled with each
 // release in three forms (apps/selftest/selftest.mk): a native program, a
 // guest and a module. Each checks what the manager gives it and writes its
-// report for the manager; the module (NBT_SELFTEST_INTERACTIVE) also beeps
-// three times, asks for a turn and a push of the controller, and publishes a
+// report for the manager; the module (NBT_SELFTEST_INTERACTIVE) also plays a
+// rising tone, asks for a turn and a push of the controller, and publishes a
 // phone page. All of them show colour bars, which the driver is asked about.
 #include "probes.hpp"
 #include "report.hpp"
@@ -42,21 +42,29 @@ using selftest::Report;
 const uint64_t kBarsMs = 4000, kAskMs = 15000, kDoneMs = 1500;
 const uint32_t kWhite = 0xffffffffu, kGrey = 0xb0b8c0ffu;
 
-// Three 250 ms beeps at 880 Hz, a second apart, from the first second.
-struct Beeps {
+// One rising tone, 400 to 1600 Hz in 3 s, from half a second in: a break or a
+// skip in the sound is heard as a click or a jump in it.
+struct Sweep {
     unsigned rate;
     uint64_t sample;
+    uint32_t phase; // of the wave, a full turn = 2^32
 };
 
-void beeps(void *context, int16_t *out, int frames) {
-    Beeps &b = *static_cast<Beeps *>(context);
-    for (int i = 0; i < frames; ++i, ++b.sample) {
-        const uint64_t at = b.sample % b.rate, second = b.sample / b.rate;
+void sweep(void *context, int16_t *out, int frames) {
+    Sweep &s = *static_cast<Sweep *>(context);
+    const uint64_t start = s.rate / 2, length = 3ull * s.rate, fade = s.rate / 50;
+    for (int i = 0; i < frames; ++i, ++s.sample) {
         int value = 0;
-        if (second >= 1 && second <= 3 && at < b.rate / 4) {
-            const unsigned step = static_cast<unsigned>(b.sample * 880u % b.rate);
-            const int ramp = static_cast<int>(step * 4000u / b.rate);
-            value = ramp < 2000 ? ramp * 3 - 3000 : 9000 - ramp * 3; // -3000..3000
+        if (s.sample >= start && s.sample < start + length) {
+            const uint64_t at = s.sample - start;
+            const uint64_t hz = 400 + 1200 * at / length;
+            s.phase += static_cast<uint32_t>((hz << 32) / s.rate);
+            const int turn = static_cast<int>(s.phase >> 16);            // 0..65535
+            const int wave = turn < 32768 ? turn - 16384 : 49152 - turn; // a triangle
+            const uint64_t edge =
+                at < length - 1 - at ? at : length - 1 - at; // no click at the ends
+            const int gain = edge < fade ? static_cast<int>(edge * 256 / fade) : 256;
+            value = wave * 3000 / 16384 * gain / 256;
         }
         out[2 * i] = out[2 * i + 1] = static_cast<int16_t>(value);
     }
@@ -167,8 +175,8 @@ int main(int argc, char **argv) {
     selftest::DiagProbe diag;
     diag.start(report);
     nbt::app::AudioPcm audio;
-    Beeps tone = {static_cast<unsigned>(nbt::app::kAudioDefaultRate), 0};
-    if (audio.open(nbt::app::kAudioDefaultRate, &beeps, &tone, NBT_SELFTEST_INTERACTIVE != 0)) {
+    Sweep tone = {static_cast<unsigned>(nbt::app::kAudioDefaultRate), 0, 0};
+    if (audio.open(nbt::app::kAudioDefaultRate, &sweep, &tone, NBT_SELFTEST_INTERACTIVE != 0)) {
         tone.rate = static_cast<unsigned>(audio.sample_rate());
         report.set("sound", selftest::kPass, "%s %d Hz",
                    getenv("NBT_AUDIO_MIXER") ? "mixer" : "device", audio.sample_rate());

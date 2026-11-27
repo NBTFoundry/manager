@@ -8,6 +8,7 @@
 #include "nbt/bundled.h"
 #include "nbt/core/unique_fd.hpp"
 #include "nbt/log.h"
+#include "nbt/process/audio_mixer.hpp"
 #include "nbt/process/runner_path.hpp"
 #include "nbt/storage/files_root.hpp"
 
@@ -74,6 +75,21 @@ void managerChecks(nbt_fs *fs, const SelfTestPrepared &prepared, Report &r) {
         const uint64_t free = static_cast<uint64_t>(vfs.f_bavail) * vfs.f_frsize / kMiB;
         snprintf(text, sizeof(text), "%llu MB free", static_cast<unsigned long long>(free));
         add(r, "manager", "space", free >= 32 ? 'p' : 'f', text);
+    }
+    // How the sound went while the applications played: the mixer's counts
+    // since `prepared` (docs/audio-mixer.md). A gap, or a queue made longer,
+    // is a queue that was too short.
+    process::MixerState audio;
+    if (!process::mixerState(&audio)) {
+        add(r, "manager", "audio", 's', "no mixer");
+    } else {
+        const unsigned gaps =
+            audio.gaps >= prepared.audioGaps ? audio.gaps - prepared.audioGaps : audio.gaps;
+        const unsigned grown =
+            audio.grown >= prepared.audioGrown ? audio.grown - prepared.audioGrown : audio.grown;
+        snprintf(text, sizeof(text), "level %d, %u gaps, %u queues grown", audio.level,
+                 gaps > 999 ? 999 : gaps, grown > 999 ? 999 : grown);
+        add(r, "manager", "audio", gaps || grown ? 'f' : 'p', text);
     }
 }
 

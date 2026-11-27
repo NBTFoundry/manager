@@ -16,6 +16,7 @@
 #include "nbt/manager_store.h"
 #include "nbt/package.h"
 #include "nbt/package/package_verifier.hpp"
+#include "nbt/process/audio_mixer.hpp"
 #include "nbt/release.h"
 #include "nbt/signers.h"
 #include "nbt/transaction.h"
@@ -155,6 +156,11 @@ int selfTestPrepare(nbt_fs *fs, SelfTestPrepared &out) {
     }
     if (nbt_fs_unlink(fs, NBT_FS_MANAGER_BUNDLED, "manager", NULL) && errno != ENOENT) {
         nbt_logf("self test: cannot remove the copied package (errno %d)", errno);
+    }
+    process::MixerState audio;
+    if (process::mixerState(&audio)) { // counted on from here by the report
+        out.audioGaps = audio.gaps;
+        out.audioGrown = audio.grown;
     }
     return 0;
 }

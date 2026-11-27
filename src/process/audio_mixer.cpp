@@ -52,6 +52,36 @@ const char *mixerAddress() {
     return "127.0.0.1:42863";
 }
 
+bool mixerState(MixerState *out) {
+    const char *path = NULL;
+#ifdef NBT_TESTING
+    path = getenv("NBT_TEST_MIXER_STATE");
+#endif
+#ifdef __QNXNTO__
+    if (!path || !path[0]) {
+        path = "/dev/shmem/nbt-mixer-level";
+    }
+#endif
+    FILE *in = path && path[0] ? fopen(path, "r") : NULL;
+    if (!in) {
+        return false;
+    }
+    MixerState state = {0, 0, 0};
+    const int fields = fscanf(in, "%d %u %u", &state.level, &state.gaps, &state.grown);
+    fclose(in);
+    if (fields < 1 || state.level < 0 || state.level > 9) {
+        return false;
+    }
+    if (fields < 2) {
+        state.gaps = 0;
+    }
+    if (fields < 3) {
+        state.grown = 0;
+    }
+    *out = state;
+    return true;
+}
+
 bool grantMixer(nbt_app_environment *environment) {
     const char *runner = runnerPath();
     size_t count = 0; // the builder ends the list with NULL

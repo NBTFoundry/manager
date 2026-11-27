@@ -20,6 +20,17 @@ const char *mixerAddress();
  * environment is full: the application then opens the output itself. */
 bool grantMixer(nbt_app_environment *environment);
 
+/* What the mixer keeps in its state file (the SDK's `mix_state_path`): its
+ * output's level, the gaps the output has played and the times a client's
+ * queue was made longer, all since the head unit started. */
+struct MixerState {
+    int level;
+    unsigned gaps, grown;
+};
+/* False without the file: no mixer has run since the head unit started (or
+ * this is not a head unit; NBT_TEST_MIXER_STATE names a file in host tests). */
+bool mixerState(MixerState *out);
+
 } // namespace process
 } // namespace nbt
 

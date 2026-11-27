@@ -416,9 +416,10 @@ Parked, ignition on. An application running is stopped first.
    applications..." for a few seconds.
 2. Two test screens, each a few seconds: colour bars (red, green, blue),
    NATIVE then GUEST at the bottom.
-3. "Next: colour bars and three beeps" › Continue: the bars, three beeps;
+3. "Next: colour bars and a rising tone" › Continue: the bars, one tone
+   rising for 3 s (listen for clicks or breaks in it);
    "TURN THE CONTROLLER": turn it; "PUSH THE CONTROLLER": push it.
-4. Answer the two questions (bars, beeps).
+4. Answer the two questions (bars, the tone without breaks).
 5. The results: what failed or was skipped (diagnostics and car data skip
    with the ignition off). **Take a photo.**
 6. Settings › Self test again: "Last test: N passed, M failed" and Last

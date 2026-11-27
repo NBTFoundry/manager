@@ -1180,17 +1180,17 @@ static void test_self_test(void) {
     CHECK(run.nextRequest(now, request) == 0);
     v = view(&run);
     CHECK(!v.busy && v.itemCount == 1 && !strcmp(v.items[0], "Continue") &&
-          view_contains(&run, "Next: colour bars and three beeps"));
+          view_contains(&run, "Next: colour bars and a rising tone"));
     press(&run, nbt::gui::KeySelect, 1);
     self_test_app(&run, "manager-selftest");
-    /* The two questions: Yes to the bars, No to the beeps. */
+    /* The two questions: Yes to the bars, No to the tone. */
     now += nbt::gui::kPollMs;
     CHECK(run.nextRequest(now, request) == 0 && run.screen == nbt::gui::SelfTestAsk);
     v = view(&run);
     CHECK(v.itemCount == 2 && !strcmp(v.items[0], "Yes") && !strcmp(v.items[1], "No") &&
           view_contains(&run, "red, green and blue bars"));
     press(&run, nbt::gui::KeySelect, 1);
-    CHECK(view_contains(&run, "Did you hear three beeps?"));
+    CHECK(view_contains(&run, "Did you hear a rising tone with no breaks?"));
     press(&run, nbt::gui::KeyDown, 1);
     press(&run, nbt::gui::KeySelect, 1);
     exchange(&run, "SELFTEST REPORT y n",

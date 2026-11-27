@@ -100,8 +100,9 @@ class SelfTestTests(unittest.TestCase):
         files.mkdir(mode=0o700)
         self.parent, child = socket.socketpair()
         self.parent.settimeout(10)
+        self.mixer_state = Path(self.tmp.name) / 'mixer-state'  # absent: no mixer has run
         env = dict(os.environ, NBT_TEST_APPS_KEY=str(self.path / 'apps.pub'),
-                   NBT_TEST_FILES_ROOT=str(files))
+                   NBT_TEST_FILES_ROOT=str(files), NBT_TEST_MIXER_STATE=str(self.mixer_state))
         self.worker = subprocess.Popen([BUILD / 'managerd-test', '--control-fd', str(child.fileno()),
                                         '--root', self.root], pass_fds=[child.fileno()], env=env,
                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -140,6 +141,7 @@ class SelfTestTests(unittest.TestCase):
         phone.pair(self.command, host)
         self.assertEqual(phone.request(host, 'GET', '/v1/selftest'), (200, b'SELFTEST1\tnone\n'))
         self.assertEqual(self.command('CANCEL'), 'OK')
+        self.mixer_state.write_text('1 2 0\n')  # before the run: level 1, two gaps earlier
         self.assertEqual(self.command('SELFTEST PREPARE'), READY)
         for _, app in BUNDLED:
             profile = (self.root / 'trust/apps' / f'{app}.conf').read_text()
@@ -153,9 +155,11 @@ class SelfTestTests(unittest.TestCase):
         self.report('manager-selftest-native', 'SELFTEST1\tnative\nbridge\tpass\t2 capabilities\n'
                     'screen\tpass\t58 fps\ndiag\tskip\tno gateway\nBad\tpass\tx\nfiles\tmaybe\tx\n')
         self.report('manager-selftest', 'SELFTEST1\tguest\nscreen\tpass\t60 fps\n')
+        self.mixer_state.write_text('1 5 1\n')  # while they played: three gaps, a longer queue
         reply = self.command('SELFTEST REPORT y n').split('\t')
         self.assertEqual(reply[0], 'SELFTEST')
         rows = reply[4:]
+        self.assertIn('manager.audio|f|level 1, 3 gaps, 1 queues grown', rows)
         self.assertIn('guest.start|f|no report', rows)
         self.assertIn('module.start|f|no report', rows)
         self.assertIn('you.sound|f|no', rows)
@@ -192,6 +196,7 @@ class SelfTestTests(unittest.TestCase):
         for group in ('native', 'guest', 'module'):
             self.assertIn(f'{group}.start|s|not in this release', rows)
         self.assertIn('you.screen|s|not asked', rows)
+        self.assertIn('manager.audio|s|no mixer', rows)  # no mixer has run
 
     def test_commands_are_checked(self):
         self.start('release-bundled')

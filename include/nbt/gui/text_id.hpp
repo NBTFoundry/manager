@@ -253,6 +253,7 @@ enum TextId {
     T_STC_RUNNER,
     T_STC_FILES,
     T_STC_SPACE,
+    T_STC_AUDIO,
     T_STC_START,
     T_STC_BRIDGE,
     T_STC_SCREEN,

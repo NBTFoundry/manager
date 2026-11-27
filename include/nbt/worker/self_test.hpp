@@ -22,6 +22,7 @@ struct SelfTestPrepared {
     unsigned failed;  // bit i: it could not be installed
     char version[49]; // the running release's version; "" when it could not be verified
     char reason[64];  // why not, for the log and the report
+    unsigned audioGaps, audioGrown; // the mixer's counts before the run (process::mixerState)
 };
 
 /* 0, or -1 when the release could not be verified (out.reason). */
