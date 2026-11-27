@@ -611,6 +611,34 @@ Android Auto connecting gives runtime facts the dump cannot:
 - **System log.** `slogger` keeps a 1 MB ring; the run held about four
   minutes, mostly video decoder messages.
 
+## The touch screen
+
+Facts from NBT-AAD's touch forwarder (Sq00ky/Supra-iDrive6-Android-Auto,
+`milestone-7/src/touch_frame.hpp`, `touch_probe.cpp`; facts only, the code is
+PolyForm Noncommercial), captured on a Supra (1280x480) and an F20 (1440x540):
+
+- The touch controller sends UDP datagrams from 160.48.199.115:30501 to port
+  30567 (30568 for a second display role); iDrive's `CTouchDataClient` binds
+  0.0.0.0:30567. A second socket can bind the port too (`SO_REUSEADDR`,
+  `SO_REUSEPORT`); io-pkt hands each unicast datagram to one socket, the one
+  bound last. While such a socket exists iDrive gets no touch at all: NBT-AAD
+  binds it only while Android Auto is on screen and closes it otherwise.
+- Datagram: a 16-byte header (bytes 0-3 the ident `B0 04 80 02`, 4-7 a
+  big-endian length = size - 8), then 8-byte records `00 type 40 seq` + 4 data
+  bytes. `type` 0xC5 starts a message, 0xC1 continues, 0xC3 ends it (bit 2
+  start, bit 1 end); `seq` counts records (mod 256) across datagrams. A message
+  is 12 records: one 112-byte datagram on the Supra, 2-4 datagrams of 24-64
+  bytes on a 1440x540 unit. Other idents (0xB5098004, 0xB5308005) are the
+  gesture camera's.
+- The data bytes of records 4.. form the stream: a counter, the contact count
+  N (up to 5), then 6 bytes per contact: x (BE16), y (BE16), size,
+  `state << 4 | id` (state 1 down, 2 move, 3 up; id a stable finger id).
+- x and y are panel pixels (0..1279 x 0..479, or 0..1439 x 0..539). MINI's
+  round display needs an x offset (NBT-AAD's `defaultTouchOffsetX`).
+- The plugin's focus hold does not cover touch (`docs/app-bridge.md`): iDrive
+  reacts to touches while the manager or an application is shown, unless a
+  process holds the port.
+
 ## Confirmed in the firmware
 
 | Fact | Evidence |
