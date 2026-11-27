@@ -44,9 +44,8 @@ stages a release with that release's own launcher (docs/install-flow.md), so a
 new format needs no older-format release first and kits carry one release.
 From the phone's manager page (the worker), the stable launcher stages the
 upload at the next opening, so a launcher that does not list the release's
-format refuses it: `update NBT Manager once with the installer first`. Only
-0.1.0 lacks `NBTRLS3`, which was made extensible so that it is the last.
-`GET /v1/manager` tells the phone the formats the car reads (PROTOCOL.md).
+format refuses it: `update NBT Manager once with the installer first`.
+`NBTRLS3` was made extensible so that it is the last.
 
 Each optional `bridge=<major>.<minor>|<capabilities>` line declares one served
 major, in increasing major order, at most two. Canonical version components

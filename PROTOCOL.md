@@ -120,9 +120,7 @@ launcher and the plugin to it.
 sequence, and the formats an upload can use now, `NBTRLS1` and those the stable
 launcher lists (`NBTRLS1,NBTRLS2,NBTRLS3`); 503 when the installed release
 cannot be verified. A manager without the route (404, or `400` before routes
-were added) reads releases only up to `NBTRLS2`. The phone app sends the newest
-release the car reads; one whose format the launcher does not list is refused,
-and the car updates once with the installer (docs/manager-release.md).
+were added) reads releases only up to `NBTRLS2`.
 
 ## Bringing a running application to the front
 

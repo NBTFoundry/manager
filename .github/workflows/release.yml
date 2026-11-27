@@ -255,7 +255,6 @@ jobs:
 
           Signed with the manager key \`nbt-manager-public.pem\` (SHA-256 of its DER: \`$fingerprint\`), built from $GITHUB_SHA by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
           Install it with the desktop installer, or update a car's manager from the phone app.
-          A car still on NBT Manager 0.1.0 updates once with the desktop installer, then from the phone.
           EOF
           prerelease=()
           [[ "$VERSION" == 0.* ]] && prerelease=(--prerelease)
