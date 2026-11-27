@@ -101,7 +101,9 @@ HsfzTester::~HsfzTester() {
 bool HsfzTester::connect(uint32_t ip, uint16_t port, int timeoutMs) {
     close();
     const int fd = socket(AF_INET, SOCK_STREAM, 0);
+    connectError_ = 0;
     if (fd < 0) {
+        connectError_ = errno;
         return false;
     }
     (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
@@ -114,11 +116,17 @@ bool HsfzTester::connect(uint32_t ip, uint16_t port, int timeoutMs) {
     int error = 0;
     socklen_t size = sizeof(error);
     struct pollfd p = {fd, POLLOUT, 0};
+    errno = 0;
     if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) ||
         (::connect(fd, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) &&
-         errno != EINPROGRESS) ||
-        poll(&p, 1, timeoutMs) != 1 || getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &size) ||
-        error) {
+         errno != EINPROGRESS)) {
+        connectError_ = errno ? errno : EIO;
+    } else if (poll(&p, 1, timeoutMs) != 1) {
+        connectError_ = ETIMEDOUT;
+    } else if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &size) || error) {
+        connectError_ = error ? error : EIO;
+    }
+    if (connectError_) {
         ::close(fd);
         return false;
     }

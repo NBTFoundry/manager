@@ -52,6 +52,10 @@ the SDK): one request, one reply, in order.
   head unit read too (`NBT_DIAG_GATEWAY` in tests), tester `F4`; the
   gateway's alive checks are answered and "response pending" waits up to five
   times.
+- When it does not answer, at most once a minute: the host logs the link's
+  facts and tries the head unit's neighbours on `dwc0`
+  ([engine-diagnostics.md](engine-diagnostics.md)); a gateway found is used
+  until the application ends.
 - A lease: `state/manager/diag.lock` and the loopback lock `127.0.0.1:42861`
   other testers on the head unit hold, held while requests come, released
   150 ms after the last one, or after 1 s when another tester waits.

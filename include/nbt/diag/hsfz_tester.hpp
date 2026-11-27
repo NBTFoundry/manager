@@ -31,6 +31,10 @@ public:
     HsfzTester();
     ~HsfzTester();
     bool connect(uint32_t ip, uint16_t port, int timeoutMs);
+    /* Why the last connect() failed (ETIMEDOUT: no answer in time). */
+    int connectError() const {
+        return connectError_;
+    }
     void close();
     bool connected() const {
         return fd_ >= 0;
@@ -51,6 +55,7 @@ private:
     bool nextFrame(uint16_t *control, const uint8_t **payload, size_t *size);
 
     int fd_;
+    int connectError_ = 0;
     uint8_t buffer_[2 * kHsfzFrameMax];
     size_t length_, consumed_;
 };

@@ -1179,6 +1179,49 @@ event("exit")
         self.assertFalse(want.exists())
         self.assertEqual(command("QUIT"), "OK")
 
+    def test_diag_finds_the_gateway_among_the_links_neighbours(self):
+        """The usual gateway address does not answer on this car: the host
+        tries who the head unit talks to on that link, takes the one that
+        answers a tester present as the gateway, and uses it from then on."""
+        gateway = FakeHsfzGateway()
+        self.addCleanup(gateway.close)
+        self.enterContext(mock.patch.dict(os.environ, {
+            "NBT_DIAG_GATEWAY": f"127.0.0.9:{gateway.port}",  # nobody there
+            "NBT_TEST_DIAG_LINK": "127.0.0.5,127.0.0.8,127.0.0.1"}))  # itself, nobody, the gateway
+        self.script_app(
+            "import socket, struct\n"
+            "os.write(3, b'R')\n"
+            "link = socket.socket(fileno=10)\n"
+            "def ask(ecu, uds, ident):\n"
+            "    link.send(bytes([1, ecu]) + struct.pack('<HH', ident, 0) + uds)\n"
+            "    reply = link.recv(8192)\n"
+            "    print('reply %d status %d via %d %s' % (ident, reply[4], reply[5], reply[6:].hex()), flush=True)\n"
+            "ask(0x12, bytes.fromhex('22f40c'), 1)\n"
+            "ask(0x12, bytes.fromhex('22f40c'), 2)\n"
+            "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
+        record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE6\n")
+        record += "bridge=1.8\nbridge-uses=\nbridge-optional=diag\nbridge-diag=12:read\n"
+        (self.root / "state/test/installed").write_text(record)
+        debug = self.root / "manager/debug.log"
+        debug.write_text("")
+        debug.chmod(0o600)
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "reply 2 status" in self.app_log())
+        log = self.app_log()
+        self.assertIn("reply 1 status 0 via 1 62f40c1af8", log)
+        self.assertIn("reply 2 status 0 via 1 62f40c1af8", log)
+        # One tester present to the gateway's own address, then the requests.
+        self.assertEqual([(dst, uds.hex()) for _, dst, uds in gateway.requests],
+                         [(0x10, "3e00"), (0x12, "22f40c"), (0x12, "22f40c")])
+        text = debug.read_text()
+        self.assertIn(f"diag: gateway 127.0.0.9:{gateway.port} did not answer (errno ", text)
+        self.assertIn("dwc0 is 127.0.0.5/255.255.0.0 up, neighbours 127.0.0.8 127.0.0.1", text)
+        self.assertIn("diag: gateway found at 127.0.0.1", text)
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertEqual(command("QUIT"), "OK")
+
     def test_bridge_19_diag_control_waits_for_parked_unless_drive(self):
         """`control` (bridge 1.9): writes, input/output control and routines reach
         the ECU only standing still, unless the rule also has `drive`; security

@@ -28,7 +28,17 @@ engine computer (DME) does not answer.
   0x0012 answered by 0x0013: from a third-party implementation (MIT,
   NBTApps/ID6_apps_prerelease) reported working by owners of several cars. Some
   cars need another address (that project keeps a configurable one), and some
-  have no route to the gateway at all. Not confirmed on our car.
+  have no route to the gateway at all. On our car (G31, 0.5.3, 2026-11-27)
+  nothing answers there: `diag: no gateway answers on its diagnostic port`,
+  and Gauges shows "NBT Manager reaches no gateway".
+- When that address does not answer, the host looks for the gateway
+  (`src/process/diag_gateway.cpp`): it logs what the head unit knows of
+  `dwc0` (its address, up or down, the routers of its routes and its ARP
+  neighbours: the DHCP server that gave the address is one), then tries each
+  of them on port 6801. One that answers a tester present to the gateway's
+  own address 0x10 is the gateway from then on; failing that, the one that
+  takes a connection. Not car-tested: the log of the first run says what
+  that link holds.
 - One tester at a time: that project serialises its workers through a loopback
   lock (UDP `127.0.0.1:42861`).
 
@@ -50,7 +60,9 @@ engine computer (DME) does not answer.
 
 ## Open questions for the car
 
-- Does `dwc0` reach the gateway with nothing in the OBD port? A TCP connection
-  to `169.254.21.3:6801` answers it; nf-gauges 0.0.5 searches by UDP, which the
-  packet filter blocks.
+- Does `dwc0` reach a gateway at all on our car? `169.254.21.3:6801` does
+  not answer. The next Manager log has `diag: gateway ... did not answer
+  (errno N); dwc0 is <address>/<mask> up|down, neighbours ...` and what each
+  neighbour did: with no neighbour and no answer, the MOST tunnel below is
+  the way left.
 - Does the MOST tunnel answer the manager's own DSI client?

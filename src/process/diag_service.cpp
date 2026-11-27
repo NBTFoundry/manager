@@ -260,13 +260,14 @@ void DiagService::answer(const uint8_t *data, size_t size, uint64_t now) {
         return;
     }
     if (!hsfz_.connected() && !hsfz_.connect(ip_, port_, kConnectMs)) {
-        if (!failLogMs_ || now - failLogMs_ > 60000) {
-            failLogMs_ = now;
-            nbt_logf("host %s: diag: no gateway answers on its diagnostic port", app_);
+        // Once a minute: say what was tried, and look for the gateway.
+        const bool search = !failLogMs_ || now - failLogMs_ > 60000;
+        failLogMs_ = search ? now : failLogMs_;
+        if (!search || !findGateway()) {
+            unlease();
+            reply(request.ecu, request.id, NBT_DIAG_NO_ROUTE, NBT_DIAG_VIA_NONE, NULL, 0);
+            return;
         }
-        unlease();
-        reply(request.ecu, request.id, NBT_DIAG_NO_ROUTE, NBT_DIAG_VIA_NONE, NULL, 0);
-        return;
     }
     uint8_t answerBytes[NBT_DIAG_WIRE_REPLY_MAX];
     size_t answerSize = 0;

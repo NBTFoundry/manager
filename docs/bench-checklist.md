@@ -295,6 +295,16 @@ A kit newer than the installed one, its `.nbtr` sent from the phone's Library.
 | A camera or warning during those seconds | The camera or warning shows; App Manager stays hidden until it is chosen again |
 | BACK out before the 3 s | App Manager closes; the new version starts at the next opening |
 
+## 11f. The gateway for engine data
+
+The ignition on; the debug log on; open Gauges (CONNECTION page) or run the
+self test.
+
+| Action | Expected |
+| --- | --- |
+| Gauges, CONNECTION | DME values, or after a few seconds `diag: gateway found at <address>` in the log and then values |
+| No gateway | The log's `diag: gateway 169.254.21.3:6801 did not answer (errno <n>); dwc0 is <address>/<mask> up, neighbours ...` and a line per neighbour: share the Manager log; the address found can go in `/var/opt/hmi/data/ID5/gateway-ip.txt` |
+
 ## 11e. Touch screen
 
 A head unit with a touch screen; the debug log on.

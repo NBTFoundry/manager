@@ -42,6 +42,10 @@ private:
     bool lease(uint64_t now);
     void unlease();
     bool waiterSeen();
+    /* The gateway did not answer: logs what the head unit knows of its link
+     * to it and tries who else is there (diag_gateway.cpp). True when one
+     * answered: connected, and used from then on. */
+    bool findGateway();
 
     nbt_fs *fs_;
     char app_[49];
