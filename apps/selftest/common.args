@@ -8,13 +8,11 @@ nbt_6.5_armv7
 --bridge
 1.9
 --bridge-optional
-files,car-data,diag
+files,car-data
 --bridge-files
 txt|1|1
 --bridge-cds
 driving.speedActual,sensors.temperatureExterior
---bridge-diag
-12:read
 --property
 Project|NBTFoundry NBT Manager
 --property

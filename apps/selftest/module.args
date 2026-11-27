@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # The module, loaded into nbt-runner (after common.args): the one the driver
-# turns and pushes the controller for, with a phone page.
+# turns and pushes the controller for.
 --app
 manager-selftest
 --bridge-uses
 show,status,runner,controller
---bridge-optional
-files,car-data,diag,companion

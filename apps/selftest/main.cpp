@@ -33,6 +33,11 @@
 #ifndef NBT_SELFTEST_INTERACTIVE
 #define NBT_SELFTEST_INTERACTIVE 0
 #endif
+// The diagnostics channel and the phone page are descriptors of the process:
+// the SDK has them for a native program only, so that form checks them.
+#ifndef NBT_SELFTEST_CHANNELS
+#define NBT_SELFTEST_CHANNELS 0
+#endif
 
 namespace {
 
@@ -173,7 +178,9 @@ int main(int argc, char **argv) {
     selftest::CarDataProbe carData;
     carData.start(now, report);
     selftest::DiagProbe diag;
-    diag.start(report);
+    if (NBT_SELFTEST_CHANNELS) {
+        diag.start(report);
+    }
     nbt::app::AudioPcm audio;
     Sweep tone = {static_cast<unsigned>(nbt::app::kAudioDefaultRate), 0, 0};
     if (audio.open(nbt::app::kAudioDefaultRate, &sweep, &tone, NBT_SELFTEST_INTERACTIVE != 0)) {
@@ -184,8 +191,8 @@ int main(int argc, char **argv) {
         report.set("sound", selftest::kFail, "no audio output");
     }
     nbt::app::Companion page;
-    const bool paged = NBT_SELFTEST_INTERACTIVE && page.init();
-    if (NBT_SELFTEST_INTERACTIVE && !paged) {
+    const bool paged = NBT_SELFTEST_CHANNELS && page.init();
+    if (NBT_SELFTEST_CHANNELS && !paged) {
         report.set("phone", selftest::kFail, "not granted");
     }
     nbt::controller::Input input;
@@ -208,14 +215,11 @@ int main(int argc, char **argv) {
             input.poll(lifecycle.controller_fd(), &onController, &controls);
         }
         carData.poll(now, report);
-        const bool diagDone = diag.poll(report);
-        if (paged) {
+        const bool diagDone = !NBT_SELFTEST_CHANNELS || diag.poll(report);
+        if (paged) { // published at some frame: one failed write is no failure
             showPage(page, phase, static_cast<unsigned>(phase) * 25u);
-            if (!report.has("phone")) {
-                report.set("phone", page.publish() ? selftest::kPass : selftest::kFail,
-                           "published");
-            } else {
-                (void)page.publish();
+            if (page.publish() && !report.has("phone")) {
+                report.set("phone", selftest::kPass, "published");
             }
         }
         if (phase == kBars && now - phaseAt >= kBarsMs) {
@@ -242,6 +246,9 @@ int main(int argc, char **argv) {
                 const unsigned fps =
                     framesAt ? static_cast<unsigned>(frames * 1000u / framesAt) : 0;
                 report.set("screen", fps ? selftest::kPass : selftest::kFail, "%u fps", fps);
+            }
+            if (paged && !report.has("phone")) {
+                report.set("phone", selftest::kFail, "not published");
             }
             if (!report.write(lifecycle.data_dir())) {
                 nbt::app::log_info("cannot write the report in %s", lifecycle.data_dir());

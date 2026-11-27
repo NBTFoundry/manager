@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
-# The native program (after common.args).
+# The native program (after common.args): the form that has the diagnostics
+# channel and the phone page (descriptors of its own process).
 --app
 manager-selftest-native
 --bridge-uses
 show,status
+--bridge-optional
+files,car-data,diag,companion
+--bridge-diag
+12:read

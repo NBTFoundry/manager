@@ -71,9 +71,14 @@ SELFTEST1	<form>
 | `status` | the status line written | |
 | `files` | its files folder listed | no files folder (hard disk) |
 | `cardata` | a value of the speed or the outside temperature within 5 s | none (ignition off) |
-| `diag` | the engine computer answered a read | no gateway, no answer, busy |
-| `phone` | its phone page published (module) | |
+| `diag` | the engine computer answered a read (native program) | no gateway, no answer, busy |
+| `phone` | its phone page published (native program) | |
 | `controller` | a turn and a push within 15 s each (module) | BACK pushed |
+
+The diagnostics channel and the phone page are descriptors of the
+application's own process: the SDK has them for a native program only, so
+that form declares and checks them (0.5.1 had the module check them: `diag
+not granted` and `phone published` failed on every car).
 
 A missing report is `start fail` ("no report"). The worker adds
 `manager.release` (verified, version), `manager.runner`, `manager.files`

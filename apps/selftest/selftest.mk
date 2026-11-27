@@ -27,8 +27,10 @@ HEADERS := $(DIR)/report.hpp $(DIR)/probes.hpp
 arg = $(shell awk 'f { print; exit } $$0 == "$(2)" { f = 1 }' $(1))
 # A form's declared capabilities, which its bridge check expects granted.
 caps = $(call arg,$(DIR)/$(1).args,--bridge-uses),$(or $(call arg,$(DIR)/$(1).args,--bridge-optional),$(call arg,$(DIR)/common.args,--bridge-optional))
+# $(2) non-empty: the desktop build, a process of its own as the native form is.
 form_defs = '-DNBT_SELFTEST_FORM="$(1)"' '-DNBT_SELFTEST_CAPS="$(call caps,$(1))"' \
-	-DNBT_SELFTEST_INTERACTIVE=$(if $(filter module,$(1)),1,0)
+	-DNBT_SELFTEST_INTERACTIVE=$(if $(filter module,$(1)),1,0) \
+	-DNBT_SELFTEST_CHANNELS=$(if $(filter native,$(1))$(2),1,0)
 APP_CXXFLAGS := -O2 -std=c++11 -Wall -Wextra -Werror -fno-exceptions -fno-rtti
 QNX_COMPILE = $(NBT_QNX_CXX) $(NBT_QNX_CXXFLAGS) $(NBT_QNX_SDK_INC) $(APP_CXXFLAGS)
 MOD_COMPILE = $(NBT_MOD_CXX) $(NBT_MOD_CXXFLAGS) $(APP_CXXFLAGS)
@@ -72,7 +74,7 @@ $(MODULE): $(call objs,module) $(NBT_SDK_MOD_DEPS)
 
 $(call objs,host): $(OBJ_DIR)/host/%.o: $(DIR)/%.cpp $(HEADERS) $(THIS) $(DIR)/module.args
 	@mkdir -p $(dir $@)
-	$(HOST_COMPILE) $(call form_defs,module) -c $< -o $@
+	$(HOST_COMPILE) $(call form_defs,module,host) -c $< -o $@
 
 $(HOST): $(call objs,host) $(NBT_SDK_FRONT_HOST_LIBS)
 	$(HOST_CXX) $(filter %.o,$^) $(NBT_SDK_FRONT_HOST_LIBS) $(NBT_SDK_HOST_LDLIBS) -o $@

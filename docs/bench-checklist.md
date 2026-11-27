@@ -281,7 +281,7 @@ Settings › Self test ([self-test.md](self-test.md)); the debug log has one
 | --- | --- |
 | First run after an update | `self test: manager-selftest... installed` three times; each form's colour bars on the panel; none listed on the menu or the phone |
 | The module's run | A tone rising for 3 s, without a click or a break (with an application's service playing, both heard); TURN, then PUSH; BACK skips both |
-| Results | `native`, `guest` and `module` all `start pass`, `screen` over 20 fps, `diag` and `cardata` pass with the ignition on, `manager.audio` `level 0, 0 gaps, 0 queues grown` |
+| Results | `native`, `guest` and `module` all `start pass`, `screen` over 20 fps, `native.diag`, `native.phone` and `cardata` pass with the ignition on, `manager.audio` `level 0, 0 gaps, 0 queues grown` |
 | Second run | Nothing installed again; the results of this run only |
 | An application running | The menu says it is stopped first; Start: "Stopping <app>", then the test |
 
