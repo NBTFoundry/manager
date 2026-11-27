@@ -222,22 +222,35 @@ open(root + "/stopped", "w").close()
         env = dict(self.env, NBT_TEST_INPUT_LIBRARY=str(BUILD / "libfake_dsi.so"),
                    NBT_FAKE_DSI_SCRIPT=str(script), NBT_FAKE_DSI_LOG=str(Path(self.tmp.name) / "dsi.log"),
                    NBT_FAKE_SCREEN_TIME_LOG=str(posts))
-        process = subprocess.Popen([GUI, "--test-root", self.root, "--test-worker", self.worker], env=env)
+        # A menu of 12 applications: each detent moves the focus, so the view
+        # changes with the knob (with one row nothing would need a redraw).
+        worker = Path(self.tmp.name) / "worker-apps"
+        apps = "\\t".join("app%02d" % i for i in range(12))
+        listing = self.worker.read_text()
+        self.assertIn('b"APPS\\t0\\n"', listing)
+        worker.write_text(listing.replace('b"APPS\\t0\\n"', 'b"APPS\\t12\\t%s\\n"' % apps))
+        worker.chmod(0o700)
+        process = subprocess.Popen([GUI, "--test-root", self.root, "--test-worker", worker], env=env)
         self.processes.append(process)
-        self.wait_for(lambda: debug.read_text().count("input ") >= 30)
+        self.wait_for(lambda: len(re.findall(r" input (?:up|down)\n", debug.read_text())) >= 30)
         time.sleep(0.3)
         process.send_signal(signal.SIGTERM)
         self.assertEqual(process.wait(timeout=10), 0)
         inputs = [float(line.split()[0]) for line in debug.read_text().splitlines()
-                  if " input " in line and "ignored" not in line]
+                  if re.search(r" input (?:up|down)$", line)]
         self.assertGreaterEqual(len(inputs), 30)
         frames = [float(t) for t in posts.read_text().split() if float(t) >= inputs[0]]
         self.assertGreaterEqual(len(frames), 2, frames)
-        gaps = [b - a for a, b in zip(frames, frames[1:])]
+        # The burst's frames: up to the first one that shows its end (later
+        # ones are the menu's own, a second apart).
+        after = [t for t in frames if t >= inputs[-1]]
+        self.assertTrue(after, frames)
+        burst = [t for t in frames if t <= after[0]]
+        gaps = [b - a for a, b in zip(burst, burst[1:])]
         self.assertTrue(all(gap >= 0.030 for gap in gaps), gaps)  # at most 30 redraws a second
-        self.assertLessEqual(frames[0] - inputs[0], 0.050)       # the first detent within a frame
-        self.assertLessEqual(frames[-1] - inputs[-1], 0.050)     # and the last one
-        self.assertLessEqual(len(frames), (frames[-1] - inputs[0]) / 0.033 + 2)
+        self.assertLessEqual(burst[0] - inputs[0], 0.050)        # the first detent within a frame
+        self.assertLessEqual(after[0] - inputs[-1], 0.050)       # and the last one
+        self.assertLessEqual(len(burst), (burst[-1] - inputs[0]) / 0.033 + 2)
 
     def registered_instances(self, dsi_log):
         import struct

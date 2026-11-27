@@ -88,9 +88,9 @@ and the answers `you.screen`, `you.sound`.
 `manager.audio` is how the sound went while the three played, from the
 audio mixer's state file (`audio-mixer.md`): `level L, G gaps, Q queues
 grown`, the output's level now and what was counted since `SELFTEST
-PREPARE`. It fails when the output played a gap or a queue had to be made
-longer (a queue was too short for this car; the mixer has made it longer),
-and is skipped when no mixer has run (`no mixer`).
+PREPARE`. It fails when the output played a gap. A queue made longer is the
+mixer settling on this car (a client ran dry three times and got more room):
+shown, and passed. It is skipped when no mixer has run (`no mixer`).
 
 ## Reply
 

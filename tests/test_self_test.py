@@ -188,6 +188,13 @@ class SelfTestTests(unittest.TestCase):
         self.assertEqual((self.root / 'apps/manager-selftest/bin/app').stat().st_ino, before)
         self.assertFalse((self.root / 'data/manager-selftest-native/selftest.txt').exists())
         self.assertFalse((self.root / 'state/manager/bundled.nbt').exists())
+        # Queues made longer since this second start, and no gap: the mixer
+        # settled, the sound check passes and says how many.
+        self.mixer_state.write_text('1 5 3\n')
+        again = self.command('SELFTEST REPORT y y').split('\t')
+        self.assertFalse([row for row in again[4:] if row.startswith('manager.audio')])
+        self.assertIn('manager.audio\tp\tlevel 1, 0 gaps, 2 queues grown',
+                      (self.root / 'state/manager/selftest.txt').read_text().splitlines())
 
     def test_release_without_them_reports_so(self):
         self.start('release-plain')
