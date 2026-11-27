@@ -25,9 +25,10 @@ application on an SDK with the mixer client uses it without a change.
   as its rate; the SDK's queues resample to it.
 - Each client (SDK `b962e55` and later: version 2): the mixer asks it for
   frames as the output takes them, so its render runs just in time; 23 ms
-  queued per client, 35 ms in the output (3 fragments). From an application's
-  render to the output: about 45 ms (the SDK's `test_audio_mix_delay`), 80 ms
-  to the speaker plus what iDrive's audio adds.
+  queued per client. The output is opened with 3 fragments of 11.6 ms, which
+  `dev-libasound` queues twice (`head-unit-interfaces.md`): about 58 ms. A
+  guest adds its own 23 ms. From a guest's render to the audio input: about
+  105 ms, plus what iDrive's audio adds.
 - An older client (version 1) pushes; TCP paces it, 46 ms queued plus 4 KiB
   in its socket.
 - Clients are added sample by sample and clipped; one with nothing ready
