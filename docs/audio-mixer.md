@@ -23,12 +23,31 @@ application on an SDK with the mixer client uses it without a change.
 
 - 44100 Hz stereo S16, the rate A2I plays. The SDK's `AudioPcm` reports it
   as its rate; the SDK's queues resample to it.
-- Each client (SDK `b962e55` and later: version 2): the mixer asks it for
-  frames as the output takes them, so its render runs just in time; 23 ms
-  queued per client. The output is opened with 3 fragments of 11.6 ms, which
-  `dev-libasound` queues twice (`head-unit-interfaces.md`): about 58 ms. A
-  guest adds its own 23 ms. From a guest's render to the audio input: about
-  105 ms, plus what iDrive's audio adds.
+- Each client (version 2): the mixer asks it for frames as the output takes
+  them, 256 at a time (5.8 ms), so its render runs just in time. Two
+  fragments are queued per client (11.6 ms); a client that left the mixer
+  empty three times gets one more, four at most.
+- The output queues as little as the car holds. `dev-libasound` queues a
+  playback twice (`head-unit-interfaces.md`), A2I (the "media" native audio
+  setting) once:
+
+  | Level | Fragments | Through `dev-libasound` | A2I buffers | Through A2I |
+  | --- | --- | --- | --- | --- |
+  | 0 | 2 | 17 ms | 3 | 17 ms |
+  | 1 | 3 | 29 ms | 4 | 23 ms |
+  | 2 | 6 | 64 ms | 8 | 46 ms |
+  | 3 | 10 | 110 ms | 16 | 93 ms |
+
+  It starts at level 0. When the output has played three gaps within 30 s
+  (the SDK's `AudioPace`), the mixer opens it again at the next level, a
+  moment's silence, and keeps that level in `/dev/shmem/nbt-mixer-level`
+  until the head unit starts again. Its log says so (`mixer: the output
+  played gaps, level N from now on`).
+- A guest keeps two fragments in its own ring (11.6 ms) and more once the
+  ring ran empty; a guest built on an SDK before `6634602` keeps 23 ms.
+- From a guest's render to the audio input at level 0: about 41 ms (52 ms
+  for an older guest), plus what iDrive's audio adds. The emulators add
+  their queue: 32 ms, up to 64 ms when frames come late.
 - An older client (version 1) pushes; TCP paces it, 46 ms queued plus 4 KiB
   in its socket.
 - Clients are added sample by sample and clipped; one with nothing ready
