@@ -295,6 +295,19 @@ A kit newer than the installed one, its `.nbtr` sent from the phone's Library.
 | A camera or warning during those seconds | The camera or warning shows; App Manager stays hidden until it is chosen again |
 | BACK out before the 3 s | App Manager closes; the new version starts at the next opening |
 
+## 11e. Touch screen
+
+A head unit with a touch screen; the debug log on.
+
+| Action | Expected |
+| --- | --- |
+| Open App Manager | `touch: taken while the manager is shown` |
+| Tap an application, Settings, a setting | As turning to it and pushing; `touch: tap, item <n>`; the row under the finger, not the one above or below (note the offset if any, and the make: MINI's round display) |
+| Drag up and down a long list | The focus moves a row per row of travel |
+| Swipe to the right | BACK; from the menu, App Manager closes |
+| Close App Manager, MENU, an application on the panel | `touch: back with iDrive`; iDrive's own screens react to touches again at once |
+| Nothing logged at the first touch | The datagrams do not reach the manager: note it with `pidin arg` and the system log |
+
 ## 11d. Media sound without iDrive's screen
 
 Native audio on `media`; iDrive restarted since the update (the shim loads

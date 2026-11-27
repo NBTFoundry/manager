@@ -66,6 +66,11 @@ int GuiSession::waitInput() {
         FD_SET(volFd, &readers);
         highest = volFd > highest ? volFd : highest;
     }
+    const int touchFd = touchSocket_.fd();
+    if (touchFd >= 0 && touchFd < FD_SETSIZE) {
+        FD_SET(touchFd, &readers);
+        highest = touchFd > highest ? touchFd : highest;
+    }
     const int wake = channel_.wakeFd(); // a worker reply wakes the loop at once
     if (wake >= 0) {
         FD_SET(wake, &readers);

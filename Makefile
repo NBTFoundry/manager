@@ -157,7 +157,7 @@ $(BUILD_DIR)/liblvgl.a: $(patsubst $(LVGL_DIR)/src/%.c,$(BUILD_DIR)/lvgl/%.o,$(L
 	$(AR) rcs $@ $^
 
 HOST_BINS = phone-test most-monitor core-test bridge-test most-test target-test nbt-verify nbt-verify-release release-copy-probe manager-state-test manager-store-probe manager-stage-probe manager-setup-probe manager-plugin-probe manager-plugin-swap-probe manager-refresh-probe fs-probe transaction-probe frame-test ui-test hold-test controller-config-test log-test test-app-host session-test http-test process-probe manager-probe managerd-test client-probe ui-probe qr-probe most-input-probe manager-gui-host launcher-host
-HOST_BINS += app-log-test crash-report-test controller-feed-test gamepad-test usb-gamepad-test focus-test app-pause-test input-trace-test capture-test capture-shim-test capture-install-probe hmi-restart-test language-test theme-test
+HOST_BINS += touch-test app-log-test crash-report-test controller-feed-test gamepad-test usb-gamepad-test focus-test app-pause-test input-trace-test capture-test capture-shim-test capture-install-probe hmi-restart-test language-test theme-test
 host: $(addprefix $(BUILD_DIR)/,$(HOST_BINS)) $(BUILD_DIR)/libfake_dsi.so $(BUILD_DIR)/libfake_dsi_base.so $(BUILD_DIR)/libnbt-capture-observer.so $(BUILD_DIR)/libnbt-capture-active.so
 
 define HOST_LINK
@@ -194,6 +194,9 @@ $(BUILD_DIR)/manager-state-test: $(OBJ_DIR)/host/tests/test_manager_state.o $(HO
 	$(HOST_LINK)
 $(BUILD_DIR)/frame-test: $(OBJ_DIR)/host/tests/test_frame.o $(HOST_LIB)
 	$(HOST_LINK)
+$(BUILD_DIR)/touch-test: $(OBJ_DIR)/host/tests/test_touch.o $(HOST_LIB)
+	$(HOST_LINK)
+
 $(BUILD_DIR)/hold-test: $(OBJ_DIR)/host/tests/test_hmi_hold.o $(HOST_LIB)
 	$(HOST_LINK)
 $(BUILD_DIR)/focus-test: $(OBJ_DIR)/host/tests/test_focus_sender.o $(HOST_LIB)
@@ -305,6 +308,7 @@ test: host check-cxx
 	$(BUILD_DIR)/language-test
 	$(BUILD_DIR)/theme-test
 	$(BUILD_DIR)/hold-test
+	$(BUILD_DIR)/touch-test
 	$(BUILD_DIR)/focus-test
 	$(BUILD_DIR)/app-pause-test
 	$(BUILD_DIR)/input-trace-test
@@ -343,7 +347,7 @@ tsan:
 
 FUZZ_BUILD_DIR ?= $(BUILD_DIR)/fuzz
 FUZZ_SECONDS ?= 1
-FUZZ_TARGETS = diag gamepad-wire gamepad-gip gamepad-sony http phone-signature phone-pair phone-context control package-header package-manifest release-manifest settings-schema settings-values controller-config installed-record journal most-codec most-joiner ccs most-policy files-policy bridge-requirement bridge-status wfd-most capture-control capture-stream starter-config language cds-policy net-policy bridge-hold zip-archive payload-note
+FUZZ_TARGETS = diag gamepad-wire gamepad-gip gamepad-sony http phone-signature phone-pair phone-context control package-header package-manifest release-manifest settings-schema settings-values controller-config installed-record journal most-codec most-joiner ccs most-policy files-policy bridge-requirement bridge-status wfd-most capture-control capture-stream starter-config language cds-policy net-policy bridge-hold zip-archive payload-note touch-frame
 fuzz:
 	$(MAKE) BUILD_DIR=$(FUZZ_BUILD_DIR) \
 		CFLAGS='-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie' \

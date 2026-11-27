@@ -13,6 +13,10 @@ namespace gui {
 class UiRenderer {
 public:
     core::Status render(const UiView &view, const QrCode *qr, Frame &frame);
+    /* The item of the last frame's list at a point of the frame, or -1. */
+    static int itemAt(int x, int y);
+    /* That list's row height in frame pixels (a usual one without a list). */
+    static int rowHeight();
 };
 
 } // namespace gui

@@ -23,8 +23,9 @@ static const uint64_t kPreviewMs = 15000u, kHealthCheckMs = 45000u,
 
 GuiSession::GuiSession()
     : config_(), client_(), channel_(client_), ui_(), view_(), shown_(), screen_(), volumeOsd_(),
-      panel_(), plugin_(), capture_(), gamepad_(), language_(), theme_(), nowMs_(0), deadlineMs_(0),
-      heartbeatMs_(0), backHoldMs_(0), pacer_(), inputFd_(-1), hidden_(true), updating_(false),
+      panel_(), plugin_(), capture_(), gamepad_(), language_(), theme_(), touchSocket_(),
+      touchFrames_(), touchTracker_(60, 24, 320), nowMs_(0), deadlineMs_(0), heartbeatMs_(0),
+      backHoldMs_(0), pacer_(), inputFd_(-1), hidden_(true), updating_(false),
       exitReason_("error") {
 }
 
@@ -203,6 +204,7 @@ int GuiSession::stepWorkerAndUi() {
     if (gamepad_.poll(ui_, nowMs_, live)) {
         deadlineMs_ = nowMs_ + kIdleMs;
     }
+    serviceTouch();
     shortcutStartPoll(ui_, nowMs_);
     gatherStatus(ui_, captureWatch_, gamepad_, inputFd_ >= 0);
     language_.poll(ui_, nowMs_);

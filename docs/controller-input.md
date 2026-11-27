@@ -240,6 +240,27 @@ Contexts 1023 (F-series NBTevo_Y24073J) and 692 (Supra Top View) are camera
 contexts too; see [bridge-design.md](bridge-design.md). The bench checks include the
 camera button and returning from it.
 
+## Touch screen
+
+On a head unit with a touch screen, the manager's own screen takes touches
+too (`include/nbt/gui/touch_input.hpp`, `src/gui/gui_touch.cpp`):
+
+- **Source.** The touch controller's UDP datagrams to port 30567
+  (`head-unit-interfaces.md`, "The touch screen"). The socket bound last takes
+  them all, so the GUI binds it only while its own screen is on the panel and
+  shown, and closes it at once otherwise (hidden, stepped aside, an
+  application on the panel, the GUI ended): iDrive then has its touches back.
+  The debug log says `touch: taken while the manager is shown` and `touch:
+  back with iDrive`.
+- **Gestures**, one finger (the first down): a tap on a row is a turn to it
+  and a push (as the controller would, key by key); a tap anywhere answers a
+  dialog's one button; a drag up or down moves the focus a row per row
+  travelled; a swipe to the right over a quarter of the panel is BACK.
+- **Coordinates** are panel pixels, scaled to the frame the GUI draws.
+- **Applications** do not get touches yet: while one is on the panel the
+  socket is closed and iDrive reads the touches, as before.
+- No setting; a unit without a touch screen sends nothing.
+
 ## Limits
 
 - The state and event numbering, the focus handler type, `triggerEvent`, `post`

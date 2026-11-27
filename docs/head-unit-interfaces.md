@@ -636,8 +636,9 @@ PolyForm Noncommercial), captured on a Supra (1280x480) and an F20 (1440x540):
 - x and y are panel pixels (0..1279 x 0..479, or 0..1439 x 0..539). MINI's
   round display needs an x offset (NBT-AAD's `defaultTouchOffsetX`).
 - The plugin's focus hold does not cover touch (`docs/app-bridge.md`): iDrive
-  reacts to touches while the manager or an application is shown, unless a
-  process holds the port.
+  reacts to touches while an application is shown. The manager holds the
+  port while its own screen is shown (`controller-input.md`, "Touch screen";
+  not car-tested).
 
 ## Confirmed in the firmware
 

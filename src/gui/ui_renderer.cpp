@@ -31,6 +31,8 @@ Frame *target;
 int initialized;
 int32_t listScroll;
 char listTitle[kTextMax + 1];
+// Where the last frame drew its list, for touches (UiRenderer::itemAt).
+int32_t hitTop, hitRow, hitHeight, hitRight;
 
 uint32_t tick() {
     uint64_t ms = 0;
@@ -149,6 +151,10 @@ int renderList(lv_obj_t *screen, const UiView *v, const lv_font_t *itemFont, int
         lv_obj_scroll_to_view(focused, LV_ANIM_OFF);
     }
     listScroll = lv_obj_get_scroll_y(list);
+    hitTop = y;
+    hitRow = rowHeight;
+    hitHeight = listHeight;
+    hitRight = listWidth;
     memcpy(listTitle, v->title, sizeof(listTitle));
     listCount = v->itemCount;
     listRows = rows;
@@ -157,8 +163,21 @@ int renderList(lv_obj_t *screen, const UiView *v, const lv_font_t *itemFont, int
 
 } // namespace
 
+int UiRenderer::itemAt(int x, int y) {
+    if (hitRow <= 0 || x < 0 || x >= hitRight || y < hitTop || y >= hitTop + hitHeight) {
+        return -1;
+    }
+    const int32_t item = (y - hitTop + listScroll) / hitRow;
+    return item >= 0 && static_cast<size_t>(item) < listCount ? static_cast<int>(item) : -1;
+}
+
+int UiRenderer::rowHeight() {
+    return hitRow > 0 ? static_cast<int>(hitRow) : 30;
+}
+
 core::Status UiRenderer::render(const UiView &viewRef, const QrCode *qr, Frame &frameRef) {
     const UiView *v = &viewRef;
+    hitRow = 0; // no list in this frame until one is drawn
     Frame *frame = &frameRef;
     const UiFonts fonts = uiFonts(currentLanguage());
     colors = &palette(v->theme);

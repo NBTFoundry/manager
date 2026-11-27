@@ -493,6 +493,92 @@ open(root + "/stopped", "w").close()
         self.assertNotIn("shown at once", log)
         self.assertIn("shown once iDrive holds its focus", log)
 
+    @staticmethod
+    def touch_datagrams(x, y, state, first, split=(2, 5, 5)):
+        """One touch message (one finger) as a 1440x540 unit sends it: 12
+        records over three datagrams (docs/head-unit-interfaces.md)."""
+        stream = bytearray(32)
+        stream[0], stream[1] = 0x40, 1
+        stream[2:8] = bytes([x >> 8, x & 255, y >> 8, y & 255, 9, state << 4])
+        out, record = [], 0
+        for records in split:
+            body = bytearray()
+            for _ in range(records):
+                kind = 0xC5 if record == 0 else 0xC3 if record == 11 else 0xC1
+                data = stream[4 * (record - 4):4 * (record - 3)] if record >= 4 else bytes(4)
+                body += bytes([0, kind, 0x40, (first + record) & 255]) + data
+                record += 1
+            out.append(bytes([0xB0, 0x04, 0x80, 0x02]) + (8 + len(body)).to_bytes(4, "big")
+                       + bytes(8) + bytes(body))
+        return out
+
+    def test_touch_taps_choose_and_a_swipe_goes_back(self):
+        """The touch screen while the manager is shown: a tap on a row is a
+        turn to it and a push, a swipe to the right is BACK; the port is free
+        again once the manager is gone (iDrive's touches)."""
+        try:
+            left, right = socket.socketpair()
+        except PermissionError:
+            self.skipTest("sandbox blocks local socket traffic")
+        left.close()
+        right.close()
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+        probe.close()
+        debug = self.root / "manager" / "debug.log"
+        debug.write_text("")
+        debug.chmod(0o600)
+        sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.addCleanup(sender.close)
+        self.sequence = 0
+
+        def touch(x, y, state):
+            for datagram in self.touch_datagrams(x, y, state, self.sequence):
+                sender.sendto(datagram, ("127.0.0.1", port))
+            self.sequence += 12
+            time.sleep(0.03)
+
+        def shown():
+            process = subprocess.Popen([GUI, "--test-root", self.root, "--test-worker", self.worker],
+                                       env=dict(self.env, NBT_TEST_TOUCH_PORT=str(port)))
+            self.processes.append(process)
+            self.wait_for(lambda: debug.read_text().count("touch: taken while the manager is shown")
+                          == len(self.processes))
+            self.wait_for(lambda: debug.read_text().count("screen loading -> apps")
+                          == len(self.processes))
+            return process
+
+        # Down the panel until a tap lands on the menu's one row (Settings): the
+        # GUI asks the worker for the settings (this test's worker has none).
+        first = shown()
+        for y in range(60, 520, 24):
+            touch(300, y, 1)
+            touch(300, y, 3)
+            time.sleep(0.1)
+            if "touch: tap, item 1" in debug.read_text():
+                break
+        self.wait_for(lambda: "worker request SETTINGS failed" in debug.read_text())
+        first.wait(timeout=5)
+        (self.root / "started").unlink()
+        # A drag moves the focus and is no tap; a swipe to the right is BACK,
+        # which closes the manager from its menu; its socket goes with it.
+        second = shown()
+        taps = debug.read_text().count("touch: tap")
+        touch(300, 400, 1)
+        touch(300, 200, 2)
+        touch(300, 200, 3)
+        for x in (100, 300, 520):
+            touch(x, 300, 1 if x == 100 else 2)
+        touch(520, 300, 3)
+        self.wait_for(lambda: "touch: swipe, back" in debug.read_text())
+        self.assertEqual(second.wait(timeout=5), 0)
+        self.assertEqual(debug.read_text().count("touch: tap"), taps)
+        self.assertIn("exit (closed by the user), status 0", debug.read_text())
+        again = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.addCleanup(again.close)
+        again.bind(("127.0.0.1", port))
+
     def test_supervised_gui_rejects_invalid_descriptors(self):
         result = subprocess.run([GUI, "--ready-fd", "3", "--lease-fd", "3"], env=self.env)
         self.assertEqual(result.returncode, 2)

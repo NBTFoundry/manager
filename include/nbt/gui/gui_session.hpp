@@ -13,6 +13,7 @@
 #include "nbt/gui/plugin_link.hpp"
 #include "nbt/gui/screen_window.hpp"
 #include "nbt/gui/theme.hpp"
+#include "nbt/gui/touch_input.hpp"
 #include "nbt/gui/ui_controller.hpp"
 #include "nbt/gui/volume_osd.hpp"
 #include "nbt/gui/worker_channel.hpp"
@@ -84,6 +85,11 @@ private:
     int showManager();
     int showHandedOver();
     bool endForUpdate();
+    /* The touch screen while the manager's own screen is on the panel
+     * (gui_touch.cpp): taps choose an item, drags move the focus, a swipe to
+     * the right is BACK. */
+    void serviceTouch();
+    void applyTouch(const TouchGesture &gesture);
     void handOver();
     /* iDrive took the screen from the application shown: its host pauses it
      * (nbt/process/app_pause.hpp). */
@@ -110,6 +116,9 @@ private:
     GamepadInput gamepad_;
     LanguageWatch language_;
     ThemeWatch theme_;
+    TouchSocket touchSocket_;
+    TouchFrames touchFrames_;
+    TouchTracker touchTracker_;
     uint64_t nowMs_;
     uint64_t deadlineMs_;
     uint64_t heartbeatMs_;

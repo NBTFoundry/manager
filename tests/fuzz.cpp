@@ -21,6 +21,7 @@
 #include "nbt/gui/phone_wake.hpp"
 #include "nbt/gui/shortcut_record.hpp"
 #include "nbt/gui/text.hpp"
+#include "nbt/gui/touch_input.hpp"
 #include "nbt/gui/worker_text.hpp"
 #include "nbt/lifecycle/transactions.hpp"
 #include "nbt/model/installed_record.hpp"
@@ -91,7 +92,8 @@ enum Target {
     DiagTarget,
     BridgeHold,
     ZipArchiveTarget,
-    PayloadNoteTarget
+    PayloadNoteTarget,
+    TouchFrameTarget
 };
 
 struct TargetName {
@@ -132,7 +134,8 @@ const TargetName kTargets[] = {{"gamepad-wire", GamepadWire},
                                {"diag", DiagTarget},
                                {"bridge-hold", BridgeHold},
                                {"zip-archive", ZipArchiveTarget},
-                               {"payload-note", PayloadNoteTarget}};
+                               {"payload-note", PayloadNoteTarget},
+                               {"touch-frame", TouchFrameTarget}};
 
 class Mutator {
 public:
@@ -487,6 +490,22 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
         out.push_back(zipSeed(0));
         out.push_back(zipSeed(8));
         break;
+    case TouchFrameTarget: {
+        // One finger down at (640, 240): a whole message in one datagram.
+        std::vector<uint8_t> datagram(112, 0);
+        const uint8_t ident[] = {0xB0, 0x04, 0x80, 0x02, 0, 0, 0, 0x68};
+        memcpy(&datagram[0], ident, sizeof(ident));
+        for (size_t r = 0; r < 12; ++r) {
+            datagram[16 + 8 * r + 1] = r == 0 ? 0xC5 : r == 11 ? 0xC3 : 0xC1;
+            datagram[16 + 8 * r + 3] = static_cast<uint8_t>(r);
+        }
+        const uint8_t stream[] = {0x40, 1, 0x02, 0x80};
+        const uint8_t rest[] = {0x00, 0xF0, 9, 0x10};
+        memcpy(&datagram[16 + 8 * 4 + 4], stream, 4);
+        memcpy(&datagram[16 + 8 * 5 + 4], rest, 4);
+        out.push_back(datagram);
+        break;
+    }
     case PayloadNoteTarget: {
         // An ARM ET_DYN image with the NBT ABI note of a module.
         std::vector<uint8_t> image(124, 0);
@@ -800,6 +819,32 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
         if (nbt::gui::shortcutRecordParse(line, input.size(), shortcut) &&
             nbt::gui::shortcutRecordFormat(shortcut, out, sizeof(out)) < 0) {
             abort();
+        }
+        break;
+    }
+    case TouchFrameTarget: {
+        // The input as datagrams of up to 255 bytes, each led by its length:
+        // every sample holds what the reader promises, whatever arrives.
+        nbt::gui::TouchFrames frames;
+        nbt::gui::TouchTracker tracker(60, 24, 320);
+        for (size_t at = 0; at < input.size();) {
+            const size_t size = input[at++];
+            const size_t have = size < input.size() - at ? size : input.size() - at;
+            nbt::gui::TouchSample samples[4];
+            const int count = frames.feed(have ? &input[at] : NULL, have, samples, 4);
+            at += have;
+            for (int i = 0; i < count; ++i) {
+                if (samples[i].count > nbt::gui::kTouchContacts) {
+                    abort();
+                }
+                for (size_t c = 0; c < samples[i].count; ++c) {
+                    if (samples[i].contacts[c].id >= nbt::gui::kTouchContacts ||
+                        samples[i].contacts[c].state < 1 || samples[i].contacts[c].state > 3) {
+                        abort();
+                    }
+                }
+                (void)tracker.feed(samples[i]);
+            }
         }
         break;
     }
