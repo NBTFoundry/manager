@@ -68,8 +68,9 @@ NBT are trademarks of BMW AG; QNX is a trademark of BlackBerry Limited.
 - **Tools.** Settings → Tools restarts the head unit, and enables SSH, telnet
   and qconn as root until the next restart — the same access an SSH unlock
   gives, without writing anything ([docs/system-tools.md](docs/system-tools.md)).
-- **Themes.** BMW (iDrive 6's near-black page, square shapes and orange
-  cursor), MINI and Supra. Automatic follows the car's make; Settings →
+- **Themes.** BMW (iDrive 6's black page and red selection), MINI (a blue
+  bar) and Supra (an orange-red glow line), each after photographs of that
+  make's screen. Automatic follows the car's make; Settings →
   Theme chooses one. The palettes are in `src/gui/theme.cpp`; a paired phone
   reads the theme shown (`GET /v1/theme`) and follows it.
 - **Languages.** English, French, German, Italian, Spanish, Chinese

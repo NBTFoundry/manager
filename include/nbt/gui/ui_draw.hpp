@@ -29,8 +29,9 @@ int bar(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t width,
  * cursor (its fill fading to the right, its bright edge and underline). */
 lv_obj_t *row(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t w, int32_t h,
               bool focus, bool action);
-/* The thin line under a title or between rows; nothing in a theme without. */
-int rule(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t width);
+/* The thin line under a title, or with `rows` between rows; nothing in a
+ * theme without (Palette::ruled). */
+int rule(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t width, bool rows);
 int dialog(const Palette &c, lv_obj_t *screen, const Modal *m, const lv_font_t *titleFont,
            const lv_font_t *lineFont, const lv_font_t *itemFont, int32_t width, int32_t height);
 

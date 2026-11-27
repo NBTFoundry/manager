@@ -9,17 +9,18 @@ namespace nbt {
 namespace gui {
 namespace {
 
-/* BMW follows iDrive 6: a near-black page, square shapes, a dark orange
- * cursor with a bright edge and underline, thin rules under titles and
- * between rows. Supra: the same shapes in red. MINI: round shapes, one
- * colour, no rules. The MINI and Supra looks are ours, not taken from a car. */
+/* Each follows photographs of that make's own screen (docs/head-unit-interfaces.md,
+ * "The car's make and iDrive's look"). BMW: a black page, dark tiles, the
+ * selected one filled deep red, hairlines between rows. MINI: a solid blue
+ * bar, no lines. Supra: an orange-red glow under the selected row, fading to
+ * the right, with a bright edge and underline, and a line under the title. */
 const Palette kPalettes[model::kThemeCount] = {
-    {0x0b0c0e, 0xffffff, 0xaab0b8, 0x6a1c02, 0x2a0d03, 0x24272b, 0xffa869, 0x8f3408, 0x15171a,
-     0xf25a0a, 0x4a4f57, 0, 4, 2, 1},
-    {0x0a0a0a, 0xffffff, 0xb0b0b0, 0x0d6b63, 0x0d6b63, 0x262626, 0x7fe3d6, 0x128a7f, 0x171717,
-     0x2ed3c1, 0x3a3a3a, -1, 0, 0, 0},
-    {0x0c0c0d, 0xffffff, 0xb3b3b6, 0x6e0c12, 0x2b0709, 0x29292c, 0xff8a8f, 0x96121b, 0x18181a,
-     0xeb0a1e, 0x4d4d52, 0, 4, 2, 1},
+    {0x080808, 0xffffff, 0xa9abae, 0x980c0c, 0x5c0808, 0x202020, 0xff8a80, 0xb81616, 0x161616,
+     0xf01212, 0x3a3a3a, 0, 0, 0, 2},
+    {0x05080c, 0xffffff, 0xa8b4c0, 0x0a7cc4, 0x0a7cc4, 0x1a2430, 0x7fd0ff, 0x1296e6, 0x0e1620,
+     0x38d8f0, 0x24384c, 0, 0, 0, 0},
+    {0x060606, 0xffffff, 0xb0aeac, 0x7a2606, 0x200a02, 0x242220, 0xffa07a, 0x9c3a0c, 0x151312,
+     0xf85828, 0x7a3a22, 0, 4, 2, 1},
 };
 
 int current; // a model::Theme

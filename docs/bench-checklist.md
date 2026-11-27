@@ -60,7 +60,7 @@ Reset between runs with `rm debug.log debug.log.1; touch debug.log; chmod 600 de
 | Change iDrive's language, with the manager closed and then open | The manager follows (open: within two seconds) | `plugin ... iDrive language <m>`, `gui ... iDrive language <m>; shown <code>` |
 | Settings > Language, a language; reopen; then Automatic | Shown at once and kept; Automatic follows iDrive again | `gui ... language <code>` |
 | No `iDrive language` line after two minutes | Record it: car data did not answer. Automatic shows English; a language chosen in Settings > Language still applies | — |
-| Open the manager (debug log on) | BMW: orange cursor on a near-black page; MINI: teal, round rows; Supra: red | `gui ... theme auto, car <bmw\|mini\|supra\|unknown>, shown <code>`: record the make and whether `carplay.ini` exists |
+| Open the manager (debug log on) | BMW: the selected row filled red on a black page; MINI: a solid blue bar; Supra: an orange-red glow line. Compare with iDrive's own cursor and record a mismatch | `gui ... theme auto, car <bmw\|mini\|supra\|unknown>, shown <code>`: record the make and whether `carplay.ini` exists |
 | Settings > Theme, another make; then Automatic | Shown within a second and kept; Automatic gives the car's make back; the phone app follows after its next connection | `gui ... theme <code>, car ..., shown <code>` |
 | `ls -l /dev/shmem/nbt-manager.language` | Owned by the HMI's user, mode `600` | — |
 
@@ -313,6 +313,6 @@ then these rows. NBT-AAD's notes are the reference for what differs.
 | Phone opens the manager | Only from the home screen context `visibleContext 3` (`phoneContextSafe`): record `hmi.graphicalContext` on the home screen |
 | Camera views | Top View (context 692 in NBT-AAD) and reverse take the screen over an app, and the app comes back after |
 | Self test | Every row passes or skips with a reason; the report shared from the phone |
-| Theme | Automatic shows the Supra theme (red): the log's `theme auto, car supra`. `car unknown`: record whether `/var/opt/conn/carplay/carplay.ini` exists |
+| Theme | Automatic shows the Supra theme (orange-red glow line): the log's `theme auto, car supra`. `car unknown`: record whether `/var/opt/conn/carplay/carplay.ini` exists |
 | Android Auto | Car make `auto` resolves to Toyota from `carplay.ini`; Cluster `j29` shows turns |
 | Gauges and Diagnostics | The B58's readings and the fault-code units answer through the gateway |

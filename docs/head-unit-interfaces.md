@@ -458,14 +458,29 @@ apps.
   (default `bmw`) and loads that skin from `/opt/hmi/ID5/data/ro/<brand>/`;
   `pidin` shows no `-brand` on the G31. This firmware holds `bmw`, `bmwm` and
   `rr` only: no MINI or Toyota skin here to measure.
-- **BMW's iDrive 6 look** (`bmw/id6l/widgetasset`, measured, not copied): a
-  near-black page (#090909 to #171818), square shapes with a slanted leading
-  edge on buttons, a dark orange fill under the cursor (#5a1600) with a
-  bright orange edge and underline (about #ef5600), hairlines under
-  headlines and between list rows. Tile colours (`colorregistry.pbc`):
-  entertainment #e1b900, communication #056bd0, navigation #6aad00,
-  ConnectedDrive #0074e7. The manager's BMW theme follows these; its MINI and
-  Supra themes are our own.
+- **BMW's iDrive 6 look.** In the firmware (`bmw/id6l/widgetasset`,
+  measured, not copied): a near-black page (#090909 to #171818), square
+  shapes with a slanted leading edge on buttons, a dark orange-red fill
+  under the cursor (#5a1600) with a bright edge and underline (about
+  #ef5600), hairlines under headlines and between list rows. Tile colours
+  (`colorregistry.pbc`): entertainment #e1b900, communication #056bd0,
+  navigation #6aad00, ConnectedDrive #0074e7. On BMW's press photograph of
+  the G30's home screen the selected tile's header is filled deep red (about
+  #980808, lighter to the left) on tiles of #181818 over a #080808 page, and
+  the page arrow is red (#f80808).
+- **Supra** (Toyota's "Audio Multimedia & Connected Services" guide for the
+  2020 GR Supra, 6.5 and 8.8 inch displays): the same orange-red on black, as
+  a glow under the selected row that fades to the right (#782808 to
+  #c82808), a bright underline (#f85828), a curved bracket at the left and a
+  thin line under the title. No blue.
+- **MINI** (an infotainment report on the 2020 Cooper SE, 8.8 inch display):
+  a solid bar on the selected row, coloured by menu: blue in MINI Connected
+  (#0888d8), cyan in Communication, green in vehicle settings; a deep blue
+  main menu. No lines between rows.
+
+Photographs wash colours out a little; the themes take the saturated end of
+what was sampled (`src/gui/theme.cpp`). None is checked against a MINI or a
+Supra in person.
 
 ## At run time
 

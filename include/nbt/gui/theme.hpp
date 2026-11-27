@@ -29,7 +29,7 @@ struct Palette {
     int32_t radius;    // rows, bars and panels; -1: a pill
     int32_t edge;      // the bright edge at the cursor's left, in pixels; 0: none
     int32_t underline; // the bright line under the cursor, in pixels; 0: none
-    int ruled;         // 1: the lines under titles and between rows are drawn
+    int ruled;         // 1: a line under titles; 2: lines between rows too; 0: none
 };
 
 /* The palette of a model::Theme; BMW's for a value out of range. */

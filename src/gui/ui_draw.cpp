@@ -79,8 +79,8 @@ lv_obj_t *row(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t 
     return body;
 }
 
-int rule(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t width) {
-    if (!c.ruled || width <= 0) {
+int rule(const Palette &c, lv_obj_t *parent, int32_t x, int32_t y, int32_t width, bool rows) {
+    if (c.ruled < (rows ? 2 : 1) || width <= 0) {
         return 0;
     }
     lv_obj_t *line = box(parent, x, y, width, 1, c.rule, LV_OPA_COVER, 0);
@@ -120,7 +120,7 @@ int dialog(const Palette &c, lv_obj_t *screen, const Modal *m, const lv_font_t *
     int32_t y = kMargin;
     label(panel, m->title, titleFont, c.foreground, kMargin, y, boxWidth - 2 * kMargin);
     y += lv_font_get_line_height(titleFont) + 6;
-    if (rule(c, panel, kMargin, y - 4, boxWidth - 2 * kMargin)) {
+    if (rule(c, panel, kMargin, y - 4, boxWidth - 2 * kMargin, false)) {
         return -1;
     }
     label(panel, m->text, lineFont, c.muted, kMargin, y, boxWidth - 2 * kMargin);

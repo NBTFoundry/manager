@@ -125,8 +125,9 @@ int renderList(lv_obj_t *screen, const UiView *v, const lv_font_t *itemFont, int
                             LV_OPA_TRANSP, 0);
         lv_obj_t *body =
             row ? draw::row(*colors, row, 0, 0, rowWidth, rowHeight - 2, isFocus, isAction) : NULL;
-        if (!body || (!isFocus && i + 1 != v->focus &&
-                      draw::rule(*colors, row, kMargin / 2, rowHeight - 1, rowWidth - kMargin))) {
+        if (!body ||
+            (!isFocus && i + 1 != v->focus &&
+             draw::rule(*colors, row, kMargin / 2, rowHeight - 1, rowWidth - kMargin, true))) {
             return -1;
         }
         lv_obj_set_scrollable(row, false);
@@ -189,7 +190,7 @@ core::Status UiRenderer::render(const UiView &viewRef, const QrCode *qr, Frame &
         label(screen, "...", titleFont, colors->muted, textRight - 32, 10, 32);
     }
     int32_t y = 10 + lv_font_get_line_height(titleFont) + 6;
-    if (draw::rule(*colors, screen, kMargin, y - 4, textRight - kMargin)) {
+    if (draw::rule(*colors, screen, kMargin, y - 4, textRight - kMargin, false)) {
         return core::Status::error(EINVAL, "cannot render UI");
     }
     const int32_t lineHeight = lv_font_get_line_height(lineFont) + 2;
