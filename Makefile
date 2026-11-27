@@ -86,7 +86,7 @@ pre-commit:
 	python3 tools/pre_commit.py --all
 
 NBT_SRC = $(sort $(wildcard src/*.cpp src/*/*.cpp))
-NBT_LIB_C = src/capture/control.c src/capture/classifier.c src/capture/diag.c
+NBT_LIB_C = src/capture/control.c src/capture/classifier.c src/capture/diag.c src/capture/route.c
 HOST_OBJ = $(patsubst %.cpp,$(OBJ_DIR)/host/%.o,$(NBT_SRC)) $(patsubst %.c,$(OBJ_DIR)/host/%.o,$(NBT_LIB_C))
 TESTING_OBJ = $(patsubst %.cpp,$(OBJ_DIR)/testing/%.o,$(NBT_SRC)) $(patsubst %.c,$(OBJ_DIR)/testing/%.o,$(NBT_LIB_C))
 HOST_LIB = $(BUILD_DIR)/libnbt.a
@@ -272,9 +272,9 @@ $(BUILD_DIR)/libfake_dsi.so: tests/fake_dsi.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(NBT_CFLAGS) -fPIC $< $(LDFLAGS) -shared -o $@
 $(BUILD_DIR)/libfake_dsi_base.so: tests/fake_dsi_base.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(NBT_CFLAGS) -fPIC $< $(LDFLAGS) -shared -pthread -o $@
-$(BUILD_DIR)/libnbt-capture-observer.so: src/capture/control.c src/capture/classifier.c src/capture/shim_env.c src/capture/shim_diag.c src/capture/shim.c | $(BUILD_DIR)
+$(BUILD_DIR)/libnbt-capture-observer.so: src/capture/control.c src/capture/classifier.c src/capture/route.c src/capture/shim_env.c src/capture/shim_diag.c src/capture/shim.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(NBT_CFLAGS) -DNBT_TESTING -DNBT_CAPTURE_OBSERVER=1 -fPIC -fvisibility=hidden $^ $(LDFLAGS) -shared -Wl,-z,defs -pthread -ldl -o $@
-$(BUILD_DIR)/libnbt-capture-active.so: src/capture/control.c src/capture/classifier.c src/capture/shim_env.c src/capture/shim_diag.c src/capture/shim.c | $(BUILD_DIR)
+$(BUILD_DIR)/libnbt-capture-active.so: src/capture/control.c src/capture/classifier.c src/capture/route.c src/capture/shim_env.c src/capture/shim_diag.c src/capture/shim.c | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(NBT_CFLAGS) -DNBT_TESTING -DNBT_CAPTURE_OBSERVER=0 -fPIC -fvisibility=hidden $^ $(LDFLAGS) -shared -Wl,-z,defs -pthread -ldl -o $@
 $(BUILD_DIR)/capture-test: $(OBJ_DIR)/testing/tests/test_capture.o $(TESTING_LIB)
 	$(HOST_LINK)
@@ -439,7 +439,7 @@ qnx: $(QNX_LIB) $(QNX_TARGET)/armle-v7/lib/libusbdi.a $(BUILD_DIR)/liblvgl-qnx.a
 
 qnx-capture: | $(BUILD_DIR)
 	mkdir -p $(QNX_UNSTRIPPED)
-	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -DNBT_CAPTURE_OBSERVER=0 -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -shared -Iinclude -Wl,-soname,libnbt-capture.so -Wl,-z,defs -Wl,--exclude-libs,ALL -o $(QNX_UNSTRIPPED)/libnbt-capture.so src/capture/control.c src/capture/classifier.c src/capture/shim_env.c src/capture/shim_diag.c src/capture/shim.c
+	$(QCC) -O2 -Vgcc_ntoarmv7le -D_QNX_SOURCE -DNBT_CAPTURE_OBSERVER=0 -Wc,-std=c99 -Wc,-Wall -Wc,-Wextra -Wc,-Werror -fPIC -fvisibility=hidden -shared -Iinclude -Wl,-soname,libnbt-capture.so -Wl,-z,defs -Wl,--exclude-libs,ALL -o $(QNX_UNSTRIPPED)/libnbt-capture.so src/capture/control.c src/capture/classifier.c src/capture/route.c src/capture/shim_env.c src/capture/shim_diag.c src/capture/shim.c
 	$(QNX_STRIP) -o $(BUILD_DIR)/libnbt-capture.so $(QNX_UNSTRIPPED)/libnbt-capture.so
 
 # nbt-runner, the release's runner component (NBTRLS3, docs/manager-release.md),

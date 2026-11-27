@@ -3,6 +3,7 @@
 #include "nbt/capture/classifier.h"
 #include "nbt/capture/control.h"
 #include "nbt/capture/diag.h"
+#include "nbt/capture/route.h"
 #include "nbt/ccs.h"
 #include "nbt/gui/capture_watch.hpp"
 #include "nbt/process/hmi_environment.hpp"
@@ -284,9 +285,106 @@ static int test_diag_ring_overrun(void) {
     return 0;
 }
 
+/* The hidden audio connection: its note, and ConnectionMaster's table without it. */
+static int test_route_note_and_table(void) {
+    char text[64];
+    int32_t pid = 0;
+    uint16_t conn = 0;
+    const int n = nbt_capture_route_format(4242, 0x1d0, text, sizeof(text));
+    CHECK(n > 0 && !strcmp(text, "NBTROUTE1 4242 1d0\n"));
+    CHECK(nbt_capture_route_parse(text, (size_t)n, &pid, &conn) == 0 && pid == 4242 &&
+          conn == 0x1d0);
+    static const char *const bad[] = {
+        "NBTROUTE1 4242 1d0",     "NBTROUTE1 0 1d0\n",     "NBTROUTE1 4242 0\n",
+        "NBTROUTE1 4242 1D0\n",   "NBTROUTE1 4242 1d0 \n", "NBTROUTE2 4242 1d0\n",
+        "NBTROUTE1 4242 12345\n", "NBTROUTE1 -1 1d0\n",    "NBTROUTE1 99999999999 1d0\n",
+        "NBTROUTE1 042 1d0\n",    "NBTROUTE1 42 01d0\n"};
+    for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
+        CHECK(nbt_capture_route_parse(bad[i], strlen(bad[i]), &pid, &conn) != 0);
+    }
+    CHECK(nbt_capture_route_format(0, 0x1d0, text, sizeof(text)) < 0 &&
+          nbt_capture_route_format(1, 0, text, sizeof(text)) < 0 &&
+          nbt_capture_route_format(4242, 0x1d0, text, 8) < 0);
+    char path[] = "/tmp/nbt-route-XXXXXX";
+    const int fd = mkstemp(path);
+    CHECK(fd >= 0 && write(fd, "NBTROUTE1 77 b8\n", 16) == 16 && close(fd) == 0);
+    CHECK(nbt_capture_route_read(path, &pid, &conn) == 0 && pid == 77 && conn == 0xb8);
+    CHECK(chmod(path, 0666) == 0 && nbt_capture_route_read(path, &pid, &conn) != 0);
+    CHECK(unlink(path) == 0 && nbt_capture_route_read(path, &pid, &conn) != 0);
+
+    /* The car's table with the media connection built (2026-11-27): the phone's
+     * reference channel 0x1c1, then 0x1d0. */
+    unsigned char buf[160];
+    const unsigned char both[] = {0, 0, 0x01, 0xC1, 0x00, 0x01, 0xD0, 0x00};
+    size_t len = build_dsi_most(buf, 0x80000001u, 0, 2, 1, 0x03, 0x00, 0x0C03, 0x0C, both, 8);
+    unsigned char before[160];
+    memcpy(before, buf, len);
+    /* Reported only, not a byte changed (the observer build). */
+    CHECK(nbt_capture_table_hide(buf, len, 0x1d0, 0) == NBT_CAPTURE_TABLE_REWRITTEN &&
+          !memcmp(buf, before, len));
+    CHECK(nbt_capture_table_hide(buf, len, 0x1d0, 1) == NBT_CAPTURE_TABLE_REWRITTEN);
+    const unsigned char one[] = {0, 0, 0x01, 0xC1, 0x00, 0, 0, 0};
+    CHECK(buf[16 + 28] == 5 && !memcmp(buf + 48, one, 8) && !memcmp(buf, before, 16 + 28));
+    /* Now as iDrive knew it before: nothing left to take out. */
+    CHECK(nbt_capture_table_hide(buf, len, 0x1d0, 1) == NBT_CAPTURE_TABLE_NONE);
+    /* Rows on both sides stay in order; a table of that connection alone is empty. */
+    const unsigned char three[] = {0,    0,    0x01, 0xD0, 0x00, 0x00, 0x05,
+                                   0x01, 0x01, 0xD0, 0x02, 0x01, 0xC1, 0x00};
+    len = build_dsi_most(buf, 0x80000001u, 0, 2, 1, 0x03, 0x00, 0x0C03, 0x0C, three, 14);
+    CHECK(nbt_capture_table_hide(buf, len, 0x1d0, 1) == NBT_CAPTURE_TABLE_REWRITTEN);
+    const unsigned char two[] = {0, 0, 0x00, 0x05, 0x01, 0x01, 0xC1, 0x00, 0, 0, 0, 0, 0, 0};
+    CHECK(buf[16 + 28] == 8 && !memcmp(buf + 48, two, 14));
+    const unsigned char alone[] = {0, 0, 0x01, 0xD0, 0x00};
+    len = build_dsi_most(buf, 0x80000001u, 0, 2, 1, 0x03, 0x00, 0x0C03, 0x0C, alone, 5);
+    CHECK(nbt_capture_table_hide(buf, len, 0x1d0, 1) == NBT_CAPTURE_TABLE_REWRITTEN &&
+          buf[16 + 28] == 2);
+    /* A row sent alone (position 2): held when it is that connection's. */
+    const unsigned char row[] = {2, 0, 0x01, 0xD0, 0x00};
+    len = build_dsi_most(buf, 0x80000001u, 0, 2, 1, 0x03, 0x00, 0x0C03, 0x0C, row, 5);
+    memcpy(before, buf, len);
+    CHECK(nbt_capture_table_hide(buf, len, 0x1d0, 1) == NBT_CAPTURE_TABLE_ROW &&
+          !memcmp(buf, before, len));
+    CHECK(nbt_capture_table_hide(buf, len, 0x1c1, 1) == NBT_CAPTURE_TABLE_NONE);
+    /* Everything else goes by untouched: another function, operation, FBlock or
+     * client message, a length that is no table, more rows than iDrive reads,
+     * a length beyond the stream. */
+    struct {
+        uint32_t hdr2, vval;
+        uint8_t fblock;
+        uint16_t fkt;
+        uint8_t op;
+        uint32_t data_len;
+    } const other[] = {
+        {0x80000001u, 1, 0x03, 0x0C02, 0x0C, 8}, {0x80000001u, 1, 0x03, 0x0C03, 0x01, 8},
+        {0x80000001u, 1, 0x20, 0x0C03, 0x0C, 8}, {0x80000002u, 1, 0x03, 0x0C03, 0x0C, 8},
+        {0x80000001u, 5, 0x03, 0x0C03, 0x0C, 8}, {0x80000001u, 1, 0x03, 0x0C03, 0x0C, 7},
+        {0x80000001u, 1, 0x03, 0x0C03, 0x0C, 2}};
+    for (size_t i = 0; i < sizeof(other) / sizeof(other[0]); ++i) {
+        len = build_dsi_most(buf, other[i].hdr2, 0, 2, other[i].vval, other[i].fblock, 0x00,
+                             other[i].fkt, other[i].op, both, other[i].data_len);
+        memcpy(before, buf, len);
+        CHECK(nbt_capture_table_hide(buf, len, 0x1d0, 1) == NBT_CAPTURE_TABLE_NONE &&
+              !memcmp(buf, before, len));
+    }
+    unsigned char many[2 + 21 * 3];
+    memset(many, 0, sizeof(many));
+    for (size_t r = 0; r < 21; ++r) {
+        many[2 + 3 * r] = 0x01;
+        many[3 + 3 * r] = 0xD0;
+    }
+    len = build_dsi_most(buf, 0x80000001u, 0, 2, 1, 0x03, 0x00, 0x0C03, 0x0C, many, sizeof(many));
+    CHECK(nbt_capture_table_hide(buf, len, 0x1d0, 1) == NBT_CAPTURE_TABLE_NONE);
+    len = build_dsi_most(buf, 0x80000001u, 0, 2, 1, 0x03, 0x00, 0x0C03, 0x0C, both, 8);
+    CHECK(nbt_capture_table_hide(buf, len - 1, 0x1d0, 1) == NBT_CAPTURE_TABLE_NONE &&
+          nbt_capture_table_hide(buf, 40, 0x1d0, 1) == NBT_CAPTURE_TABLE_NONE &&
+          nbt_capture_table_hide(NULL, len, 0x1d0, 1) == NBT_CAPTURE_TABLE_NONE &&
+          nbt_capture_table_hide(buf, len, 0, 1) == NBT_CAPTURE_TABLE_NONE);
+    return 0;
+}
+
 int main(void) {
     if (test_control_format_parse_and_shmem() || test_classifier_and_escape() ||
-        test_diag_ring_overrun() || test_capture_watch()) {
+        test_diag_ring_overrun() || test_capture_watch() || test_route_note_and_table()) {
         return 1;
     }
     puts("capture-test: OK");

@@ -295,6 +295,20 @@ A kit newer than the installed one, its `.nbtr` sent from the phone's Library.
 | A camera or warning during those seconds | The camera or warning shows; App Manager stays hidden until it is chosen again |
 | BACK out before the 3 s | App Manager closes; the new version starts at the next opening |
 
+## 11d. Media sound without iDrive's screen
+
+Native audio on `media`; iDrive restarted since the update (the shim loads
+with iDrive); the debug log on.
+
+| Action | Expected |
+| --- | --- |
+| Start an application with sound | It stays on the panel; sound as before, the volume down to 0; the plugin logs `capture diag kind=8 (audio connection hidden) fblock=0x03 fkt=0x0c03`; iDrive's entertainment source and its last-source memory unchanged (after the application, the radio is still the source) |
+| The self test | Every form starts and reports; no fall back to iDrive |
+| Switch Native audio to `interrupt`, start the application again | `audio mixer: ended for another audio connection (default)` in the application host's log; sound through the browser source (volume not below 25); no restart of App Manager needed |
+| Back to `media` with another application's service playing | `audio mixer: still in use; ...`; the change applies once it stopped |
+| A phone call or a navigation prompt while the application plays | iDrive shows and plays it as usual |
+| The radio playing, then start the application | The application's sound replaces the radio and stays; iDrive does not bring the radio back while it plays (if it does: `capture diag` lines and the system log, the shim then has to keep the radio's row for iDrive); after the application, note what plays |
+
 ## 12. Tools
 
 Settings > Tools, after Status. Record `mount`, `pidin arg` and `ls -lR

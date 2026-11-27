@@ -26,6 +26,7 @@
 
 static int g_selftest = 0;
 static char g_selftest_control[256], g_selftest_live[256], g_selftest_diag[256];
+static char g_selftest_route[256];
 static uint64_t (*g_selftest_clock)(void) = NULL;
 
 int nbt_shim_selftest_set(const char *dir, uint64_t (*clock)(void)) {
@@ -35,7 +36,9 @@ int nbt_shim_selftest_set(const char *dir, uint64_t (*clock)(void)) {
         snprintf(g_selftest_live, sizeof(g_selftest_live), "%s/capture-selftest.live", dir) >=
             (int)sizeof(g_selftest_live) ||
         snprintf(g_selftest_diag, sizeof(g_selftest_diag), "%s/capture-selftest.diag", dir) >=
-            (int)sizeof(g_selftest_diag)) {
+            (int)sizeof(g_selftest_diag) ||
+        snprintf(g_selftest_route, sizeof(g_selftest_route), "%s/capture-selftest.route", dir) >=
+            (int)sizeof(g_selftest_route)) {
         return -1;
     }
     g_selftest_clock = clock;
@@ -80,6 +83,19 @@ const char *nbt_shim_diag_path(void) {
     }
 #endif
     return NBT_CAPTURE_DIAG_PATH;
+}
+
+const char *nbt_shim_route_path(void) {
+    if (g_selftest) {
+        return g_selftest_route;
+    }
+#ifdef NBT_TESTING
+    const char *p = getenv("NBT_TEST_CAPTURE_ROUTE");
+    if (p && p[0]) {
+        return p;
+    }
+#endif
+    return NBT_CAPTURE_ROUTE_PATH;
 }
 
 uint64_t nbt_shim_monotonic_ms(void) {

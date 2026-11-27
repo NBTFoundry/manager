@@ -545,7 +545,7 @@ class CaptureInstallTests(unittest.TestCase):
         self.assertEqual(bad.returncode, 1)
         self.assertIn(b"live test: FAILED the shim has no self-test entry", bad.stderr)
         for name in ("capture-probe.so", "capture-selftest.control", "capture-selftest.live",
-                     "capture-selftest.diag"):
+                     "capture-selftest.diag", "capture-selftest.route"):
             self.assertFalse((self.root / "state/manager" / name).exists(), name)
 
     def test_failed_load_test_changes_nothing(self):

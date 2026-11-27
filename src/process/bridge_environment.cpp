@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "nbt/process/bridge_environment.hpp"
+#include "nbt/capture/protocol.h"
 #include "nbt/gui/hmi_hold.hpp"
 #include "nbt/log.h"
 #include "nbt/manager_settings.h"
@@ -89,6 +90,12 @@ size_t bridgeEnvironment(nbt_app_environment *out, size_t count, const nbt_bridg
         out->list[count] = out->text[count];
         ++count;
         strcpy(out->text[count], "NBT_AUDIO_A2I=" NBT_NATIVE_AUDIO_MEDIA_INPUT);
+        out->list[count] = out->text[count];
+        ++count;
+        // iDrive would switch to that source's own screen: whoever builds the
+        // connection notes it here first, and the capture shim keeps it from
+        // iDrive's connection table (docs/input-capture.md).
+        strcpy(out->text[count], "NBT_AUDIO_ROUTE_NOTE=" NBT_CAPTURE_ROUTE_PATH);
         out->list[count] = out->text[count];
         ++count;
     }

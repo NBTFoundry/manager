@@ -12,6 +12,8 @@ int nbt_shim_selftest_set(const char *dir, uint64_t (*clock)(void));
 const char *nbt_shim_control_path(void);
 const char *nbt_shim_liveness_path(void);
 const char *nbt_shim_diag_path(void);
+/* The hidden audio connection's note (tests: NBT_TEST_CAPTURE_ROUTE). */
+const char *nbt_shim_route_path(void);
 uint64_t nbt_shim_monotonic_ms(void);
 /* 1 when this process is HmiMain3D (tests: NBT_TEST_CAPTURE_EXE). */
 int nbt_shim_is_hmi_process(void);

@@ -14,6 +14,11 @@ application on an SDK with the mixer client uses it without a change.
   and the manager's native audio setting (`NBT_AUDIO_CONN`, `NBT_AUDIO_A2I`),
   which it then plays through, as an application would. It runs on its own
   (its own session) and ends 30 s after its last client left.
+- The mixer keeps the audio connection it started with. The host notes it
+  (`/dev/shmem/nbt-mixer-route`); when a launch wants another (the Native
+  audio setting changed), it asks the mixer to end (`NBTMIXE`, the SDK's
+  `audio_mix.hpp`) and starts a new one. A mixer somebody still plays
+  through stays: the change then waits until those applications stopped.
 - The host names it in `NBT_AUDIO_MIXER=127.0.0.1:42863`. Without a runner (a
   bundle for an older manager) the variable is absent and the application
   opens the output itself, as before.
@@ -68,5 +73,11 @@ application on an SDK with the mixer client uses it without a change.
 - An application on an older SDK opens the output itself: while the mixer
   plays, that open may fail, or the two may not mix.
 - Android Auto's daemon plays through its own player, not the mixer.
-- A change of the native audio setting reaches the mixer when it starts
-  again (30 s after the last client).
+- A change of the native audio setting applies to applications started
+  after it, once no other application or service plays (a release before
+  0.5.3: 30 s after the last one stopped).
+- With `media`, iDrive would switch to that source's own screen when the
+  connection is built: the capture shim keeps the connection out of the
+  table iDrive reads (`input-capture.md`, "The media connection"). Without
+  the shim (observer build, not installed, iDrive not restarted since), the
+  application falls back behind iDrive: use `interrupt`.

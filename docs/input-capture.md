@@ -133,6 +133,35 @@ factory instance 0x0C): 0xC01 `CAudioVolumeButtonCS`, 0xC02
 `CPushButtonAmFmTP`, 0xC04 `CPushButtonAudio`, 0xC05 `CPushButtonEject`, 0xC06
 `CPushButtonMode`, 0xC07 `CPushButtonSkip`.
 
+## The media connection
+
+With Native audio on `media`, applications' sound uses the audio connection
+0x1d0, an entertainment source (`head-unit-interfaces.md`). iDrive follows
+ConnectionMaster's table of built connections and, at a new entertainment
+source, switches to that source's own screen: the application fell back
+behind iDrive a second after its start (car, 0.5.1, 2026-11-27). The shim
+keeps that one connection out of the table iDrive reads, whether capture is
+on or not (a service plays with the manager closed):
+
+- **The note.** `/dev/shmem/nbt-audio-route`, `NBTROUTE1 <pid> <connection,
+  hex>`, written before the connection is built by whoever builds it (the
+  SDK's audio route in the mixer, told by `NBT_AUDIO_ROUTE_NOTE`) and removed
+  after its release. The shim reads it at each table message, with the checks
+  of its other files; a note whose process no longer exists counts for nothing.
+- **The table.** ConnectionMaster (FBlock 0x03) function 0xC03
+  `HighSyncConnectionTableExt`, status: two position bytes, then rows of a
+  connection id (big-endian) and one byte, 20 at most
+  (`include/nbt/capture/route.h`). The whole table (position 0): the rows of
+  the noted connection are taken out in place and the MOST data length
+  shortened; iDrive then reads the table as it was before. That row sent
+  alone (position > 0): held. Anything else is forwarded untouched. This is
+  the one message the shim changes.
+- **iDrive's own use** of that connection (BMW's online radio) is untouched
+  while no note names it.
+- The diagnostic ring records each one (`audio connection hidden`, detail 1
+  rewritten, 2 held); the observer build records and changes nothing.
+- Android Auto's daemon builds its connection itself and writes no note.
+
 ## Control record, watchdog and escape
 
 - The GUI writes a control record and a heartbeat in `/dev/shmem`, with the same
@@ -165,7 +194,7 @@ factory instance 0x0C): 0xC01 `CAudioVolumeButtonCS`, 0xC02
 
 ## Packaging and install-time tests
 
-The shim ships in `NBTRLS2` releases as component 9 (`capture_lib`), C99, libc
+The shim ships in releases as component 9 (`capture_lib`), C99, libc
 only, exporting exactly `DSIClientDataResponse` and `nbt_capture_selftest_begin`
 (`qnx-check` checks it). `make qnx-capture` builds it.
 
@@ -191,7 +220,11 @@ only, exporting exactly `DSIClientDataResponse` and `nbt_capture_selftest_begin`
    forwarded for that generation); BACK pressed captured and released uncaptured,
    then a new capture (still held); a GUI that no longer exists (forwarded). Any
    difference refuses the shim with the failed step; a pass logs "live test OK
-   observer" or "active".
+   observer" or "active". Then the connection table: without a note
+   (forwarded whole); with a note of the test's own process (forwarded without
+   the noted row by the active build, whole and recorded by the observer; the
+   row alone held); with a note of a process that no longer exists and with
+   the note removed (whole).
 
 A refused shim does not stop the rest of an update: the launcher and plugin are
 still replaced, and the launcher names the reason to the installer

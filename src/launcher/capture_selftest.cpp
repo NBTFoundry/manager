@@ -8,9 +8,11 @@
 
 #include "nbt/capture/control.h"
 #include "nbt/capture/diag.h"
+#include "nbt/capture/route.h"
 #include "nbt/gui/hmi_hold.hpp"
 
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -63,6 +65,30 @@ void buildStream(unsigned char buf[64], nbt_dsi_c_stream &s, Key key, uint8_t he
     s.buffer = buf;
 }
 
+/* ConnectionMaster's connection table (0x03 0xC03) with the phone's reference
+ * channel 0x1c1 and the media connection 0x1d0, whole or that row alone. */
+void buildTable(unsigned char buf[64], nbt_dsi_c_stream &s, bool rowAlone) {
+    static const unsigned char whole[] = {0, 0, 0x01, 0xC1, 0x00, 0x01, 0xD0, 0x00};
+    static const unsigned char row[] = {2, 0, 0x01, 0xD0, 0x00};
+    const unsigned char length = rowAlone ? sizeof(row) : sizeof(whole);
+    memset(buf, 0, 64);
+    buf[8] = 0x01;
+    buf[11] = 0x80;
+    unsigned char *m = buf + 16;
+    m[4] = 2;
+    m[8] = 1;
+    m[16] = NBT_CAPTURE_FBLOCK_CONNECTION_MASTER;
+    m[18] = 0x03;
+    m[19] = 0x0C;
+    m[20] = 0x0C;
+    m[28] = length;
+    memcpy(m + 32, rowAlone ? row : whole, length);
+    memset(&s, 0, sizeof(s));
+    s.capacity = 64;
+    s.populated = 48u + length;
+    s.buffer = buf;
+}
+
 class Run {
 public:
     Run(DsiFn dsi, const char *dir, char *detail, size_t size)
@@ -70,6 +96,7 @@ public:
         snprintf(control_, sizeof(control_), "%s/capture-selftest.control", dir);
         snprintf(live_, sizeof(live_), "%s/capture-selftest.live", dir);
         snprintf(diag_, sizeof(diag_), "%s/capture-selftest.diag", dir);
+        snprintf(route_, sizeof(route_), "%s/capture-selftest.route", dir);
         memset(most_, 0, sizeof(most_));
         memcpy(most_ + 0x20, "MOSTSubSystem.DSYSMOSTServer", 29);
         memset(other_, 0, sizeof(other_));
@@ -87,12 +114,48 @@ public:
     bool beat(pid_t pid) {
         return gui::holdLivenessWrite(live_, pid, g_now) == 0 || fail("heartbeat write");
     }
+    /* The audio connection its holder `pid` asks iDrive not to see; 0: no note. */
+    bool route(int32_t pid) {
+        char text[40];
+        (void)unlink(route_);
+        if (!pid) {
+            return true;
+        }
+        const int length = nbt_capture_route_format(pid, 0x1d0, text, sizeof(text));
+        const int fd = length > 0 ? open(route_, O_WRONLY | O_CREAT | O_EXCL, 0600) : -1;
+        const bool written = fd >= 0 && write(fd, text, static_cast<size_t>(length)) == length;
+        if (fd >= 0) {
+            close(fd);
+        }
+        return written || fail("route note write");
+    }
+    /* Sends the connection table: `rows` it must have when forwarded (0: held). */
+    bool table(const char *what, bool rowAlone, unsigned rows, uint8_t kind) {
+        unsigned char buf[64];
+        nbt_dsi_c_stream s;
+        buildTable(buf, s, rowAlone);
+        const unsigned char sent = buf[16 + 28];
+        if (!send(what, s, true, rows != 0, kind)) {
+            return false;
+        }
+        const unsigned char expected =
+            rows ? static_cast<unsigned char>(rowAlone ? sent : 2u + 3u * rows) : sent;
+        if (buf[16 + 28] != expected) {
+            snprintf(detail_, size_, "step %u (%s): table data %u bytes, expected %u", step_, what,
+                     buf[16 + 28], expected);
+            return false;
+        }
+        return true;
+    }
     /* Sends one message; checks forwarding and the newest diagnostic kind (0: none). */
     bool expect(const char *what, Key key, uint8_t held, bool fromMost, bool forwarded,
                 uint8_t kind) {
         unsigned char buf[64];
         nbt_dsi_c_stream s;
         buildStream(buf, s, key, held);
+        return send(what, s, fromMost, forwarded, kind);
+    }
+    bool send(const char *what, nbt_dsi_c_stream &s, bool fromMost, bool forwarded, uint8_t kind) {
         ++step_;
         const unsigned before = g_forwarded;
         dsi_(fromMost ? most_ : other_, &s);
@@ -131,6 +194,7 @@ public:
         (void)unlink(control_);
         (void)unlink(live_);
         (void)unlink(diag_);
+        (void)unlink(route_);
     }
 
 private:
@@ -151,9 +215,21 @@ private:
     uint32_t cursor_;
     uint32_t seen_;
     unsigned step_;
-    char control_[300], live_[300], diag_[300];
+    char control_[300], live_[300], diag_[300], route_[300];
     unsigned char most_[0xE0], other_[0xE0];
 };
+
+/* The hidden audio connection, whatever capture says: out of the table iDrive
+ * reads while its holder lives (the observer build only records it). */
+bool routes(Run &r, bool observer) {
+    const int32_t gone = 0x7ffffff0;
+    const uint8_t hidden = NBT_CAPTURE_DIAG_ROUTE_HIDDEN;
+    return r.table("no note", false, 2, 0) && r.route(getpid()) &&
+           r.table("noted, the table", false, observer ? 2 : 1, hidden) &&
+           r.table("noted, its row alone", true, observer ? 1 : 0, hidden) && r.route(gone) &&
+           r.table("holder gone", false, 2, 0) && r.route(0) &&
+           r.table("note removed", false, 2, 0);
+}
 
 bool scenario(Run &r, bool observer) {
     const pid_t self = getpid();
@@ -194,7 +270,7 @@ bool scenario(Run &r, bool observer) {
            r.expect("after the escape", Knob, 0, true, true, NBT_CAPTURE_DIAG_OBSERVE) &&
            // A record from a GUI that no longer exists: released.
            r.control(NBT_CAPTURE_ON, 5, gone) && r.beat(gone) &&
-           r.expect("GUI gone", Knob, 0, true, true, 0xff);
+           r.expect("GUI gone", Knob, 0, true, true, 0xff) && routes(r, observer);
 }
 
 } // namespace

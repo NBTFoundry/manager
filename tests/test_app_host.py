@@ -1382,13 +1382,71 @@ event("exit")
             self.assertEqual(command("QUIT"), "OK")
         subprocess.run(["pkill", "-f", f"{runner} --mixer"], check=False)
 
+    def test_a_changed_audio_connection_starts_a_new_mixer_when_nobody_plays(self):
+        """The mixer keeps the audio connection it was started with: after the
+        Native audio setting changed, the host asks it to end ("NBTMIXE") and
+        starts another, unless somebody still plays through it."""
+        listener = socket.socket()
+        listener.bind(("127.0.0.1", 0))
+        address = "127.0.0.1:%d" % listener.getsockname()[1]
+        listener.close()
+        marks = Path(self.tmp.name) / "mixer-starts"
+        busy = Path(self.tmp.name) / "mixer-busy"
+        runner = Path(self.tmp.name) / "runner"
+        runner.write_text("#!/usr/bin/python3\n"
+                          "import os, socket, sys\n"
+                          f"open({str(marks)!r}, 'a').write(os.environ.get('NBT_AUDIO_CONN', 'default') + '\\n')\n"
+                          "host, port = sys.argv[2].rsplit(':', 1)\n"
+                          "s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)\n"
+                          "s.bind((host, int(port))); s.listen(4)\n"
+                          "while True:\n"
+                          "    c, _ = s.accept()\n"
+                          "    c.settimeout(0.5)\n"
+                          "    try:\n        asked = c.recv(8)\n"
+                          "    except OSError:\n        asked = b''\n"
+                          "    if asked == b'NBTMIXE\\n':\n"
+                          f"        stays = os.path.exists({str(busy)!r})\n"
+                          "        c.sendall(b'NBTMIXE 0\\n' if stays else b'NBTMIXE 1\\n')\n"
+                          "        if not stays:\n            sys.exit(0)\n"
+                          "    c.close()\n")
+        runner.chmod(0o700)
+        self.script_app("os.write(3, b'R')\n"
+                        "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
+        route = Path(self.tmp.name) / "mixer-route"
+
+        def cycle(command, starts):
+            self.assertEqual(command("START test"), "OK")
+            self.wait_for(lambda: marks.exists() and marks.read_text().splitlines() == starts)
+            self.assertEqual(command("STOP test"), "OK")
+            self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+
+        with mock.patch.dict(os.environ, {"NBT_TEST_RUNNER": str(runner),
+                                          "NBT_TEST_MIXER_ADDRESS": address,
+                                          "NBT_TEST_MIXER_ROUTE": str(route)}):
+            _, command = self.worker()
+            cycle(command, ["default"])
+            cycle(command, ["default"])  # the same connection: the mixer stays
+            self.assertEqual(command("SET manager native_audio media"), "OK")
+            cycle(command, ["default", "0x1d0"])
+            self.assertEqual(route.read_text(), "0x1d0\n")
+            # Somebody still plays through it: it stays, with its connection.
+            busy.write_text("")
+            self.assertEqual(command("SET manager native_audio interrupt"), "OK")
+            cycle(command, ["default", "0x1d0"])
+            busy.unlink()
+            cycle(command, ["default", "0x1d0", "default"])
+            self.assertEqual(command("QUIT"), "OK")
+        subprocess.run(["pkill", "-f", f"{runner} --mixer"], check=False)
+
     def test_native_audio_media_names_the_connection(self):
         """The manager's native_audio setting: `media` gives a user launch
         NBT_AUDIO_CONN=0x1d0 (the media player's online stream source) and
-        NBT_AUDIO_A2I=input_stereo_0 (the io-amp input it plays); `interrupt`,
+        NBT_AUDIO_A2I=input_stereo_0 (the io-amp input it plays) and the note the
+        capture shim hides that connection from iDrive by; `interrupt`,
         the default, leaves the application's own default."""
         self.script_app("print('conn=' + os.environ.get('NBT_AUDIO_CONN', 'absent') + ' input=' + "
-                        "os.environ.get('NBT_AUDIO_A2I', 'absent'), flush=True)\n"
+                        "os.environ.get('NBT_AUDIO_A2I', 'absent') + ' note=' + "
+                        "os.environ.get('NBT_AUDIO_ROUTE_NOTE', 'absent'), flush=True)\n"
                         "os.write(3, b'R')\n"
                         "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
         _, command = self.worker()
@@ -1398,13 +1456,14 @@ event("exit")
         self.assertEqual((self.root / "manager/native-audio").read_text(), "media\n")
         self.assertIn(row % "media", command("SETTINGS manager"))
         self.assertEqual(command("START test"), "OK")
-        self.wait_for(lambda: "conn=0x1d0 input=input_stereo_0" in self.app_log())
+        self.wait_for(lambda: "conn=0x1d0 input=input_stereo_0 note=/dev/shmem/nbt-audio-route"
+                      in self.app_log())
         self.assertEqual(command("STOP test"), "OK")
         self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
         self.assertNotEqual(command("SET manager native_audio browser"), "OK")
         self.assertEqual(command("SET manager native_audio interrupt"), "OK")
         self.assertEqual(command("START test"), "OK")
-        self.wait_for(lambda: "conn=absent input=absent" in self.app_log())
+        self.wait_for(lambda: "conn=absent input=absent note=absent" in self.app_log())
         self.assertEqual(command("STOP test"), "OK")
         self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
         self.assertEqual(command("QUIT"), "OK")

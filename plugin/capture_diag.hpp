@@ -31,6 +31,8 @@ inline const char *captureDiagKind(unsigned kind) {
         return "heartbeat expired";
     case NBT_CAPTURE_DIAG_HOLD_DROPPED:
         return "BACK hold dropped";
+    case NBT_CAPTURE_DIAG_ROUTE_HIDDEN:
+        return "audio connection hidden";
     default:
         return "?";
     }

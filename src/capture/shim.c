@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 /* Preloaded DSIClientDataResponse shim: zero heap/static init. The car build is
- * active (-DNBT_CAPTURE_OBSERVER=0); the observer default only forwards. */
+ * active (-DNBT_CAPTURE_OBSERVER=0); the observer default only forwards. It
+ * holds the controller's messages while the manager captures, and takes the
+ * hidden audio connection out of the connection table iDrive reads
+ * (docs/input-capture.md). */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
 
 #include "nbt/capture/classifier.h"
 #include "nbt/capture/control.h"
+#include "nbt/capture/route.h"
 #include "shim_diag.h"
 #include "shim_env.h"
 
@@ -15,6 +19,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -222,6 +227,32 @@ static int evaluate_call(const nbt_dsi_c_stream *stream, uint64_t now_ms, nbt_ca
     return authorized;
 }
 
+/* ConnectionMaster's connection table on its way to iDrive: while the process
+ * that noted an audio connection lives, iDrive does not learn of it (it would
+ * switch to that source's own screen). 1: hold the message. */
+static int hide_route(nbt_dsi_c_stream *stream, const nbt_capture_packet *pre) {
+    int32_t pid = 0;
+    uint16_t conn = 0;
+    nbt_capture_table_result found;
+    if (!pre->has_most || pre->fblock != NBT_CAPTURE_FBLOCK_CONNECTION_MASTER ||
+        pre->fkt != NBT_CAPTURE_FKT_CONNECTION_TABLE || pre->op != 0x0Cu ||
+        nbt_capture_route_read(nbt_shim_route_path(), &pid, &conn) != 0 || !gui_alive(pid)) {
+        return 0;
+    }
+    /* nbt_capture_inspect_stream found a message: the stream's fields are sane. */
+    found = nbt_capture_table_hide((unsigned char *)(uintptr_t)stream->buffer + stream->read_pos,
+                                   stream->populated - stream->read_pos, conn,
+                                   NBT_CAPTURE_OBSERVER ? 0 : 1);
+    if (found == NBT_CAPTURE_TABLE_NONE) {
+        return 0;
+    }
+    pthread_mutex_lock(&g_state_lock);
+    nbt_shim_diag_record(NBT_CAPTURE_DIAG_ROUTE_HIDDEN, pre->fblock, pre->fkt, pre->inst, pre->op,
+                         nbt_shim_monotonic_ms(), 0, 0, (uint8_t)found);
+    pthread_mutex_unlock(&g_state_lock);
+    return !NBT_CAPTURE_OBSERVER && found == NBT_CAPTURE_TABLE_ROW;
+}
+
 __attribute__((visibility("default"))) void DSIClientDataResponse(void *client, void *stream) {
     nbt_capture_packet pre, pkt;
     nbt_capture_decision dec = NBT_CAP_DECISION_FORWARD;
@@ -239,10 +270,14 @@ __attribute__((visibility("default"))) void DSIClientDataResponse(void *client, 
         return;
     }
     (void)pthread_setspecific(g_reentry_key, (void *)1);
-    if (nbt_capture_inspect_stream((const nbt_dsi_c_stream *)stream, NULL, &pre) == 0 &&
-        is_input_message(&pre)) {
-        now_ms = nbt_shim_monotonic_ms();
-        (void)evaluate_call((const nbt_dsi_c_stream *)stream, now_ms, &dec, &gen, &diag_kind, &pkt);
+    if (nbt_capture_inspect_stream((const nbt_dsi_c_stream *)stream, NULL, &pre) == 0) {
+        if (is_input_message(&pre)) {
+            now_ms = nbt_shim_monotonic_ms();
+            (void)evaluate_call((const nbt_dsi_c_stream *)stream, now_ms, &dec, &gen, &diag_kind,
+                                &pkt);
+        } else if (hide_route((nbt_dsi_c_stream *)stream, &pre)) {
+            dec = NBT_CAP_DECISION_SUPPRESS;
+        }
     }
 
 #if NBT_CAPTURE_OBSERVER

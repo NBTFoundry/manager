@@ -22,6 +22,11 @@ extern "C" {
 #define NBT_CAPTURE_LIVENESS_PATH "/dev/shmem/nbt-manager-gui-live"
 #define NBT_CAPTURE_DIAG_PATH "/dev/shmem/nbt-manager-capture-diag"
 #define NBT_CAPTURE_DSI_BASE_LIB "libsys_dsi_base.gpp.so.4"
+/* The audio connection iDrive is not to see while its holder lives
+ * (docs/input-capture.md, "The media connection"): "NBTROUTE1 <pid> <connection,
+ * hex>\n", written before the connection is built by whoever builds it (the
+ * SDK's audio route, told by NBT_AUDIO_ROUTE_NOTE) and removed after. */
+#define NBT_CAPTURE_ROUTE_PATH "/dev/shmem/nbt-audio-route"
 /* iDrive's environment file (starter.cfg <EnvFile>): while it exists, the
  * process manager starts iDrive with the shim. The shim deletes it as soon as
  * it is loaded into iDrive, so each arming covers one start
@@ -46,6 +51,11 @@ extern "C" {
  * held back (docs/input-capture.md). */
 #define NBT_CAPTURE_FBLOCK_CENTER_STACK 0x15u
 #define NBT_CAPTURE_FKT_FAVOURITES 0x0C02u
+/* ConnectionMaster's HighSyncConnectionTableExt: the audio connections built,
+ * which HmiMain3D's CHmiAudioSink follows (include/nbt/capture/route.h). */
+#define NBT_CAPTURE_FBLOCK_CONNECTION_MASTER 0x03u
+#define NBT_CAPTURE_FKT_CONNECTION_TABLE 0x0C03u
+#define NBT_CAPTURE_TABLE_ROWS_MAX 20u
 
 #define NBT_CAPTURE_OFF 0u
 #define NBT_CAPTURE_ON 1u
@@ -66,7 +76,11 @@ typedef enum {
     NBT_CAPTURE_DIAG_UNRESOLVED = 6,
     /* A BACK hold stopped counting toward the escape: capture went off or a
      * new capture generation began before its release was seen. */
-    NBT_CAPTURE_DIAG_HOLD_DROPPED = 7
+    NBT_CAPTURE_DIAG_HOLD_DROPPED = 7,
+    /* The hidden audio connection was taken out of the connection table sent
+     * to iDrive (detail 1), or its row alone was held (detail 2); the observer
+     * build only records it. */
+    NBT_CAPTURE_DIAG_ROUTE_HIDDEN = 8
 } nbt_capture_diag_kind;
 
 /* Versioned bounded control record written by GUI and read by shim. */

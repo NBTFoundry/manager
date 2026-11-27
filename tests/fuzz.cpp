@@ -5,6 +5,7 @@
 #include "nbt/bridge_hold.h"
 #include "nbt/capture/classifier.h"
 #include "nbt/capture/control.h"
+#include "nbt/capture/route.h"
 #include "nbt/ccs.h"
 #include "nbt/cds_policy.h"
 #include "nbt/controller_config.h"
@@ -542,6 +543,21 @@ std::vector<std::vector<uint8_t>> seeds(Target target) {
         pkt[16 + 28] = 7;
         pkt[16 + 33] = 1;
         out.push_back(pkt);
+        // ConnectionMaster's table with the media connection, and its note.
+        static const uint8_t kTable[] = {0, 0, 0x01, 0xC1, 0x00, 0x01, 0xD0, 0x00};
+        std::vector<uint8_t> table(48 + sizeof(kTable), 0);
+        table[8] = 0x01;
+        table[11] = 0x80;
+        table[16 + 4] = 2;
+        table[16 + 8] = 1;
+        table[16 + 16] = 0x03;
+        table[16 + 18] = 0x03;
+        table[16 + 19] = 0x0C;
+        table[16 + 20] = 0x0C;
+        table[16 + 28] = sizeof(kTable);
+        memcpy(&table[48], kTable, sizeof(kTable));
+        out.push_back(table);
+        addSeed(&out, "NBTROUTE1 4242 1d0\n");
         break;
     }
     case StarterConfigTarget:
@@ -903,6 +919,27 @@ void runOne(Target target, const std::vector<uint8_t> &input, FILE *scratch,
         s.populated = static_cast<uint32_t>(input.size());
         s.buffer = bytes(input).data();
         (void)nbt_capture_inspect_stream(&s, &ctrl, &pkt);
+        // The hidden audio connection: the table rewritten in place (twice: a
+        // rewritten table holds no such row), and the note's text.
+        std::vector<uint8_t> table(input);
+        const uint16_t conn = input.size() > 53 ? static_cast<uint16_t>(input[50] << 8 | input[51])
+                                                : static_cast<uint16_t>(0x1d0);
+        const nbt_capture_table_result found =
+            nbt_capture_table_hide(table.empty() ? NULL : &table[0], table.size(), conn, 1);
+        if (found == NBT_CAPTURE_TABLE_REWRITTEN &&
+            nbt_capture_table_hide(&table[0], table.size(), conn, 1) != NBT_CAPTURE_TABLE_NONE) {
+            abort();
+        }
+        int32_t pid = 0;
+        uint16_t noted = 0;
+        char note[48];
+        if (!input.empty() && !nbt_capture_route_parse(reinterpret_cast<const char *>(&input[0]),
+                                                       input.size(), &pid, &noted)) {
+            const int length = nbt_capture_route_format(pid, noted, note, sizeof(note));
+            if (length != static_cast<int>(input.size()) || memcmp(note, &input[0], input.size())) {
+                abort();
+            }
+        }
         break;
     }
     case StarterConfigTarget: {
