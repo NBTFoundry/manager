@@ -94,24 +94,12 @@ def verify(package, public, compatibility, build, version, sequence):
     print(result.stdout, end="", flush=True)
 
 
-def step_of(version, sequence):
-    """The step release's version and sequence (docs/manager-release.md): just
-    below the release, so that it takes the car to a launcher that reads it."""
-    step = (f"{version}-step", str(int(sequence) - 1))
-    if not VERSION.fullmatch(step[0]) or int(step[1]) < 1:
-        raise ValueError("no step release for this version or sequence")
-    return step
-
-
 def package():
     version, compatibility, sequence, public, build = configuration()
     # Publish only a complete, independently verified package. A failed build
     # preserves the previous release; private keys are never copied.
     destination = dist_dir()
     build.mkdir(parents=True, exist_ok=True)
-    # MANAGER_STEP=1: also the step release, for managers that read releases
-    # only up to NBTRLS2: the same programs without the named components.
-    step = step_of(version, sequence) if os.environ.get("MANAGER_STEP") == "1" else None
     with tempfile.TemporaryDirectory(prefix="release-", dir=build) as temporary:
         def command(output, version, sequence):
             arguments = [
@@ -144,18 +132,8 @@ def package():
             components += ["--component", argument]
         subprocess.run(command(output, version, sequence) + components, check=True)
         verify(output, public, compatibility, build, version, sequence)
-        if step:
-            stepped = Path(temporary) / "manager-step.nbtr"
-            subprocess.run(command(stepped, *step), check=True)
-            verify(stepped, public, compatibility, build, *step)
-            publish(stepped, destination / "manager-step.nbtr")
-        else:
-            (destination / "manager-step.nbtr").unlink(missing_ok=True)
         publish(output, destination / "manager.nbtr")
     print(f"Signed release: {destination / 'manager.nbtr'}", flush=True)
-    if step:
-        print(f"Step release ({step[0]}, sequence {step[1]}): {destination / 'manager-step.nbtr'}",
-              flush=True)
 
 
 def installer_dir():

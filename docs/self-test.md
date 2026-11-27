@@ -27,8 +27,7 @@ each an ordinary signed package (`apps/selftest/`), signed with the
   `release.nbtr`, verified again against the manager key; signer `manager`
   in their profiles (`nbt/signers.h`). A newer release's components replace
   them at the next self test; an unchanged one is kept.
-- A release without them (a step release, an older manager) reports
-  "not in this release".
+- A release without them reports "not in this release".
 
 ## The run (GUI, `src/gui/selftest_ui.cpp`)
 

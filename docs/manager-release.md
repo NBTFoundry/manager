@@ -41,32 +41,12 @@ All three formats share the same manager signing key and strict verification
 rules. `nbt-manager-launcher --capabilities` prints
 `formats=NBTRLS1,NBTRLS2,NBTRLS3`. The installers do not ask it: their Update
 stages a release with that release's own launcher (docs/install-flow.md), so a
-new format needs no older-format step first and kits carry one release. From
-the phone's manager page (the worker), the stable launcher stages the upload
-at the next opening, so a launcher that does not list the release's format
-refuses it: `update NBT Manager once with the installer first`. That happens
-once per format: `NBTRLS3` was made extensible so that it is the last.
-
-### Step releases
-
-So that such a car still updates from the phone alone, a release also comes
-as a **step release**: the same launcher, GUI, worker, plugin and capture shim
-in `NBTRLS2` (the named components left out), version `<version>-step`, one
-sequence below the release. The old manager takes it from the phone; once it
-is confirmed and `SETUP` has brought the launcher to it, the car reads
-`NBTRLS3` and takes the release itself, from the phone again. Until then the
-step's worker serves no `runner` (no `nbt-runner` in its slot): it refuses an
-application that requires it instead of failing it at its start.
-
-- `tools/build_release.py package` with `MANAGER_STEP=1` writes
-  `manager-step.nbtr` next to `manager.nbtr`; `make kit` with `MANAGER_STEP=1`
-  takes two sequences and ships it as `phone/NBT-Manager-<version>-step.nbtr`.
-- The release workflow publishes `nbt-manager-<version>-step.nbtr` with every
-  release.
-- `GET /v1/manager` tells the phone the installed version and the formats its
-  launcher stages (PROTOCOL.md); the phone app sends the newest release the
-  car reads, so the step first, then the release. A manager without the route
-  predates `NBTRLS3`.
+new format needs no older-format release first and kits carry one release.
+From the phone's manager page (the worker), the stable launcher stages the
+upload at the next opening, so a launcher that does not list the release's
+format refuses it: `update NBT Manager once with the installer first`. Only
+0.1.0 lacks `NBTRLS3`, which was made extensible so that it is the last.
+`GET /v1/manager` tells the phone the formats the car reads (PROTOCOL.md).
 
 Each optional `bridge=<major>.<minor>|<capabilities>` line declares one served
 major, in increasing major order, at most two. Canonical version components

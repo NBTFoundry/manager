@@ -6,7 +6,6 @@
 #include "nbt/bridge.h"
 #include "nbt/core/secure.hpp"
 #include "nbt/manager_refresh.h"
-#include "nbt/process/runner_path.hpp"
 #include "nbt/signers.h"
 #include "nbt/transaction.h"
 #include "nbt/util.h"
@@ -33,7 +32,6 @@ void closeOwned(int &fd) {
 int verifyNew(TaskContext &c) {
     nbt_bridge_provider provider;
     nbt_bridge_current(&provider);
-    process::withoutMissingRunner(&provider);
     closeOwned(c.keyFd);
     if (nbt_signer_find(c.fs, c.fd, c.signer)) {
         snprintf(c.error, sizeof(c.error), "not signed by a key this car trusts");

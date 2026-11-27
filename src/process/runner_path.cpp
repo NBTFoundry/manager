@@ -5,7 +5,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 namespace nbt {
 namespace process {
@@ -35,18 +34,6 @@ const char *runnerPath() {
     }
 #endif
     return runner[0] ? runner : NULL;
-}
-
-void withoutMissingRunner(nbt_bridge_provider *provider) {
-    const char *path = runnerPath();
-    if (!provider || (path && !access(path, X_OK))) {
-        return;
-    }
-    for (unsigned i = 0; i < provider->count; ++i) {
-        char caps[NBT_BRIDGE_CAPS_MAX + 1];
-        nbt_bridge_caps_without(provider->versions[i].caps, "runner", caps);
-        memcpy(provider->versions[i].caps, caps, sizeof(caps));
-    }
 }
 
 } // namespace process
