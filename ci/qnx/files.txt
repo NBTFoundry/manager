@@ -235,6 +235,7 @@ sdk/target/qnx6/usr/include/net/netbyte.h
 sdk/target/qnx6/usr/include/net/pfil.h
 sdk/target/qnx6/usr/include/net/pfvar.h
 sdk/target/qnx6/usr/include/net/radix.h
+sdk/target/qnx6/usr/include/net/route.h
 sdk/target/qnx6/usr/include/netinet/in.h
 sdk/target/qnx6/usr/include/netinet/tcp.h
 sdk/target/qnx6/usr/include/netinet/tcp_fsm.h
@@ -312,6 +313,7 @@ sdk/target/qnx6/usr/include/sys/stat.h
 sdk/target/qnx6/usr/include/sys/states.h
 sdk/target/qnx6/usr/include/sys/statvfs.h
 sdk/target/qnx6/usr/include/sys/storage.h
+sdk/target/qnx6/usr/include/sys/sysctl.h
 sdk/target/qnx6/usr/include/sys/syspage.h
 sdk/target/qnx6/usr/include/sys/target_nto.h
 sdk/target/qnx6/usr/include/sys/time.h

@@ -116,7 +116,7 @@ jobs:
     container:
       # ci/qnx/README.md; the same image as release.yml. No image (qnx: false):
       # the job runs on the runner itself.
-      image: ${{ inputs.qnx && 'ghcr.io/nbtfoundry/qnx65-build@sha256:81fc29356c899e7ad915baed174df4f9ae218f5b5b6deb5fd32cdf2a3738c04b' || '' }}
+      image: ${{ inputs.qnx && 'ghcr.io/nbtfoundry/qnx65-build@sha256:42d6791ab5be8e04243c4c423309e2450559896824ef87d64ccbb8bab88358fc' || '' }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
