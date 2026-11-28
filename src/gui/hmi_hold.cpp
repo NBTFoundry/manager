@@ -21,10 +21,18 @@ static const size_t kLivenessMax = 64;
 // is on top (NBT-AAD fires its event 52 from its menu, never from a list; dev28
 // fired ours from the Media list and iDrive ignored it). From anywhere else the
 // parent comes first, as NBT-AAD's entry opens its own top-level menu.
+//
+// After the car starts, iDrive shows its last menu again and ignores event 52
+// from it until the driver goes there anew (car, 0.5.3, 2026-11-28: 53 s,
+// until MENU and the entry again). So from the second try on, iDrive goes
+// back to the entry's list first, as the driver's MENU did.
 unsigned focusAgain(HmiHold &hold, uint64_t now) {
     ++hold.tries;
     hold.focusMs = now;
-    return hold.parent || hold.blank ? HoldFocus : HoldToParent;
+    if (hold.parent || hold.blank) {
+        return HoldFocus;
+    }
+    return hold.tries >= 2 ? HoldReopen : HoldToParent;
 }
 
 unsigned finish(HmiHold &hold) {

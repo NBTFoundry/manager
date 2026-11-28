@@ -44,7 +44,7 @@ class PluginResourcesTest(unittest.TestCase):
 
     def test_focus_hold_states_and_events_match_the_plugin(self):
         menu = ET.parse(ROOT / "plugin/NbtManager.xml").getroot().find("pluginApp")
-        source = (ROOT / "plugin/plugin.cpp").read_text()
+        source = (ROOT / "plugin/plugin.cpp").read_text() + (ROOT / "plugin/focus_events.hpp").read_text()
 
         def constant(name):
             return re.search(r"const unsigned %s = (\d+);" % name, source).group(1)

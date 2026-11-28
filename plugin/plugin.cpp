@@ -39,9 +39,6 @@ const unsigned kOpenAction = 2;
 const unsigned kBlankState = 14;
 const unsigned kParentState = 15;
 const unsigned kFocusHandler = 1;
-const unsigned kHoldEvent = 50;
-const unsigned kReleaseEvent = 51;
-const unsigned kOpenEvent = 52;
 const size_t kObjectBytes = 0x200;
 uint64_t objectStorage[kObjectBytes / sizeof(uint64_t)];
 const size_t kVtableEntries = 34;
@@ -79,15 +76,7 @@ void signalGui(nbt::gui::HoldSignal signal) {
 
 // The focus events and the next poll, for the manager's hold and an application's.
 void sendFocus(bmw::PluginApp *app, unsigned actions) {
-    if (actions & nbt::gui::HoldToParent) {
-        focusEvent(app, kOpenEvent);
-    }
-    if (actions & nbt::gui::HoldFocus) {
-        focusEvent(app, kHoldEvent);
-    }
-    if (actions & nbt::gui::HoldRelease) {
-        focusEvent(app, kReleaseEvent);
-    }
+    nbt::plugin::holdFocusEvents(app, actions);
     if ((actions & nbt::gui::HoldPoll) && !polling) {
         polling = true;
         app->post(reinterpret_cast<bmw::Runnable *>(&pollRunnable), nbt::gui::kHoldPollMs);
@@ -96,13 +85,9 @@ void sendFocus(bmw::PluginApp *app, unsigned actions) {
 
 void apply(bmw::PluginApp *app, unsigned actions) {
     if (actions & ~static_cast<unsigned>(nbt::gui::HoldPoll)) {
-        nbt_logf("hold phase %d:%s%s%s%s%s%s", static_cast<int>(hold->phase),
-                 (actions & nbt::gui::HoldSpawn) ? " spawn" : "",
-                 (actions & nbt::gui::HoldToParent) ? " open" : "",
-                 (actions & nbt::gui::HoldFocus) ? " hold" : "",
-                 (actions & nbt::gui::HoldRelease) ? " release" : "",
-                 (actions & nbt::gui::HoldAside) ? " aside" : "",
-                 (actions & nbt::gui::HoldShow) ? " show" : "");
+        char text[96];
+        nbt::plugin::holdActionsText(actions, text, sizeof(text));
+        nbt_logf("hold phase %d:%s", static_cast<int>(hold->phase), text);
     }
     if (actions & nbt::gui::HoldAside) {
         signalGui(nbt::gui::SignalAside);
@@ -124,11 +109,13 @@ void answerApp(const char *name, nbt::gui::AppAnswer answer) {
 
 // Focus events for an application's hold; its answers are written by pollAppHold.
 void applyApp(bmw::PluginApp *app, unsigned actions) {
-    if (actions & (nbt::gui::HoldToParent | nbt::gui::HoldFocus | nbt::gui::HoldRelease)) {
-        nbt_logf("application hold %s:%s%s%s", appHold->app(),
-                 (actions & nbt::gui::HoldToParent) ? " open" : "",
-                 (actions & nbt::gui::HoldFocus) ? " hold" : "",
-                 (actions & nbt::gui::HoldRelease) ? " release" : "");
+    if (actions & (nbt::gui::HoldReopen | nbt::gui::HoldToParent | nbt::gui::HoldFocus |
+                   nbt::gui::HoldRelease)) {
+        char text[96];
+        nbt::plugin::holdActionsText(actions & (nbt::gui::HoldReopen | nbt::gui::HoldToParent |
+                                                nbt::gui::HoldFocus | nbt::gui::HoldRelease),
+                                     text, sizeof(text));
+        nbt_logf("application hold %s:%s", appHold->app(), text);
     }
     sendFocus(app, actions);
 }

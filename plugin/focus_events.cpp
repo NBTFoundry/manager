@@ -5,10 +5,12 @@
 #include "framework.hpp"
 #include "hmi_threads.hpp"
 #include "nbt/gui/focus_sender.hpp"
+#include "nbt/gui/hmi_hold.hpp"
 #include "nbt/log.h"
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 namespace nbt {
@@ -85,6 +87,42 @@ void focusEvent(bmw::PluginApp *app, unsigned event) {
 
 bool focusStuck() {
     return threaded && sender.stuck();
+}
+
+void holdFocusEvents(bmw::PluginApp *app, unsigned actions) {
+    if (actions & nbt::gui::HoldReopen) {
+        focusEvent(app, kReleaseEvent);
+        focusEvent(app, kOpenEvent);
+    }
+    if (actions & nbt::gui::HoldToParent) {
+        focusEvent(app, kOpenEvent);
+    }
+    if (actions & nbt::gui::HoldFocus) {
+        focusEvent(app, kHoldEvent);
+    }
+    if (actions & nbt::gui::HoldRelease) {
+        focusEvent(app, kReleaseEvent);
+    }
+}
+
+void holdActionsText(unsigned actions, char *out, size_t size) {
+    static const struct {
+        unsigned bit;
+        const char *text;
+    } kNames[] = {
+        {nbt::gui::HoldSpawn, " spawn"},     {nbt::gui::HoldReopen, " reopen (list, then open)"},
+        {nbt::gui::HoldToParent, " open"},   {nbt::gui::HoldFocus, " hold"},
+        {nbt::gui::HoldRelease, " release"}, {nbt::gui::HoldAside, " aside"},
+        {nbt::gui::HoldShow, " show"}};
+    if (!out || !size) {
+        return;
+    }
+    out[0] = 0;
+    for (size_t i = 0; i < sizeof(kNames) / sizeof(kNames[0]); ++i) {
+        if ((actions & kNames[i].bit) && strlen(out) + strlen(kNames[i].text) < size) {
+            strcat(out, kNames[i].text);
+        }
+    }
 }
 
 } // namespace plugin

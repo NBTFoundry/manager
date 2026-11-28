@@ -218,8 +218,13 @@ on how iDrive holds its native CarPlay state; no NBT-AAD code was copied.
   `SIGCONT` so it handles it). `src/process/app_pause.cpp`,
   `src/gui/app_aside.cpp`, `tests/test_app_pause.cpp`.
 - When the GUI exits while iDrive is on 14 or 15, the plugin fires event 51.
-- iDrive refuses focus events while a popup is open; the plugin retries up to
-  four times, then leaves iDrive alone for that hold.
+- iDrive refuses focus events while a popup is open, and, after the car
+  starts, ignores event 52 from the menu it restored until the driver goes
+  there anew (car, 0.5.3, 2026-11-28: 53 s, until MENU and the entry again).
+  The plugin retries up to four times, a second apart, from the second try
+  with event 51 first (back to the entry's list, as the driver's MENU), then
+  leaves iDrive alone for that hold (`hold phase ...: reopen (list, then
+  open)` in the log).
 
 The signal file holds one line, `<sequence> aside|show`. The GUI takes the
 sequence already there as stale before it first writes its liveness file, so a

@@ -111,15 +111,24 @@ static void test_hard_key_steps_aside(void) {
 static void test_refused_focus_and_failed_start(void) {
     nbt::gui::HmiHold h;
     h.reset();
-    /* iDrive refuses the focus event (a popup is open): retry, then give up.
-     * Never held, the GUI is never told to show. */
+    /* iDrive ignores the parent event (a popup is open, or after a start its
+     * restored menu): retry from the entry's list, then give up. Never held,
+     * the GUI is never told to show. */
     CHECK(h.entry(now, false) == (nbt::gui::HoldSpawn | PARENT | POLL));
     CHECK(poll_after(&h, nbt::gui::kHoldPollMs, 1) == POLL);
-    CHECK(poll_after(&h, 1000, 1) == (PARENT | POLL));
-    CHECK(poll_after(&h, 1000, 1) == (PARENT | POLL));
-    CHECK(poll_after(&h, 1000, 1) == (PARENT | POLL));
+    CHECK(poll_after(&h, 1000, 1) == (nbt::gui::HoldReopen | POLL));
+    CHECK(poll_after(&h, 1000, 1) == (nbt::gui::HoldReopen | POLL));
+    CHECK(poll_after(&h, 1000, 1) == (nbt::gui::HoldReopen | POLL));
     CHECK(h.tries == nbt::gui::kHoldTries);
     CHECK(poll_after(&h, 1000, 1) == POLL && poll_after(&h, 5000, 1) == POLL);
+    /* The reopen worked: the parent opens, the blank state follows, shown. */
+    h.reset();
+    CHECK(h.entry(now, true) == (PARENT | POLL));
+    CHECK(poll_after(&h, 1000, 1) == (nbt::gui::HoldReopen | POLL));
+    h.focus(nbt::gui::HoldParent, 1, now);
+    CHECK(poll_after(&h, nbt::gui::kHoldPollMs, 1) == (FOCUS | POLL));
+    h.focus(nbt::gui::HoldBlank, 1, now);
+    CHECK(poll_after(&h, nbt::gui::kHoldPollMs, 1) == (SHOW | POLL));
     /* The parent opened but the blank state refused: retried, never shown. */
     h.reset();
     CHECK(h.entry(now, true) == (PARENT | POLL));

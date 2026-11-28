@@ -33,7 +33,10 @@ enum HoldAction {
     HoldAside = 8u,
     HoldShow = 16u,
     HoldPoll = 32u,
-    HoldToParent = 64u // put iDrive on the parent state 15 first
+    HoldToParent = 64u, // put iDrive on the parent state 15 first
+    // Back to the list holding the entry (event 51), then the parent (52): a
+    // fresh start of the move, when iDrive ignored the parent event.
+    HoldReopen = 128u
 };
 
 class HmiHold {
