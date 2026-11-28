@@ -49,6 +49,8 @@ const KindPath kManagerPaths[] = {
     {NBT_FS_DEVELOPERS_DIR, "trust/developers"},
     {NBT_FS_DEVELOPERS_LOCK, "state/manager/developers.lock"},
     {NBT_FS_DIAG_LOCK, "state/manager/diag.lock"},
+    {NBT_FS_DIAG_GATEWAY, "state/manager/diag-gateway"},
+    {NBT_FS_DIAG_GATEWAY_NEXT, "state/manager/diag-gateway.next"},
     {NBT_FS_PHONE_OPEN, "state/manager/phone-open"},
     {NBT_FS_PHONE_OPEN_NEXT, "state/manager/phone-open.next"},
     {NBT_FS_MANAGER_CONTROLLER_CONFIG, "manager/controller.conf"},

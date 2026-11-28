@@ -71,12 +71,13 @@ class FakeHsfzGateway:
 
     ANSWERS = {"22f40c": "62f40c1af8", "1902ff": "5902ff", "14ffffff": "54"}
 
-    def __init__(self):
+    def __init__(self, host="127.0.0.1", refuse_testers=()):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server.bind(("127.0.0.1", 0))
+        self.server.bind((host, 0))
         self.server.listen(4)
         self.port = self.server.getsockname()[1]
+        self.refuse_testers, self.refused = set(refuse_testers), []
         self.requests, self.alive_replies, self.running = [], [], True
         self.thread = threading.Thread(target=self.serve, daemon=True)
         self.thread.start()
@@ -113,6 +114,10 @@ class FakeHsfzGateway:
                         self.alive_replies.append(payload)
                         continue
                     src, dst, uds = payload[0], payload[1], payload[2:]
+                    if src in self.refuse_testers:  # HSFZ: incorrect tester address
+                        self.refused.append(src)
+                        connection.sendall(self.frame(0x0040, payload[:2]))
+                        continue
                     self.requests.append((src, dst, uds))
                     connection.sendall(self.frame(0x0002, payload))
                     if not alive_asked:
@@ -124,6 +129,39 @@ class FakeHsfzGateway:
     def close(self):
         self.running = False
         self.server.close()
+
+
+class FakeHsfzIdent:
+    """A gateway answering HSFZ vehicle identification (UDP): it takes the
+    request on any address of its port and answers from 127.0.0.1, naming
+    itself diagnostic address 0x10."""
+
+    ANSWER = b"DIAGADR10BMWMAC000000000000BMWVIN0TESTVIN0000000000"
+
+    def __init__(self):
+        self.listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.listener.bind(("0.0.0.0", 0))
+        self.port = self.listener.getsockname()[1]
+        self.sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sender.bind(("127.0.0.1", 0))
+        self.asked, self.running = [], True
+        self.thread = threading.Thread(target=self.serve, daemon=True)
+        self.thread.start()
+
+    def serve(self):
+        while self.running:
+            try:
+                data, peer = self.listener.recvfrom(512)
+            except OSError:
+                return
+            self.asked.append((data, peer[0]))
+            if data == b"\0\0\0\0\0\x11":
+                self.sender.sendto(struct.pack(">IH", len(self.ANSWER), 0x0011) + self.ANSWER, peer)
+
+    def close(self):
+        self.running = False
+        self.listener.close()
+        self.sender.close()
 
 
 class AppHostTests(unittest.TestCase):
@@ -1218,6 +1256,104 @@ event("exit")
         self.assertIn(f"diag: gateway 127.0.0.9:{gateway.port} did not answer (errno ", text)
         self.assertIn("dwc0 is 127.0.0.5/255.255.0.0 up, neighbours 127.0.0.8 127.0.0.1", text)
         self.assertIn("diag: gateway found at 127.0.0.1", text)
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertEqual(command("QUIT"), "OK")
+
+    def diag_reader_app(self):
+        """An application with diag (DME read) that asks the DME twice."""
+        self.script_app(
+            "import socket, struct\n"
+            "os.write(3, b'R')\n"
+            "link = socket.socket(fileno=10)\n"
+            "def ask(ecu, uds, ident):\n"
+            "    link.send(bytes([1, ecu]) + struct.pack('<HH', ident, 0) + uds)\n"
+            "    reply = link.recv(8192)\n"
+            "    print('reply %d status %d via %d %s' % (ident, reply[4], reply[5], reply[6:].hex()), flush=True)\n"
+            "ask(0x12, bytes.fromhex('22f40c'), 1)\n"
+            "ask(0x12, bytes.fromhex('22f40c'), 2)\n"
+            "while True:\n    time.sleep(0.5)\n    os.write(3, b'R')\n")
+        record = (self.root / "state/test/installed").read_text().replace("NBTSTATE1\n", "NBTSTATE6\n")
+        record += "bridge=1.8\nbridge-uses=\nbridge-optional=diag\nbridge-diag=12:read\n"
+        (self.root / "state/test/installed").write_text(record)
+        debug = self.root / "manager/debug.log"
+        debug.write_text("")
+        debug.chmod(0o600)
+        return debug
+
+    def test_diag_finds_the_gateway_on_the_in_car_ethernet(self):
+        """Nothing in the OBD port: the gateway is on the in-car Ethernet, at
+        host 0x10 of the link's network, and refuses the usual tester address.
+        The host finds it there with another tester address, remembers it, and
+        the next start goes to it at once."""
+        gateway = FakeHsfzGateway(host="127.0.0.16", refuse_testers={0xF4})
+        self.addCleanup(gateway.close)
+        # The manager's durable writes sync its directories off QNX: give it
+        # the one a root made by setup has.
+        (self.root / "apps/manager/bin").mkdir(parents=True)
+        for part in ("apps/manager", "apps/manager/bin"):
+            (self.root / part).chmod(0o700)
+        self.enterContext(mock.patch.dict(os.environ, {
+            "NBT_DIAG_GATEWAY": f"127.0.0.9:{gateway.port}",  # nobody there
+            "NBT_TEST_DIAG_LINK": "",
+            "NBT_TEST_DIAG_LINKS": "vlan73=127.0.0.6,127.0.0.7"}))  # itself, nobody
+        debug = self.diag_reader_app()
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "reply 2 status" in self.app_log())
+        log = self.app_log()
+        self.assertIn("reply 1 status 0 via 1 62f40c1af8", log)
+        self.assertIn("reply 2 status 0 via 1 62f40c1af8", log)
+        self.assertEqual(gateway.refused, [0xF4])
+        self.assertEqual([(src, dst, uds.hex()) for src, dst, uds in gateway.requests],
+                         [(0xF5, 0x10, "3e00"), (0xF5, 0x12, "22f40c"), (0xF5, 0x12, "22f40c")])
+        text = debug.read_text()
+        self.assertIn("diag: vlan73 is 127.0.0.6/255.255.0.0 up, neighbours 127.0.0.7", text)
+        self.assertIn("from tester 0xF4: refused (HSFZ 0x0040)", text)
+        self.assertIn("diag: gateway found at 127.0.0.16 (in-car address on vlan73, tester 0xF5)", text)
+        remembered = self.root / "state/manager/diag-gateway"
+        self.assertEqual(remembered.read_text(), f"127.0.0.16:{gateway.port} F5\n")
+        self.assertNotIn("cannot remember", text)
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertEqual(command("QUIT"), "OK")
+        # Next start: the gateway found before, without a search.
+        self.enterContext(mock.patch.dict(os.environ, {"NBT_DIAG_GATEWAY": ""}))
+        before = len(gateway.requests)
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: self.app_log().count("started v1") == 2 and
+                      "reply 2 status" in self.app_log().split("started v1")[-1])
+        self.assertIn("reply 2 status 0 via 1 62f40c1af8", self.app_log().split("started v1")[-1])
+        text = debug.read_text()
+        self.assertIn(f"diagnostics through gateway 127.0.0.16:{gateway.port}, tester 0xF5 (found earlier)", text)
+        self.assertEqual(text.count("did not answer"), 1)
+        self.assertEqual(gateway.requests[before:before + 2], [(0xF5, 0x12, bytes.fromhex("22f40c"))] * 2)
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_diag_finds_the_gateway_that_answers_vehicle_identification(self):
+        """A car whose gateway is neither at the usual address nor at host
+        0x10: HSFZ vehicle identification on each link finds it."""
+        gateway = FakeHsfzGateway()
+        self.addCleanup(gateway.close)
+        ident = FakeHsfzIdent()
+        self.addCleanup(ident.close)
+        self.enterContext(mock.patch.dict(os.environ, {
+            "NBT_DIAG_GATEWAY": f"127.0.0.9:{gateway.port}",  # nobody there
+            "NBT_TEST_DIAG_LINK": "",
+            "NBT_TEST_DIAG_LINKS": "vlan80=127.0.0.6",
+            "NBT_TEST_DIAG_IDENT_PORT": str(ident.port)}))
+        debug = self.diag_reader_app()
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "reply 2 status" in self.app_log())
+        self.assertIn("reply 1 status 0 via 1 62f40c1af8", self.app_log())
+        self.assertEqual(ident.asked, [(b"\0\0\0\0\0\x11", "127.0.0.6")])
+        text = debug.read_text()
+        self.assertIn("diag: 127.0.0.1 answers vehicle identification on vlan80 (diagnostic address 0x10)", text)
+        self.assertIn("diag: gateway found at 127.0.0.1 (identified on vlan80, tester 0xF4)", text)
         self.assertEqual(command("STOP test"), "OK")
         self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
         self.assertEqual(command("QUIT"), "OK")

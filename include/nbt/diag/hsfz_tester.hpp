@@ -15,6 +15,9 @@ namespace diag {
 
 static const uint16_t kHsfzPort = 6801;
 static const uint8_t kTesterAddress = 0xF4;
+/* The tester addresses a gateway may take when it refuses ours (0x0040),
+ * the usual one first. */
+static const uint8_t kTesterAddresses[] = {0xF4, 0xF5, 0xF1};
 static const size_t kHsfzFrameMax = 4096 + 6;
 
 /* "a.b.c.d" or "a.b.c.d:port" (port 6801 by default), the address in network order. */
@@ -39,6 +42,17 @@ public:
     bool connected() const {
         return fd_ >= 0;
     }
+    /* The tester address requests carry (kTesterAddress unless set). */
+    void setTester(uint8_t tester) {
+        tester_ = tester;
+    }
+    uint8_t tester() const {
+        return tester_;
+    }
+    /* The HSFZ control word of the last refusal (0x0040 bad tester ... 0x00FF). */
+    uint16_t refusal() const {
+        return refusal_;
+    }
     enum Result { Ok, Timeout, Broken, Refused };
     /* Sends `uds` to control unit `ecu` and waits up to `timeoutMs` for its
      * answer (positive, or 7F negative for this service); "response pending"
@@ -56,6 +70,8 @@ private:
 
     int fd_;
     int connectError_ = 0;
+    uint8_t tester_ = kTesterAddress;
+    uint16_t refusal_ = 0;
     uint8_t buffer_[2 * kHsfzFrameMax];
     size_t length_, consumed_;
 };

@@ -24,7 +24,7 @@ namespace nbt {
 namespace process {
 namespace {
 
-// The gateway's usual address on the head unit's link to it (docs/engine-diagnostics.md).
+// The gateway's usual address on the head unit's OBD link (docs/engine-diagnostics.md).
 const char kGateway[] = "169.254.21.3:6801";
 // The loopback lock other testers on the head unit hold while they use the gateway.
 const uint16_t kLoopbackLock = 42861;
@@ -61,18 +61,24 @@ bool DiagService::start(nbt_fs *fs, const char *app, const nbt_diag_policy &poli
     const char *gateway = NULL, *file = NULL;
 #endif
     char shared[48];
+    uint8_t tester = diag::kTesterAddress;
+    fs_ = fs;
     if ((!gateway || !*gateway) &&
         diag::gatewayFromFile(file && *file ? file : diag::kGatewayFile, shared, sizeof(shared))) {
         gateway = shared;
         nbt_logf("host %s: diagnostics through gateway %s (gateway-ip.txt)", app, shared);
+    } else if ((!gateway || !*gateway) && fs && remembered(shared, sizeof(shared), &tester)) {
+        gateway = shared;
+        nbt_logf("host %s: diagnostics through gateway %s, tester 0x%02X (found earlier)", app,
+                 shared, tester);
     }
+    hsfz_.setTester(tester);
     if (!fs || !app || strlen(app) >= sizeof(app_) || fd < 0 || !carDataDir ||
         strlen(carDataDir) >= sizeof(dir_) ||
         !diag::parseGateway(gateway && *gateway ? gateway : kGateway, &ip_, &port_) ||
         pipe(wake_)) {
         return false;
     }
-    fs_ = fs;
     memcpy(app_, app, strlen(app) + 1);
     memcpy(dir_, carDataDir, strlen(carDataDir) + 1);
     policy_ = policy;
@@ -132,7 +138,8 @@ void DiagService::loop() {
         } else if (n > 0 && (ready[0].revents & (POLLERR | POLLHUP | POLLNVAL))) {
             break;
         }
-        if (lockFd_ >= 0 && now - lastMs_ > kIdleMs) {
+        // lastMs_ may be later than `now`: it is set when the answer went out.
+        if (lockFd_ >= 0 && now > lastMs_ && now - lastMs_ > kIdleMs) {
             unlease();
         }
     }

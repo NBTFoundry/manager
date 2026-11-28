@@ -125,7 +125,8 @@ int nbt_fs_replace_text(nbt_fs *fs, nbt_fs_path_kind next, nbt_fs_path_kind kind
           (next == NBT_FS_AUTOSTART_NEXT && kind == NBT_FS_AUTOSTART) ||
           (next == NBT_FS_AUTOSTART_GUARD_NEXT && kind == NBT_FS_AUTOSTART_GUARD) ||
           (next == NBT_FS_FAULT_GUARD_NEXT && kind == NBT_FS_FAULT_GUARD) ||
-          (next == NBT_FS_MANAGER_SELFTEST_NEXT && kind == NBT_FS_MANAGER_SELFTEST))) {
+          (next == NBT_FS_MANAGER_SELFTEST_NEXT && kind == NBT_FS_MANAGER_SELFTEST) ||
+          (next == NBT_FS_DIAG_GATEWAY_NEXT && kind == NBT_FS_DIAG_GATEWAY))) {
         errno = EINVAL;
         return -1;
     }

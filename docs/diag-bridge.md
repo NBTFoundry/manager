@@ -47,15 +47,16 @@ the SDK): one request, one reply, in order.
 
 ## Host
 
-- HSFZ to `169.254.21.3:6801`, or the address in
-  `/var/opt/hmi/data/ID5/gateway-ip.txt`, which other diagnostic tools on the
-  head unit read too (`NBT_DIAG_GATEWAY` in tests), tester `F4`; the
-  gateway's alive checks are answered and "response pending" waits up to five
-  times.
-- When it does not answer, at most once a minute: the host logs the link's
-  facts and tries the head unit's neighbours on `dwc0`
-  ([engine-diagnostics.md](engine-diagnostics.md)); a gateway found is used
-  until the application ends.
+- HSFZ to the address in `/var/opt/hmi/data/ID5/gateway-ip.txt`, which
+  other diagnostic tools on the head unit read too (`NBT_DIAG_GATEWAY` in
+  tests), else the gateway a search found earlier
+  (`state/manager/diag-gateway`, "address:port tester"), else
+  `169.254.21.3:6801`; tester `F4` unless the search found the gateway with
+  another. The gateway's alive checks are answered and "response pending"
+  waits up to five times.
+- When it does not answer, at most once a minute, the host searches every
+  wired link for the gateway and remembers what it finds
+  ([engine-diagnostics.md](engine-diagnostics.md), "Finding the gateway").
 - A lease: `state/manager/diag.lock` and the loopback lock `127.0.0.1:42861`
   other testers on the head unit hold, held while requests come, released
   150 ms after the last one, or after 1 s when another tester waits.

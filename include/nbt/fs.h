@@ -180,7 +180,12 @@ typedef enum {
     NBT_FS_MANAGER_SELFTEST,
     NBT_FS_MANAGER_SELFTEST_NEXT,
     NBT_FS_MANAGER_BUNDLED,
-    NBT_FS_DATA_SELFTEST
+    NBT_FS_DATA_SELFTEST,
+    /* state/manager/diag-gateway: the car's gateway the diagnostics search
+     * found (docs/engine-diagnostics.md), "address:port tester", replaced
+     * through its .next; tried before the usual address next time. */
+    NBT_FS_DIAG_GATEWAY,
+    NBT_FS_DIAG_GATEWAY_NEXT
 } nbt_fs_path_kind;
 
 /* NBT_FS_APPEND opens an existing debug log (NBT_FS_MANAGER_LOG) for
@@ -207,8 +212,9 @@ int nbt_fs_app_data(nbt_fs *fs, const char *app, char out[NBT_PATH_MAX]);
  * Readers must tolerate a partial/interrupted snapshot and retain defaults or
  * their last valid values. The state/<app>/settings file is authoritative. */
 int nbt_fs_settings_write(nbt_fs *fs, const char *app, int fd, const char *text, size_t length);
-/* Bounded durable text record replacement; only the explicitly paired settings
- * and autostart kinds are accepted. Caller serializes with the app tx lock. */
+/* Bounded durable text record replacement; only the explicitly paired settings,
+ * autostart, self test and diagnostics gateway kinds are accepted. Caller
+ * serializes with the app tx lock (the gateway: with the diagnostics lock). */
 int nbt_fs_replace_text(nbt_fs *fs, nbt_fs_path_kind next, nbt_fs_path_kind target, const char *app,
                         const char *text, size_t size);
 int nbt_fs_barrier(nbt_fs *fs, const char *app, const char *tx);

@@ -208,12 +208,13 @@ HsfzTester::Result HsfzTester::request(uint8_t ecu, const uint8_t *uds, size_t s
                                        uint8_t *answer, size_t capacity, size_t *answerSize,
                                        int timeoutMs) {
     *answerSize = 0;
+    refusal_ = 0;
     uint8_t frame[kHsfzFrameMax];
     if (fd_ < 0 || !uds || !size || size + 2 > kHsfzFrameMax - kHeader) {
         return Broken;
     }
     putHeader(frame, static_cast<uint32_t>(size + 2), kDiag);
-    frame[6] = kTesterAddress;
+    frame[6] = tester_;
     frame[7] = ecu;
     memcpy(frame + 8, uds, size);
     if (!sendAll(frame, kHeader + 2 + size)) {
@@ -230,16 +231,15 @@ HsfzTester::Result HsfzTester::request(uint8_t ecu, const uint8_t *uds, size_t s
                 uint8_t reply[kHeader + 2];
                 putHeader(reply, 2, kAliveReply);
                 reply[6] = 0x00;
-                reply[7] = kTesterAddress;
+                reply[7] = tester_;
                 if (!sendAll(reply, sizeof(reply))) {
                     return Broken;
                 }
-            } else if (control >= 0x0040 && control <= 0x0045) {
-                return Refused; // bad tester, control, format, target, size, not ready
-            } else if (control == 0x00FF) {
+            } else if ((control >= 0x0040 && control <= 0x0045) || control == 0x00FF) {
+                refusal_ = control; // bad tester, control, format, target, size, not ready
                 return Refused;
             } else if (control == kDiag && length >= 3 && payload[0] == ecu &&
-                       payload[1] == kTesterAddress) {
+                       payload[1] == tester_) {
                 const uint8_t *reply = payload + 2;
                 const size_t n = length - 2;
                 if (n >= 3 && reply[0] == 0x7F && reply[1] == uds[0] && reply[2] == 0x78 &&

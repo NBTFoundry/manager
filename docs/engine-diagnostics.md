@@ -31,14 +31,6 @@ engine computer (DME) does not answer.
   have no route to the gateway at all. On our car (G31, 0.5.3, 2026-11-27)
   nothing answers there: `diag: no gateway answers on its diagnostic port`,
   and Gauges shows "NBT Manager reaches no gateway".
-- When that address does not answer, the host looks for the gateway
-  (`src/process/diag_gateway.cpp`): it logs what the head unit knows of
-  `dwc0` (its address, up or down, the routers of its routes and its ARP
-  neighbours: the DHCP server that gave the address is one), then tries each
-  of them on port 6801. One that answers a tester present to the gateway's
-  own address 0x10 is the gateway from then on; failing that, the one that
-  takes a connection. Not car-tested: the log of the first run says what
-  that link holds.
 - One tester at a time: that project serialises its workers through a loopback
   lock (UDP `127.0.0.1:42861`).
 - **The gateway's Ethernet is off while the OBD port is empty.** `dwc0` is the
@@ -55,6 +47,54 @@ engine computer (DME) does not answer.
   (169.254.199.119, gateway 169.254.21.3). Something left in the OBD port is
   not an option for owners (user, 2026-11-28): the MOST tunnel below is the
   way to the DME without it.
+
+## The in-car Ethernet (G-series)
+
+- On the G30 family the OBD port reaches the gateway (in the body domain
+  controller, BDC) through its own 5-line Ethernet with the activation line;
+  the head unit, cameras, telematics unit (TCB), RSE, SAS and ACC are on
+  always-on 2-wire OABR Ethernet to the BDC (BMW G30 training manual,
+  "Ethernet").
+- The head unit's side (firmware NBTevo_Y21432J): SOME/IP on `vlan73`
+  (head unit `160.48.199.119`, service discovery `239.192.255.251:30490`,
+  `autoarpd` on `vlan73`); services from `BMW.ZGW`, `BMW.Kombi`, `BMW.CID`,
+  `BMW.ATM`, `BMW.KAFAS` in `/etc/someip/services.conf`; `vlan77` the TCB
+  (`160.48.199.225`, TCB `.226`/`.227`); `vlan86` the cameras. The packet
+  filter passes all IPv4 on these VLANs (`pf_OBD_dwc0.conf`, `pf.conf`).
+- In-car hosts follow the diagnostic address (`/opt/conn/etc/hosts`: head
+  unit `.98`/`.99` = 0x62/0x63, RSE `.38`), so the gateway (0x10) would be
+  `160.48.199.16`; iDrive's touch code sends to that address, and its
+  diagnosis proxy has a gateway instance. Whether the gateway takes HSFZ on
+  this side is not known: the search below tries it.
+- iDrive 7 (MGU) reads any control unit with nothing in the OBD port through
+  its own SOME/IP tester service (`InternalTasu`, tester 0xF2;
+  cauliflowermossgrape/idrive7-apps). The NBT Evo firmware has none: its
+  `NbtEvoOmapDiagHUHighApp` diagnostics router is a flash proxy between
+  Ethernet and MOST.
+
+## Finding the gateway
+
+When the address in use does not answer, at most once a minute, the host
+(`src/process/diag_gateway.cpp`), for any car:
+
+1. Logs what the head unit knows of each wired link (`dwc0` first, then the
+   others; links to phones, the other processor and loopback left out): its
+   address, up or down, the routers of its routes and its ARP neighbours.
+2. Sends HSFZ vehicle identification (UDP 6811, an empty frame with control
+   0x0011) to each link's broadcast address and logs who answers and the
+   diagnostic address it names (`DIAGADR10` = the gateway). The packet filter
+   blocks it on `dwc0` (logged as not sent).
+3. Tries on TCP 6801, in order: those that answered (the gateway's own answer
+   first), host 0x10 of each link's network (not link-local), the usual
+   `169.254.21.3`, then each link's routers and neighbours.
+4. The first that answers a tester present to the gateway's own address 0x10
+   is the gateway; when the gateway refuses the tester address (HSFZ 0x0040),
+   `F5` then `F1` are tried. It is remembered in
+   `state/manager/diag-gateway` and tried first at the next start. Failing
+   all, a neighbour on `dwc0` that takes the connection is used.
+
+Each step is logged (`diag:` lines in the Manager log), so a car owner's log
+says what that car's links hold even when nothing is found.
 
 ## UDS through the head unit's MOST tunnel
 
@@ -74,6 +114,9 @@ engine computer (DME) does not answer.
 
 ## Open questions for the car
 
+- Does the gateway take HSFZ on the in-car Ethernet (`160.48.199.16` or
+  whoever answers vehicle identification on a VLAN)? The first Manager log
+  with the search above says (manager after 0.5.5).
 - With an ENET cable alone in the OBD port (no laptop), does the DME answer
   through `169.254.21.3:6801` or a neighbour the gateway search finds? That
   confirms the activation line as the cause on our car.

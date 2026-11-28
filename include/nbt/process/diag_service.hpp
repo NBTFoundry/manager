@@ -42,10 +42,14 @@ private:
     bool lease(uint64_t now);
     void unlease();
     bool waiterSeen();
-    /* The gateway did not answer: logs what the head unit knows of its link
-     * to it and tries who else is there (diag_gateway.cpp). True when one
-     * answered: connected, and used from then on. */
+    /* The gateway did not answer: logs what the head unit knows of its
+     * wired links and looks for the gateway on them (diag_gateway.cpp). True
+     * when one answered: connected, used and remembered from then on. */
     bool findGateway();
+    int tryGateway(uint32_t address, uint16_t port, const char *why, bool verbose);
+    /* The gateway a search found earlier (state/manager/diag-gateway). */
+    void remember();
+    bool remembered(char *gateway, size_t size, uint8_t *tester) const;
 
     nbt_fs *fs_;
     char app_[49];

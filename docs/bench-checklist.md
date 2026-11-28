@@ -303,7 +303,8 @@ self test.
 | Action | Expected |
 | --- | --- |
 | Gauges, CONNECTION | DME values, or after a few seconds `diag: gateway found at <address>` in the log and then values |
-| No gateway | The log's `diag: gateway 169.254.21.3:6801 did not answer (errno <n>); dwc0 is <address>/<mask> up, neighbours ...` and a line per neighbour: share the Manager log; the address found can go in `/var/opt/hmi/data/ID5/gateway-ip.txt` |
+| No gateway | The log's `diag: gateway 169.254.21.3:6801 did not answer (errno <n>); dwc0 is ...`, a `diag: <link> is ...` line per other link (the VLANs on a G-series car), the vehicle identification answers, each address tried, then `diag: no gateway among <n> addresses on <m> links`: share the Manager log |
+| Found once | `diag: gateway found at <address> (<why> on <link>, tester 0x<tt>)`; the next start of Gauges logs `diagnostics through gateway <address>:6801, tester 0x<tt> (found earlier)` and has values at once |
 
 ## 11e. Touch screen
 

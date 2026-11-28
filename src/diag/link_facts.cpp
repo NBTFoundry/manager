@@ -85,7 +85,99 @@ void scan(int operation, int flags, unsigned index, int which, LinkFacts *out) {
 }
 #endif
 
+#ifdef NBT_TESTING
+/* What a test's links look like: NBT_TEST_DIAG_LINK is dwc0's
+ * "address,neighbour,neighbour"; NBT_TEST_DIAG_LINKS the others',
+ * "vlan73=address,neighbour;vlan77=address". */
+bool testLink(const char *interface, char *spec, size_t size) {
+    if (!strcmp(interface, kGatewayLink)) {
+        const char *test = getenv("NBT_TEST_DIAG_LINK");
+        snprintf(spec, size, "%s", test ? test : "");
+        return spec[0] != 0;
+    }
+    const char *links = getenv("NBT_TEST_DIAG_LINKS");
+    const size_t n = strlen(interface);
+    for (const char *p = links; p && *p;) {
+        const char *end = strchr(p, ';');
+        const size_t length = end ? static_cast<size_t>(end - p) : strlen(p);
+        if (length > n && !strncmp(p, interface, n) && p[n] == '=') {
+            snprintf(spec, size, "%.*s", static_cast<int>(length - n - 1), p + n + 1);
+            return spec[0] != 0;
+        }
+        p = end ? end + 1 : NULL;
+    }
+    return false;
+}
+#endif
+
+#if defined(NBT_TESTING) || defined(__QNXNTO__)
+// A link to the car, not to a phone, the other processor or the head unit itself.
+bool wiredCarLink(const char *name) {
+    static const char *const kOthers[] = {"lo", "uap", "wfd", "en", "veom", "ppp", "bt", "wl"};
+    for (size_t i = 0; i < sizeof(kOthers) / sizeof(kOthers[0]); ++i) {
+        if (!strncmp(name, kOthers[i], strlen(kOthers[i]))) {
+            return false;
+        }
+    }
+    return name[0] != 0;
+}
+
+void addLink(LinkName *out, size_t max, size_t *count, const char *name) {
+    if (*count >= max || strlen(name) >= sizeof(out[0].name) || !wiredCarLink(name)) {
+        return;
+    }
+    for (size_t i = 0; i < *count; ++i) {
+        if (!strcmp(out[i].name, name)) {
+            return;
+        }
+    }
+    memcpy(out[*count].name, name, strlen(name) + 1);
+    ++*count;
+}
+#endif
+
 } // namespace
+
+size_t carLinks(LinkName *out, size_t max) {
+    size_t count = 0;
+    if (!out || !max) {
+        return 0;
+    }
+#ifdef NBT_TESTING
+    char spec[160];
+    const char *links = getenv("NBT_TEST_DIAG_LINKS");
+    if (testLink(kGatewayLink, spec, sizeof(spec)) || (links && *links)) {
+        if (testLink(kGatewayLink, spec, sizeof(spec))) {
+            addLink(out, max, &count, kGatewayLink);
+        }
+        for (const char *p = links; p && *p;) {
+            const char *equals = strchr(p, '='), *end = strchr(p, ';');
+            if (equals && (!end || equals < end)) {
+                char name[16];
+                snprintf(name, sizeof(name), "%.*s", static_cast<int>(equals - p), p);
+                addLink(out, max, &count, name);
+            }
+            p = end ? end + 1 : NULL;
+        }
+        return count;
+    }
+#endif
+#ifdef __QNXNTO__
+    struct ifaddrs *list = NULL;
+    if (!getifaddrs(&list)) {
+        for (int pass = 0; pass < 2; ++pass) { // dwc0 first
+            for (struct ifaddrs *i = list; i; i = i->ifa_next) {
+                if (i->ifa_name && i->ifa_addr && i->ifa_addr->sa_family == AF_INET &&
+                    (pass == 0) == !strcmp(i->ifa_name, kGatewayLink)) {
+                    addLink(out, max, &count, i->ifa_name);
+                }
+            }
+        }
+        freeifaddrs(list);
+    }
+#endif
+    return count;
+}
 
 bool linkFacts(const char *interface, LinkFacts *out) {
     if (!interface || !out) {
@@ -93,9 +185,8 @@ bool linkFacts(const char *interface, LinkFacts *out) {
     }
     memset(out, 0, sizeof(*out));
 #ifdef NBT_TESTING
-    // "address,neighbour,neighbour": what a test's link looks like.
-    const char *test = getenv("NBT_TEST_DIAG_LINK");
-    if (test && *test) {
+    char test[160];
+    if (testLink(interface, test, sizeof(test))) {
         char text[160];
         snprintf(text, sizeof(text), "%s", test);
         char *save = NULL;
