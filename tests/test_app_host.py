@@ -71,13 +71,14 @@ class FakeHsfzGateway:
 
     ANSWERS = {"22f40c": "62f40c1af8", "1902ff": "5902ff", "14ffffff": "54"}
 
-    def __init__(self, host="127.0.0.1", refuse_testers=()):
+    def __init__(self, host="127.0.0.1", refuse_testers=(), silent_targets=()):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, 0))
         self.server.listen(4)
         self.port = self.server.getsockname()[1]
         self.refuse_testers, self.refused = set(refuse_testers), []
+        self.silent_targets = set(silent_targets)
         self.requests, self.alive_replies, self.running = [], [], True
         self.thread = threading.Thread(target=self.serve, daemon=True)
         self.thread.start()
@@ -120,6 +121,8 @@ class FakeHsfzGateway:
                         continue
                     self.requests.append((src, dst, uds))
                     connection.sendall(self.frame(0x0002, payload))
+                    if dst in self.silent_targets:  # acknowledged, never answered
+                        continue
                     if not alive_asked:
                         alive_asked = True
                         connection.sendall(self.frame(0x0012, b""))
@@ -129,6 +132,91 @@ class FakeHsfzGateway:
     def close(self):
         self.running = False
         self.server.close()
+
+
+class FakeDoipGateway:
+    """A gateway speaking DoIP (ISO 13400-2) on TCP: routing activation for
+    the tester addresses it accepts, then diagnostic messages answered as
+    FakeHsfzGateway answers them. With `ident`, it also answers DoIP vehicle
+    identification on UDP, same port, as logical address 0x0010."""
+
+    def __init__(self, host="127.0.0.1", accept_testers=(0x00F4,), ident=False):
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server.bind((host, 0))
+        self.server.listen(4)
+        self.port = self.server.getsockname()[1]
+        self.accept_testers = set(accept_testers)
+        self.activations, self.requests, self.asked, self.running = [], [], [], True
+        threading.Thread(target=self.serve, daemon=True).start()
+        self.udp = None
+        if ident:
+            self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.udp.bind(("0.0.0.0", self.port))
+            self.sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sender.bind((host, 0))
+            threading.Thread(target=self.identify, daemon=True).start()
+
+    @staticmethod
+    def frame(kind, payload):
+        return struct.pack(">BBHI", 2, 0xFD, kind, len(payload)) + payload
+
+    def identify(self):
+        while self.running:
+            try:
+                data, peer = self.udp.recvfrom(512)
+            except OSError:
+                return
+            self.asked.append((data, peer[0]))
+            if data[:4] == b"\x02\xfd\x00\x01":
+                announce = b"0TESTVIN000000000" + b"\x00\x10" + bytes(6) + bytes(6) + b"\x00"
+                self.sender.sendto(self.frame(0x0004, announce), peer)
+
+    def serve(self):
+        while self.running:
+            try:
+                connection, _ = self.server.accept()
+            except OSError:
+                return
+            threading.Thread(target=self.talk, args=(connection,), daemon=True).start()
+
+    def talk(self, connection):
+        buffer = b""
+        with connection:
+            while self.running:
+                try:
+                    data = connection.recv(4096)
+                except OSError:
+                    return
+                if not data:
+                    return
+                buffer += data
+                while len(buffer) >= 8:
+                    _, _, kind, length = struct.unpack(">BBHI", buffer[:8])
+                    if len(buffer) < 8 + length:
+                        break
+                    payload, buffer = buffer[8:8 + length], buffer[8 + length:]
+                    if kind == 0x0005:
+                        tester = struct.unpack(">H", payload[:2])[0]
+                        self.activations.append(tester)
+                        code = 0x10 if tester in self.accept_testers else 0x00
+                        connection.sendall(self.frame(0x0006, payload[:2] + b"\x00\x10" + bytes([code]) + bytes(4)))
+                        if code != 0x10:
+                            return
+                    elif kind == 0x8001:
+                        src, dst = struct.unpack(">HH", payload[:4])
+                        uds = payload[4:]
+                        self.requests.append((src, dst, uds))
+                        connection.sendall(self.frame(0x8002, payload[2:4] + payload[:2] + b"\x00"))
+                        answer = bytes.fromhex(FakeHsfzGateway.ANSWERS.get(uds.hex(), "7f%02x11" % uds[0]))
+                        connection.sendall(self.frame(0x8001, payload[2:4] + payload[:2] + answer))
+
+    def close(self):
+        self.running = False
+        self.server.close()
+        if self.udp:
+            self.udp.close()
+            self.sender.close()
 
 
 class FakeHsfzIdent:
@@ -1309,7 +1397,7 @@ event("exit")
                          [(0xF5, 0x10, "3e00"), (0xF5, 0x12, "22f40c"), (0xF5, 0x12, "22f40c")])
         text = debug.read_text()
         self.assertIn("diag: vlan73 is 127.0.0.6/255.255.0.0 up, neighbours 127.0.0.7", text)
-        self.assertIn("from tester 0xF4: refused (HSFZ 0x0040)", text)
+        self.assertIn("tester present to 0x10 from tester 0xF4: refused (refusal 0x0040)", text)
         self.assertIn("diag: gateway found at 127.0.0.16 (in-car address on vlan73, tester 0xF5)", text)
         remembered = self.root / "state/manager/diag-gateway"
         self.assertEqual(remembered.read_text(), f"127.0.0.16:{gateway.port} F5\n")
@@ -1352,8 +1440,86 @@ event("exit")
         self.assertIn("reply 1 status 0 via 1 62f40c1af8", self.app_log())
         self.assertEqual(ident.asked, [(b"\0\0\0\0\0\x11", "127.0.0.6")])
         text = debug.read_text()
-        self.assertIn("diag: 127.0.0.1 answers vehicle identification on vlan80 (diagnostic address 0x10)", text)
+        self.assertIn("diag: 127.0.0.1 answers HSFZ vehicle identification on vlan80 (diagnostic address 0x10)", text)
         self.assertIn("diag: gateway found at 127.0.0.1 (identified on vlan80, tester 0xF4)", text)
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_diag_finds_a_doip_gateway_on_the_in_car_ethernet(self):
+        """The gateway at host 0x10 of the in-car network speaks DoIP, not
+        HSFZ, and activates routing only for another tester address: the host
+        finds it, reads the DME through it and remembers it as DoIP."""
+        gateway = FakeDoipGateway(host="127.0.0.16", accept_testers={0x00F2})
+        self.addCleanup(gateway.close)
+        (self.root / "apps/manager/bin").mkdir(parents=True)
+        for part in ("apps/manager", "apps/manager/bin"):
+            (self.root / part).chmod(0o700)
+        self.enterContext(mock.patch.dict(os.environ, {
+            "NBT_DIAG_GATEWAY": "127.0.0.9:1",  # nobody there
+            "NBT_TEST_DIAG_LINK": "",
+            "NBT_TEST_DIAG_LINKS": "vlan73=127.0.0.6",
+            "NBT_TEST_DIAG_DOIP_PORT": str(gateway.port)}))
+        debug = self.diag_reader_app()
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "reply 2 status" in self.app_log())
+        self.assertIn("reply 1 status 0 via 1 62f40c1af8", self.app_log())
+        self.assertIn("reply 2 status 0 via 1 62f40c1af8", self.app_log())
+        self.assertEqual(gateway.activations[:2], [0x00F4, 0x00F2])
+        self.assertEqual([(src, dst, uds.hex()) for src, dst, uds in gateway.requests],
+                         [(0x00F2, 0x10, "3e00"), (0x00F2, 0x12, "22f40c"), (0x00F2, 0x12, "22f40c")])
+        text = debug.read_text()
+        self.assertIn("refuses DoIP tester 0x00F4 (routing activation 0x00)", text)
+        self.assertIn("diag: gateway found at 127.0.0.16 (in-car address on vlan73, DoIP tester 0x00F2)", text)
+        self.assertEqual((self.root / "state/manager/diag-gateway").read_text(),
+                         f"127.0.0.16:{gateway.port} 00F2 doip\n")
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_diag_finds_the_gateway_that_answers_doip_identification(self):
+        """DoIP vehicle identification on the in-car links names the gateway."""
+        gateway = FakeDoipGateway(ident=True)
+        self.addCleanup(gateway.close)
+        self.enterContext(mock.patch.dict(os.environ, {
+            "NBT_DIAG_GATEWAY": "127.0.0.9:1",  # nobody there
+            "NBT_TEST_DIAG_LINK": "",
+            "NBT_TEST_DIAG_LINKS": "vlan80=127.0.0.6",
+            "NBT_TEST_DIAG_DOIP_PORT": str(gateway.port)}))
+        debug = self.diag_reader_app()
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "reply 2 status" in self.app_log())
+        self.assertIn("reply 1 status 0 via 1 62f40c1af8", self.app_log())
+        self.assertEqual(gateway.asked[0], (b"\x02\xfd\x00\x01\x00\x00\x00\x00", "127.0.0.6"))
+        text = debug.read_text()
+        self.assertIn("diag: 127.0.0.1 answers DoIP vehicle identification on vlan80 (diagnostic address 0x10)", text)
+        self.assertIn("diag: gateway found at 127.0.0.1 (identified by DoIP on vlan80, DoIP tester 0x00F4)", text)
+        self.assertEqual(command("STOP test"), "OK")
+        self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
+        self.assertEqual(command("QUIT"), "OK")
+
+    def test_diag_takes_a_host_that_forwards_to_the_engine_computer(self):
+        """A host on the in-car network takes HSFZ but does not answer for the
+        gateway (0x10): it answers for the engine computer, so it is used."""
+        gateway = FakeHsfzGateway(silent_targets={0x10})
+        self.addCleanup(gateway.close)
+        self.enterContext(mock.patch.dict(os.environ, {
+            "NBT_DIAG_GATEWAY": f"127.0.0.9:{gateway.port}",  # nobody there
+            "NBT_TEST_DIAG_LINK": "",
+            "NBT_TEST_DIAG_LINKS": "vlan73=127.0.0.6,127.0.0.1"}))
+        debug = self.diag_reader_app()
+        _, command = self.worker()
+        self.assertEqual(command("START test"), "OK")
+        self.wait_for(lambda: "reply 2 status" in self.app_log())
+        self.assertIn("reply 1 status 0 via 1 62f40c1af8", self.app_log())
+        self.assertEqual([(dst, uds.hex()) for _, dst, uds in gateway.requests][:3],
+                         [(0x10, "3e00"), (0x12, "3e00"), (0x12, "22f40c")])
+        text = debug.read_text()
+        self.assertIn("tester present to 0x10 from tester 0xF4: no answer", text)
+        self.assertIn("tester present to 0x12 from tester 0xF4: answered", text)
+        self.assertIn("diag: gateway found at 127.0.0.1 (neighbour on vlan73, tester 0xF4)", text)
         self.assertEqual(command("STOP test"), "OK")
         self.wait_for(lambda: command("STATUS").split("\t")[7] == "Application stopped")
         self.assertEqual(command("QUIT"), "OK")

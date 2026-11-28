@@ -64,8 +64,16 @@ engine computer (DME) does not answer.
 - In-car hosts follow the diagnostic address (`/opt/conn/etc/hosts`: head
   unit `.98`/`.99` = 0x62/0x63, RSE `.38`), so the gateway (0x10) would be
   `160.48.199.16`; iDrive's touch code sends to that address, and its
-  diagnosis proxy has a gateway instance. Whether the gateway takes HSFZ on
-  this side is not known: the search below tries it.
+  diagnosis proxy has a gateway instance.
+- Our G31 (manager 0.5.6, 2026-11-28, nothing in the OBD port): `vlan73` is
+  `160.48.199.119/25` with neighbours `.6 .16 .33 .34 .93 .96 .97 .99`
+  (`.93` = 0x5D KAFAS, `.96` = 0x60 KOMBI by the same convention); `vlan77`
+  `.225/28` (TCB `.226`); `vlan80` `.185/29` (`.186`). `160.48.199.16`
+  answers but refuses TCP 6801 (ECONNREFUSED): no HSFZ on the gateway's
+  in-car side. `.99` takes HSFZ but does not answer a tester present to 0x10
+  (no refusal either). Nobody answers HSFZ vehicle identification on the
+  VLANs; on `dwc0` the packet filter stops it (EHOSTUNREACH) and
+  `169.254.21.3` does not answer ARP.
 - iDrive 7 (MGU) reads any control unit with nothing in the OBD port through
   its own SOME/IP tester service (`InternalTasu`, tester 0xF2;
   cauliflowermossgrape/idrive7-apps). The NBT Evo firmware has none: its
@@ -80,18 +88,24 @@ When the address in use does not answer, at most once a minute, the host
 1. Logs what the head unit knows of each wired link (`dwc0` first, then the
    others; links to phones, the other processor and loopback left out): its
    address, up or down, the routers of its routes and its ARP neighbours.
-2. Sends HSFZ vehicle identification (UDP 6811, an empty frame with control
-   0x0011) to each link's broadcast address and logs who answers and the
-   diagnostic address it names (`DIAGADR10` = the gateway). The packet filter
-   blocks it on `dwc0` (logged as not sent).
-3. Tries on TCP 6801, in order: those that answered (the gateway's own answer
-   first), host 0x10 of each link's network (not link-local), the usual
-   `169.254.21.3`, then each link's routers and neighbours.
+2. Sends vehicle identification to each link's broadcast address, HSFZ (UDP
+   6811, an empty frame with control 0x0011) and DoIP (ISO 13400-2, UDP
+   13400, payload type 0x0001), and logs who answers and the address it names
+   (`DIAGADR10`, DoIP logical address 0x0010 = the gateway). The packet filter
+   blocks HSFZ on `dwc0` (logged as not sent).
+3. Tries, in order: those that answered (the gateway's own answer first),
+   host 0x10 of each link's network (not link-local) on HSFZ (TCP 6801) then
+   DoIP (TCP 13400: routing activation, then diagnostic messages), the usual
+   `169.254.21.3`, then each link's routers and neighbours on HSFZ.
 4. The first that answers a tester present to the gateway's own address 0x10
-   is the gateway; when the gateway refuses the tester address (HSFZ 0x0040),
-   `F5` then `F1` are tried. It is remembered in
-   `state/manager/diag-gateway` and tried first at the next start. Failing
-   all, a neighbour on `dwc0` that takes the connection is used.
+   is the gateway; a host that does not answer there but answers a tester
+   present to the engine computer (0x12, waited 2.5 s) forwards to it and is
+   used too. When the tester address is refused (HSFZ 0x0040, DoIP routing
+   activation 0x00), the others are tried: HSFZ `F5`, `F1`; DoIP `0x00F2`,
+   `0x0E80`, `0x0E00` after `0x00F4`. The gateway found is remembered in
+   `state/manager/diag-gateway` ("address:port tester", "doip" when it is)
+   and tried first at the next start. Failing all, a neighbour on `dwc0` that
+   takes the connection is used.
 
 Each step is logged (`diag:` lines in the Manager log), so a car owner's log
 says what that car's links hold even when nothing is found.

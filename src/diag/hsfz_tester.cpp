@@ -134,6 +134,12 @@ bool HsfzTester::connect(uint32_t ip, uint16_t port, int timeoutMs) {
     (void)setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
     fd_ = fd;
     length_ = consumed_ = 0;
+    activation_ = -1;
+    if (protocol_ == Doip && !activate(timeoutMs)) {
+        close();
+        connectError_ = ECONNREFUSED;
+        return false;
+    }
     return true;
 }
 
@@ -209,6 +215,9 @@ HsfzTester::Result HsfzTester::request(uint8_t ecu, const uint8_t *uds, size_t s
                                        int timeoutMs) {
     *answerSize = 0;
     refusal_ = 0;
+    if (protocol_ == Doip) {
+        return requestDoip(ecu, uds, size, answer, capacity, answerSize, timeoutMs);
+    }
     uint8_t frame[kHsfzFrameMax];
     if (fd_ < 0 || !uds || !size || size + 2 > kHsfzFrameMax - kHeader) {
         return Broken;

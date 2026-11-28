@@ -46,10 +46,14 @@ private:
      * wired links and looks for the gateway on them (diag_gateway.cpp). True
      * when one answered: connected, used and remembered from then on. */
     bool findGateway();
-    int tryGateway(uint32_t address, uint16_t port, const char *why, bool verbose);
-    /* The gateway a search found earlier (state/manager/diag-gateway). */
+    // One address, over HSFZ or DoIP (diag_gateway_try.cpp).
+    int tryGateway(uint32_t address, uint16_t port, bool doip, const char *why, bool verbose);
+    bool proves(uint32_t address, const char *why, bool *badTester);
+    void testerText(char *out, size_t size) const;
+    /* The gateway a search found earlier (state/manager/diag-gateway); reading
+     * it sets the tester's protocol and address. */
     void remember();
-    bool remembered(char *gateway, size_t size, uint8_t *tester) const;
+    bool remembered(char *gateway, size_t size);
 
     nbt_fs *fs_;
     char app_[49];

@@ -61,18 +61,20 @@ bool DiagService::start(nbt_fs *fs, const char *app, const nbt_diag_policy &poli
     const char *gateway = NULL, *file = NULL;
 #endif
     char shared[48];
-    uint8_t tester = diag::kTesterAddress;
     fs_ = fs;
+    hsfz_.setProtocol(diag::HsfzTester::Hsfz);
+    hsfz_.setTester(diag::kTesterAddress);
     if ((!gateway || !*gateway) &&
         diag::gatewayFromFile(file && *file ? file : diag::kGatewayFile, shared, sizeof(shared))) {
         gateway = shared;
         nbt_logf("host %s: diagnostics through gateway %s (gateway-ip.txt)", app, shared);
-    } else if ((!gateway || !*gateway) && fs && remembered(shared, sizeof(shared), &tester)) {
+    } else if ((!gateway || !*gateway) && fs && remembered(shared, sizeof(shared))) {
         gateway = shared;
-        nbt_logf("host %s: diagnostics through gateway %s, tester 0x%02X (found earlier)", app,
-                 shared, tester);
+        char tester[24];
+        testerText(tester, sizeof(tester));
+        nbt_logf("host %s: diagnostics through gateway %s, %s (found earlier)", app, shared,
+                 tester);
     }
-    hsfz_.setTester(tester);
     if (!fs || !app || strlen(app) >= sizeof(app_) || fd < 0 || !carDataDir ||
         strlen(carDataDir) >= sizeof(dir_) ||
         !diag::parseGateway(gateway && *gateway ? gateway : kGateway, &ip_, &port_) ||

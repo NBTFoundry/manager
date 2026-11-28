@@ -14,6 +14,12 @@ namespace nbt {
 namespace diag {
 
 static const uint16_t kHsfzPort = 6801;
+/* DoIP (ISO 13400-2), which some gateways speak instead of HSFZ: TCP 13400,
+ * a routing activation per connection, two-byte logical addresses. */
+static const uint16_t kDoipPort = 13400;
+/* The DoIP tester addresses tried, the first the gateway activates kept:
+ * BMW's one-byte testers, then the standard on-board and external ranges. */
+static const uint16_t kDoipTesters[] = {0x00F4, 0x00F2, 0x0E80, 0x0E00};
 static const uint8_t kTesterAddress = 0xF4;
 /* The tester addresses a gateway may take when it refuses ours (0x0040),
  * the usual one first. */
@@ -29,10 +35,32 @@ bool parseGateway(const char *text, uint32_t *ip, uint16_t *port);
 static const char kGatewayFile[] = "/var/opt/hmi/data/ID5/gateway-ip.txt";
 bool gatewayFromFile(const char *path, char *out, size_t size);
 
+/* A diagnostic tester on the car's gateway: HSFZ, or DoIP once
+ * setProtocol(Doip) (src/diag/doip_tester.cpp). */
 class HsfzTester {
 public:
     HsfzTester();
     ~HsfzTester();
+    enum Protocol { Hsfz, Doip };
+    void setProtocol(Protocol protocol) {
+        protocol_ = protocol;
+    }
+    Protocol protocol() const {
+        return protocol_;
+    }
+    /* DoIP: the tester's logical address (kDoipTesters[0] unless set), and
+     * the last routing activation's response code (0x10: activated; -1: no
+     * answer; 0x100: a generic header refusal). */
+    void setDoipTester(uint16_t tester) {
+        doipTester_ = tester;
+    }
+    uint16_t doipTester() const {
+        return doipTester_;
+    }
+    int activation() const {
+        return activation_;
+    }
+    /* Connects; for DoIP also activates routing (ECONNREFUSED when refused). */
     bool connect(uint32_t ip, uint16_t port, int timeoutMs);
     /* Why the last connect() failed (ETIMEDOUT: no answer in time). */
     int connectError() const {
@@ -49,7 +77,9 @@ public:
     uint8_t tester() const {
         return tester_;
     }
-    /* The HSFZ control word of the last refusal (0x0040 bad tester ... 0x00FF). */
+    /* The HSFZ control word of the last refusal (0x0040 bad tester ... 0x00FF);
+     * DoIP: 0x8300 | a diagnostic message's negative acknowledgement code,
+     * 0x0100 | a generic header refusal. */
     uint16_t refusal() const {
         return refusal_;
     }
@@ -67,11 +97,20 @@ private:
     bool fill(int timeoutMs);
     /* The next complete frame in the buffer: its control word and payload. */
     bool nextFrame(uint16_t *control, const uint8_t **payload, size_t *size);
+    // DoIP (doip_tester.cpp): the same, with the payload type.
+    bool nextDoipFrame(uint16_t *type, const uint8_t **payload, size_t *size);
+    bool sendDoip(uint16_t type, const uint8_t *payload, size_t size);
+    bool activate(int timeoutMs);
+    Result requestDoip(uint8_t ecu, const uint8_t *uds, size_t size, uint8_t *answer,
+                       size_t capacity, size_t *answerSize, int timeoutMs);
 
     int fd_;
     int connectError_ = 0;
     uint8_t tester_ = kTesterAddress;
     uint16_t refusal_ = 0;
+    Protocol protocol_ = Hsfz;
+    uint16_t doipTester_ = kDoipTesters[0];
+    int activation_ = -1;
     uint8_t buffer_[2 * kHsfzFrameMax];
     size_t length_, consumed_;
 };

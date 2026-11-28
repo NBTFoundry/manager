@@ -50,9 +50,9 @@ the SDK): one request, one reply, in order.
 - HSFZ to the address in `/var/opt/hmi/data/ID5/gateway-ip.txt`, which
   other diagnostic tools on the head unit read too (`NBT_DIAG_GATEWAY` in
   tests), else the gateway a search found earlier
-  (`state/manager/diag-gateway`, "address:port tester"), else
+  (`state/manager/diag-gateway`, "address:port tester", HSFZ or DoIP), else
   `169.254.21.3:6801`; tester `F4` unless the search found the gateway with
-  another. The gateway's alive checks are answered and "response pending"
+  another. Replies say `via` 1 (the gateway) for both protocols. The gateway's alive checks are answered and "response pending"
   waits up to five times.
 - When it does not answer, at most once a minute, the host searches every
   wired link for the gateway and remembers what it finds

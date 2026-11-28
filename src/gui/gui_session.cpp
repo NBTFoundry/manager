@@ -49,12 +49,18 @@ int GuiSession::drawUi(const UiView &view) {
         view.screen == Pairing && ui_.pairingLink(core::Span<char>(link, sizeof(link))).ok() &&
         qr.encode(reinterpret_cast<const unsigned char *>(link), strlen(link), -1).ok();
     UiRenderer renderer;
-    const int rc =
-        renderer.render(view, withQr ? &qr : NULL, screen_.frame()).ok() && screen_.post().ok()
-            ? 0
-            : -1;
+    const core::Status drawn = renderer.render(view, withQr ? &qr : NULL, screen_.frame());
+    const core::Status posted = drawn.ok() ? screen_.post() : drawn;
     core::secureClear(link, sizeof(link));
-    return rc;
+    if (!posted.ok()) {
+        // Car, 0.5.3: the GUI ended here after a scroll on a package review.
+        nbt_logf("%s failed: %s (errno %d); screen %s, %u items, focus %u",
+                 drawn.ok() ? "showing the frame" : "drawing the screen", posted.message(),
+                 posted.code(), screenName(view.screen), static_cast<unsigned>(view.itemCount),
+                 static_cast<unsigned>(view.focus));
+        return -1;
+    }
+    return 0;
 }
 
 int GuiSession::drawFrame(const UiView &view) {

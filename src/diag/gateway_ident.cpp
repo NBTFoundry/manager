@@ -16,16 +16,33 @@ namespace nbt {
 namespace diag {
 namespace {
 
+uint16_t testPort(const char *name, uint16_t port) {
 #ifdef NBT_TESTING
-uint16_t identPort() {
-    const char *port = getenv("NBT_TEST_DIAG_IDENT_PORT");
-    return port && *port ? static_cast<uint16_t>(atoi(port)) : kIdentPort;
-}
+    const char *value = getenv(name);
+    return value && *value ? static_cast<uint16_t>(atoi(value)) : port;
 #else
-uint16_t identPort() {
-    return kIdentPort;
-}
+    (void)name;
+    return port;
 #endif
+}
+
+uint16_t identPort() {
+    return testPort("NBT_TEST_DIAG_IDENT_PORT", kIdentPort);
+}
+
+bool sendTo(int fd, uint32_t address, uint16_t port, const uint8_t *data, size_t size) {
+    sockaddr_in to;
+    memset(&to, 0, sizeof(to));
+    to.sin_family = AF_INET;
+    to.sin_port = htons(port);
+    to.sin_addr.s_addr = address;
+    return sendto(fd, data, size, 0, reinterpret_cast<const sockaddr *>(&to), sizeof(to)) ==
+           static_cast<ssize_t>(size);
+}
+
+// Who an answer names: HSFZ (control 0x0011) "DIAGADR10", DoIP (payload type
+// 0x0004) the logical address after the VIN; false when it is neither.
+bool answerOf(const uint8_t *answer, size_t size, bool *doip, uint16_t *named);
 
 uint64_t nowMs() {
     struct timespec t;
@@ -49,11 +66,32 @@ uint8_t namedAddress(const uint8_t *data, size_t size) {
     return 0xFF;
 }
 
+bool answerOf(const uint8_t *answer, size_t size, bool *doip, uint16_t *named) {
+    if (size >= 8 + 19 && answer[0] == 0x02 && answer[1] == 0xFD && answer[2] == 0x00 &&
+        answer[3] == 0x04) {
+        *doip = true;
+        *named = static_cast<uint16_t>(answer[8 + 17] << 8 | answer[8 + 18]);
+        return true;
+    }
+    if (size >= 6 && answer[4] == 0 && answer[5] == 0x11) {
+        *doip = false;
+        const uint8_t address = namedAddress(answer + 6, size - 6);
+        *named = address == 0xFF ? 0xFFFF : address;
+        return true;
+    }
+    return false;
+}
+
 } // namespace
+
+uint16_t doipPort() {
+    return testPort("NBT_TEST_DIAG_DOIP_PORT", kDoipPort);
+}
 
 size_t identifyGateways(const LinkFacts *links, size_t count, int *sendError, int timeoutMs,
                         Identified *out, size_t max) {
     static const uint8_t kRequest[] = {0, 0, 0, 0, 0, 0x11};
+    static const uint8_t kDoipRequest[] = {0x02, 0xFD, 0x00, 0x01, 0, 0, 0, 0};
     int fds[kCarLinksMax];
     size_t found = 0;
     for (size_t i = 0; i < count && i < kCarLinksMax; ++i) {
@@ -65,23 +103,26 @@ size_t identifyGateways(const LinkFacts *links, size_t count, int *sendError, in
         }
         const int fd = socket(AF_INET, SOCK_DGRAM, 0);
         const int on = 1;
-        sockaddr_in local, broadcast;
+        sockaddr_in local;
         memset(&local, 0, sizeof(local));
         local.sin_family = AF_INET;
         local.sin_addr.s_addr = links[i].address;
-        broadcast = local;
-        broadcast.sin_port = htons(identPort());
-        broadcast.sin_addr.s_addr = links[i].address | ~links[i].netmask;
+        const uint32_t broadcast = links[i].address | ~links[i].netmask;
         if (fd < 0 || fcntl(fd, F_SETFD, FD_CLOEXEC) ||
             setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on)) ||
-            bind(fd, reinterpret_cast<const sockaddr *>(&local), sizeof(local)) ||
-            sendto(fd, kRequest, sizeof(kRequest), 0,
-                   reinterpret_cast<const sockaddr *>(&broadcast),
-                   sizeof(broadcast)) != static_cast<ssize_t>(sizeof(kRequest))) {
+            bind(fd, reinterpret_cast<const sockaddr *>(&local), sizeof(local))) {
             sendError[i] = errno ? errno : EIO;
             if (fd >= 0) {
                 close(fd);
             }
+            continue;
+        }
+        errno = 0;
+        const bool hsfz = sendTo(fd, broadcast, identPort(), kRequest, sizeof(kRequest));
+        sendError[i] = hsfz ? 0 : (errno ? errno : EIO);
+        const bool doip = sendTo(fd, broadcast, doipPort(), kDoipRequest, sizeof(kDoipRequest));
+        if (!hsfz && !doip) {
+            close(fd);
             continue;
         }
         fds[i] = fd;
@@ -111,20 +152,22 @@ size_t identifyGateways(const LinkFacts *links, size_t count, int *sendError, in
             socklen_t fromSize = sizeof(from);
             const ssize_t size = recvfrom(ready[k].fd, answer, sizeof(answer), 0,
                                           reinterpret_cast<sockaddr *>(&from), &fromSize);
-            // An identification answer: a frame with control 0x0011, from
-            // someone else than this link's own address.
-            if (size < 6 || answer[4] != 0 || answer[5] != 0x11 ||
-                from.sin_addr.s_addr == links[watched[k]].address) {
+            // An identification answer from someone else than this link's address.
+            bool doip = false;
+            uint16_t named = 0xFFFF;
+            if (size <= 0 || from.sin_addr.s_addr == links[watched[k]].address ||
+                !answerOf(answer, static_cast<size_t>(size), &doip, &named)) {
                 continue;
             }
             bool seen = false;
             for (size_t j = 0; j < found; ++j) {
-                seen = seen || out[j].address == from.sin_addr.s_addr;
+                seen = seen || (out[j].address == from.sin_addr.s_addr && out[j].doip == doip);
             }
             if (!seen && found < max) {
                 out[found].address = from.sin_addr.s_addr;
-                out[found].diagAddress = namedAddress(answer + 6, static_cast<size_t>(size) - 6);
+                out[found].diagAddress = named;
                 out[found].link = watched[k];
+                out[found].doip = doip;
                 ++found;
             }
         }
