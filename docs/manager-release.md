@@ -141,9 +141,10 @@ Both workflows end by starting the rebuild of the application catalog
 (<https://nbtfoundry.github.io/catalog.json>, which the phone app and the site read):
 the `update-catalog` action (`.github/actions/update-catalog`) runs the `pages`
 workflow of `NBTFoundry/NBTFoundry.github.io`, so a release is listed a minute or
-two after it is published. Its token, the secret `CATALOG_TOKEN` of each
-repository's `catalog` environment, is a fine-grained one that can only run that
-repository's workflows; a repository without it waits for the catalog's own
+two after it is published. It signs in as a GitHub App of the organization,
+installed on that repository alone with the Actions permission
+(`CATALOG_APP_CLIENT_ID` and `CATALOG_APP_KEY`, secrets of each repository's
+`catalog` environment); a repository without them waits for the catalog's own
 schedule. `.github/workflows/catalog.yml` does the same when a manager release is
 changed by hand (marked stable, deleted).
 

@@ -31,8 +31,9 @@ Only when the user asks.
    The run's `catalog` job starts the catalog's rebuild
    (`.github/actions/update-catalog`), as does marking the release stable
    (`catalog.yml`): `curl -s https://nbtfoundry.github.io/catalog.json` lists
-   it two minutes later. A failed `catalog` job means `CATALOG_TOKEN` (the
-   `catalog` environment) expired: the release itself is published.
+   it two minutes later. A failed `catalog` job means the catalog
+   application's key (`CATALOG_APP_KEY`, the `catalog` environment) is no
+   longer accepted: the release itself is published.
 7. **Applications:** each nf-* `release.yml` pins
    `app-release.yml@<manager commit>`. When `app-release.yml` or the build
    image changed since that commit, move the pin in every application

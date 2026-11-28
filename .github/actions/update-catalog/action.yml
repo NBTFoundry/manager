@@ -8,31 +8,47 @@
 #
 #   - uses: NBTFoundry/manager/.github/actions/update-catalog@<manager commit>
 #     with:
-#       token: ${{ secrets.CATALOG_TOKEN }}
+#       client-id: ${{ secrets.CATALOG_APP_CLIENT_ID }}
+#       private-key: ${{ secrets.CATALOG_APP_KEY }}
 #
-# The token is a fine-grained one with a single permission: Actions, read and
-# write, on NBTFoundry/NBTFoundry.github.io. It is the secret CATALOG_TOKEN of the
-# calling repository's "catalog" environment. Without it the step only says so and
-# the scheduled run lists the release; a token that is refused fails the step.
+# Both come from the calling repository's "catalog" environment and name a GitHub
+# App of the organization, installed on NBTFoundry.github.io alone with one
+# permission: Actions, read and write. The step trades them for a token of that
+# repository that lasts the job. Without them it only says so and the scheduled
+# run lists the release; an application that is refused fails the step.
 name: Update the application catalog
 description: Start the rebuild of https://nbtfoundry.github.io/catalog.json after a release.
 inputs:
-  token:
-    description: A token that may run workflows of NBTFoundry/NBTFoundry.github.io; pass it from a secret
+  client-id:
+    description: The client ID of the GitHub App that may run workflows of NBTFoundry/NBTFoundry.github.io
+    default: ""
+  private-key:
+    description: That application's private key (PEM); pass it from a secret
     default: ""
 runs:
   using: composite
   steps:
+    - name: No catalog application here
+      if: ${{ inputs.client-id == '' || inputs.private-key == '' }}
+      shell: bash
+      run: echo "::warning::CATALOG_APP_CLIENT_ID and CATALOG_APP_KEY are not set in the catalog environment - the catalog lists this release at its next scheduled run"
+    - name: A token for the catalog's repository
+      id: token
+      if: ${{ inputs.client-id != '' && inputs.private-key != '' }}
+      uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+      with:
+        client-id: ${{ inputs.client-id }}
+        private-key: ${{ inputs.private-key }}
+        owner: NBTFoundry
+        repositories: NBTFoundry.github.io
+        permission-actions: write
     - name: Start the catalog's rebuild
+      if: ${{ inputs.client-id != '' && inputs.private-key != '' }}
       shell: bash
       env:
-        GH_TOKEN: ${{ inputs.token }}
+        GH_TOKEN: ${{ steps.token.outputs.token }}
         CATALOG: NBTFoundry/NBTFoundry.github.io
       run: |
-        if [[ -z "$GH_TOKEN" ]]; then
-          echo "::warning::CATALOG_TOKEN is not set in the catalog environment: the catalog lists this release at its next scheduled run"
-          exit 0
-        fi
         for attempt in 1 2 3; do
           if gh workflow run pages.yml --repo "$CATALOG" --ref main; then
             echo "::notice::Catalog rebuild started: https://github.com/$CATALOG/actions/workflows/pages.yml"
@@ -40,5 +56,5 @@ runs:
           fi
           sleep $(( attempt * 10 ))
         done
-        echo "::error::the catalog's rebuild could not be started (CATALOG_TOKEN expired or without Actions write on $CATALOG?); the scheduled run lists this release"
+        echo "::error::the catalog's rebuild could not be started; its scheduled run lists this release"
         exit 1

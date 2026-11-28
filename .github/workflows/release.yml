@@ -284,4 +284,5 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: ./.github/actions/update-catalog
         with:
-          token: ${{ secrets.CATALOG_TOKEN }}
+          client-id: ${{ secrets.CATALOG_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CATALOG_APP_KEY }}

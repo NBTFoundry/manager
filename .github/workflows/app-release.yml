@@ -44,10 +44,11 @@
 #            tools/package.py from this workflow's commit, never build output
 #   verify   nbt-verify built from this workflow's commit; holds nothing
 #   publish  contents:write; runs nothing from the build
-#   catalog  the caller's "catalog" environment (secret CATALOG_TOKEN): starts the
-#            catalog's rebuild, so the phone app and the site list the release at
-#            once (.github/actions/update-catalog); not for a developer key, and
-#            without the secret the catalog's own schedule lists it
+#   catalog  the caller's "catalog" environment (secrets CATALOG_APP_CLIENT_ID and
+#            CATALOG_APP_KEY): starts the catalog's rebuild, so the phone app and
+#            the site list the release at once (.github/actions/update-catalog);
+#            not for a developer key, and without the secrets the catalog's own
+#            schedule lists it
 #
 # NBTFoundry/community-apps builds another repository's application with it:
 # repository and ref (a commit) name the source, version replaces the tag, app is
@@ -419,4 +420,5 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: ./manager/.github/actions/update-catalog
         with:
-          token: ${{ secrets.CATALOG_TOKEN }}
+          client-id: ${{ secrets.CATALOG_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CATALOG_APP_KEY }}
