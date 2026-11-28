@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: MPL-2.0
+# Starts the rebuild of the application catalog the phone app and the site read
+# (https://nbtfoundry.github.io/catalog.json, the "pages" workflow of
+# NBTFoundry/NBTFoundry.github.io), so that a release is listed a minute or two
+# after it is published instead of at the catalog's next scheduled run.
+# release.yml and app-release.yml run it after publishing; catalog.yml after a
+# release is edited by hand.
+#
+#   - uses: NBTFoundry/manager/.github/actions/update-catalog@<manager commit>
+#     with:
+#       token: ${{ secrets.CATALOG_TOKEN }}
+#
+# The token is a fine-grained one with a single permission: Actions, read and
+# write, on NBTFoundry/NBTFoundry.github.io. It is the secret CATALOG_TOKEN of the
+# calling repository's "catalog" environment. Without it the step only says so and
+# the scheduled run lists the release; a token that is refused fails the step.
+name: Update the application catalog
+description: Start the rebuild of https://nbtfoundry.github.io/catalog.json after a release.
+inputs:
+  token:
+    description: A token that may run workflows of NBTFoundry/NBTFoundry.github.io; pass it from a secret
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Start the catalog's rebuild
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        CATALOG: NBTFoundry/NBTFoundry.github.io
+      run: |
+        if [[ -z "$GH_TOKEN" ]]; then
+          echo "::warning::CATALOG_TOKEN is not set in the catalog environment: the catalog lists this release at its next scheduled run"
+          exit 0
+        fi
+        for attempt in 1 2 3; do
+          if gh workflow run pages.yml --repo "$CATALOG" --ref main; then
+            echo "::notice::Catalog rebuild started: https://github.com/$CATALOG/actions/workflows/pages.yml"
+            exit 0
+          fi
+          sleep $(( attempt * 10 ))
+        done
+        echo "::error::the catalog's rebuild could not be started (CATALOG_TOKEN expired or without Actions write on $CATALOG?); the scheduled run lists this release"
+        exit 1

@@ -6,6 +6,8 @@
 #            key; runs only tools/package_release.py from the tag, never build output
 #   verify   runs the build's verifier on the signed release; holds nothing
 #   publish  contents:write; runs nothing from the build
+#   catalog  environment "catalog": starts the catalog's rebuild, so the phone app
+#            and the site list the release at once (.github/actions/update-catalog)
 name: Release
 
 on:
@@ -266,3 +268,20 @@ jobs:
           [[ "$VERSION" == 0.* ]] && prerelease=(--prerelease)
           gh release create "$GITHUB_REF_NAME" --verify-tag --title "NBT Manager $VERSION" \
             --notes-file notes.md "${prerelease[@]}" dist/*
+
+  catalog:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: catalog
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/update-catalog
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/update-catalog
+        with:
+          token: ${{ secrets.CATALOG_TOKEN }}

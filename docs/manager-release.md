@@ -137,6 +137,16 @@ runs on a plain runner with the SDK's own toolchain and never touches the privat
 image; only a build that needs the QNX SDP passes `qnx: true` (none does today).
 One whose build embeds Git LFS files (Doom's shareware data) passes `lfs: true`.
 
+Both workflows end by starting the rebuild of the application catalog
+(<https://nbtfoundry.github.io/catalog.json>, which the phone app and the site read):
+the `update-catalog` action (`.github/actions/update-catalog`) runs the `pages`
+workflow of `NBTFoundry/NBTFoundry.github.io`, so a release is listed a minute or
+two after it is published. Its token, the secret `CATALOG_TOKEN` of each
+repository's `catalog` environment, is a fine-grained one that can only run that
+repository's workflows; a repository without it waits for the catalog's own
+schedule. `.github/workflows/catalog.yml` does the same when a manager release is
+changed by hand (marked stable, deleted).
+
 The desktop installer and target launcher enforce the manager signing key,
 release sequence, installation and rollback policies described below. A valid
 signature alone does not establish hardware compatibility.

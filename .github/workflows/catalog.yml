@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: MPL-2.0
+# A release changed by hand (marked stable, renamed, deleted) changes what the
+# catalog lists: start its rebuild (.github/actions/update-catalog). Publishing a
+# release does it from release.yml itself, since a release made with the
+# workflow's own token starts no workflow.
+name: Catalog
+
+on:
+  release:
+    types: [released, edited, deleted]
+
+permissions: {}
+
+concurrency:
+  group: catalog
+  cancel-in-progress: false
+
+jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: catalog
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/update-catalog
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/update-catalog
+        with:
+          token: ${{ secrets.CATALOG_TOKEN }}

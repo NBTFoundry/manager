@@ -44,6 +44,10 @@
 #            tools/package.py from this workflow's commit, never build output
 #   verify   nbt-verify built from this workflow's commit; holds nothing
 #   publish  contents:write; runs nothing from the build
+#   catalog  the caller's "catalog" environment (secret CATALOG_TOKEN): starts the
+#            catalog's rebuild, so the phone app and the site list the release at
+#            once (.github/actions/update-catalog); not for a developer key, and
+#            without the secret the catalog's own schedule lists it
 #
 # NBTFoundry/community-apps builds another repository's application with it:
 # repository and ref (a commit) name the source, version replaces the tag, app is
@@ -395,3 +399,24 @@ jobs:
           [[ "$VERSION" == 0.* ]] && prerelease=(--prerelease)
           gh release create "$TAG" "$TARGET" --title "$APP $VERSION" \
             --notes-file notes.md "${prerelease[@]}" "$package" dist/SHA256SUMS
+
+  catalog:
+    needs: publish
+    if: ${{ inputs.publish && inputs.public-key == '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: catalog
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: manager
+          persist-credentials: false
+          sparse-checkout: .github/actions/update-catalog
+          sparse-checkout-cone-mode: false
+      - uses: ./manager/.github/actions/update-catalog
+        with:
+          token: ${{ secrets.CATALOG_TOKEN }}
