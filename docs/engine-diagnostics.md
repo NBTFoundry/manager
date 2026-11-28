@@ -41,6 +41,20 @@ engine computer (DME) does not answer.
   that link holds.
 - One tester at a time: that project serialises its workers through a loopback
   lock (UDP `127.0.0.1:42861`).
+- **The gateway's Ethernet is off while the OBD port is empty.** `dwc0` is the
+  head unit's OBD Ethernet (`/etc/pf_OBD_dwc0.conf`: "ext obd interface"); the
+  head unit sits on it as a diagnostic server for a tester in the OBD port,
+  most likely through the gateway's switch, which the Ethernet activation line
+  (OBD pin 8, the resistor in an ENET cable or a tuning Wi-Fi adapter) turns
+  on. With nothing plugged in, nothing answers ARP on `dwc0`: ID6 Apps issue
+  #108 (M140i) measured unresolved ARP with ENET unplugged and readings back
+  "as soon as ENET was connected"; their working reports all say "over wired
+  ENET". Our G31 (2026-11-27/28, nothing in OBD, engine running): no gateway.
+  Not our side: the packet filter passes TCP 6801 both ways on `dwc0`, and our
+  head unit has the address of that project's reference car
+  (169.254.199.119, gateway 169.254.21.3). Something left in the OBD port is
+  not an option for owners (user, 2026-11-28): the MOST tunnel below is the
+  way to the DME without it.
 
 ## UDS through the head unit's MOST tunnel
 
@@ -60,9 +74,7 @@ engine computer (DME) does not answer.
 
 ## Open questions for the car
 
-- Does `dwc0` reach a gateway at all on our car? `169.254.21.3:6801` does
-  not answer. The next Manager log has `diag: gateway ... did not answer
-  (errno N); dwc0 is <address>/<mask> up|down, neighbours ...` and what each
-  neighbour did: with no neighbour and no answer, the MOST tunnel below is
-  the way left.
+- With an ENET cable alone in the OBD port (no laptop), does the DME answer
+  through `169.254.21.3:6801` or a neighbour the gateway search finds? That
+  confirms the activation line as the cause on our car.
 - Does the MOST tunnel answer the manager's own DSI client?
